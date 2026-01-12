@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function AddLeadPage() {
+function AddLeadContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -339,5 +339,13 @@ export default function AddLeadPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AddLeadPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center">Loading...</div>}>
+      <AddLeadContent />
+    </Suspense>
   );
 }
