@@ -16,7 +16,7 @@ interface ParsedLead {
   zip: string;
   serviceRequested: string;
   leadSource: string;
-  referralSource: string;
+  leadSourceDetail: string;
   appointmentDate: string;
   timeWindow: string;
   customerNotes: string;
@@ -32,6 +32,7 @@ export default function QuickImportModal({ onClose, onSuccess }: QuickImportModa
   const [step, setStep] = useState<'paste' | 'review'>('paste');
 
   const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
+  const leadSources = ['Lead Company', 'Google Ads', 'Facebook Ads', 'Organic', 'Referral', 'Repeat Customer', 'Partner'];
   const timeWindows = ['08:00AM - 11:00AM', '11:00AM - 2:00PM', '2:00PM - 5:00PM'];
   const techs = ['Amit', 'Tech 2', 'Subcontractor'];
 
@@ -47,7 +48,7 @@ export default function QuickImportModal({ onClose, onSuccess }: QuickImportModa
     let city = '';
     let zip = '';
     let serviceRequested = '';
-    let referralSource = '';
+    let leadSourceDetail = '';
     let appointmentDate = '';
     let timeWindow = '';
     let customerNotes = '';
@@ -234,7 +235,7 @@ export default function QuickImportModal({ onClose, onSuccess }: QuickImportModa
       }
       // First non-service line is likely the company name
       if (line.length > 3 && !phoneRegex.test(line)) {
-        referralSource = line;
+        leadSourceDetail = line;
         break;
       }
     }
@@ -315,8 +316,8 @@ export default function QuickImportModal({ onClose, onSuccess }: QuickImportModa
       city,
       zip,
       serviceRequested,
-      leadSource: 'Lead Company',
-      referralSource,
+      leadSource: leadSourceDetail ? 'Lead Company' : '',
+      leadSourceDetail,
       appointmentDate,
       timeWindow,
       customerNotes,
@@ -392,7 +393,7 @@ export default function QuickImportModal({ onClose, onSuccess }: QuickImportModa
           zip: parsedLead.zip,
           serviceRequested: parsedLead.serviceRequested,
           leadSource: parsedLead.leadSource,
-          referralSource: parsedLead.referralSource,
+          leadSourceDetail: parsedLead.leadSourceDetail,
           appointmentDate: parsedLead.appointmentDate,
           timeWindow: parsedLead.timeWindow,
           customerNotes: parsedLead.customerNotes,
@@ -568,22 +569,24 @@ Monday 1/15  11-1pm`}
 
                 <div>
                   <label className={labelClass}>Lead Source</label>
-                  <input
-                    type="text"
+                  <select
                     value={parsedLead.leadSource}
                     onChange={(e) => handleFieldChange('leadSource', e.target.value)}
-                    className={`${inputClass} bg-slate-50`}
-                    readOnly
-                  />
+                    className={inputClass}
+                  >
+                    <option value="">Select source...</option>
+                    {leadSources.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
                 </div>
 
                 <div>
-                  <label className={labelClass}>Referral Source (Company Name)</label>
+                  <label className={labelClass}>Lead Source Detail (Company/Brand)</label>
                   <input
                     type="text"
-                    value={parsedLead.referralSource}
-                    onChange={(e) => handleFieldChange('referralSource', e.target.value)}
+                    value={parsedLead.leadSourceDetail}
+                    onChange={(e) => handleFieldChange('leadSourceDetail', e.target.value)}
                     className={inputClass}
+                    placeholder="e.g., LOCAL AIR DUCT PROS"
                   />
                 </div>
 

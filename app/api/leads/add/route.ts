@@ -98,7 +98,11 @@ export async function POST(request: Request) {
     row[9] = leadData.zip || '';                  // J: Zip Code
     row[10] = leadData.propertyType || '';        // K: Property Type
     row[11] = leadData.leadSource || '';          // L: Lead Source
-    row[12] = leadData.referralSource || '';      // M: Referral Source
+    row[12] = leadData.leadSourceDetail || '';    // M: Lead Source Detail
+    // Rule: If Lead Source is "Lead Company", copy Lead Source Detail to column N (Referral Source)
+    if (leadData.leadSource === 'Lead Company' && leadData.leadSourceDetail) {
+      row[13] = leadData.leadSourceDetail;        // N: Referral Source - copy from M when Lead Source is Lead Company
+    }
     row[16] = leadData.serviceRequested || '';    // Q: Service Requested
     row[17] = leadData.numUnits || '';            // R: # of Units
     row[18] = leadData.numVents || '';            // S: # of Vents

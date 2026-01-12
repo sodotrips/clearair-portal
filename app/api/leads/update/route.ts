@@ -39,7 +39,8 @@ const COLUMN_MAP: Record<string, number> = {
   'Zip Code': 9,          // J
   'Property Type': 10,    // K
   'Lead Source': 11,      // L
-  'Referral Source': 12,  // M
+  'Lead Source Detail': 12,  // M
+  'Referral Source': 13,  // N (auto-filled when Lead Source is Lead Company)
   'Service Requested': 16, // Q
   '# of Units': 17,       // R
   '# of Vents': 18,       // S
@@ -100,11 +101,16 @@ export async function POST(request: Request) {
     });
 
     // Auto-add Last Modified timestamp and user
-    const updatesWithTimestamp = {
+    const updatesWithTimestamp: Record<string, any> = {
       ...updates,
       'Last Modified': houstonTime,
       'Last Modified By': userName,
     };
+
+    // Rule: If Lead Source is "Lead Company", copy Lead Source Detail (M) to Referral Source (N)
+    if (updates['Lead Source'] === 'Lead Company' && updates['Lead Source Detail']) {
+      updatesWithTimestamp['Referral Source'] = updates['Lead Source Detail'];
+    }
 
     const auth = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });

@@ -28,6 +28,11 @@ export default function TechPortal() {
   const [selectedTech, setSelectedTech] = useState(() => session?.user?.name || 'Amit');
   const [checkingIn, setCheckingIn] = useState<string | null>(null);
   const [rescheduleJob, setRescheduleJob] = useState<Lead | null>(null);
+  const [addServiceJob, setAddServiceJob] = useState<Lead | null>(null);
+  const [addingService, setAddingService] = useState(false);
+  const [selectedNewService, setSelectedNewService] = useState('');
+
+  const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
   // Houston timezone helper
   const getHoustonDate = (date: Date = new Date()) => {
     const houstonTime = new Date(date.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
@@ -59,6 +64,52 @@ export default function TechPortal() {
       setError('Failed to connect to server');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleAddNewService() {
+    if (!addServiceJob || !selectedNewService) return;
+
+    setAddingService(true);
+    try {
+      const response = await fetch('/api/leads/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: addServiceJob['Customer Name'],
+          phone: addServiceJob['Phone Number'],
+          email: addServiceJob['Email'] || '',
+          address: addServiceJob['Address'],
+          city: addServiceJob['City'],
+          zip: addServiceJob['Zip Code'],
+          propertyType: addServiceJob['Property Type'] || '',
+          leadSource: 'Repeat Customer',
+          leadSourceDetail: '',
+          serviceRequested: selectedNewService,
+          assignedTo: selectedTech,
+          gateCode: addServiceJob['Gate Code'] || '',
+          pets: addServiceJob['Pets?'] || '',
+          parkingInfo: addServiceJob['Parking Info'] || '',
+          accessInstructions: addServiceJob['Access Instructions'] || '',
+          customerNotes: `Upsell from ${addServiceJob['Lead ID']} - ${addServiceJob['Service Requested']}`,
+          appointmentDate: addServiceJob['Appointment Date'] || '',
+          timeWindow: addServiceJob['Time Window'] || '',
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert(`New service lead created: ${data.leadId}`);
+        setAddServiceJob(null);
+        setSelectedNewService('');
+        await fetchLeads();
+      } else {
+        alert(data.error || 'Failed to create lead');
+      }
+    } catch (err) {
+      alert('Failed to connect to server');
+    } finally {
+      setAddingService(false);
     }
   }
 
@@ -151,29 +202,20 @@ export default function TechPortal() {
   };
 
   // Helper to determine who the tech is representing
+  // Uses column M (Lead Source Detail) - if empty, defaults to CLEARAIR
   const getRepresentingInfo = (job: Lead) => {
-    const leadSource = (job['Lead Source'] || '').toLowerCase();
-    const referralSource = job['Referral Source'] || job['Lead Provider'] || '';
+    const leadSourceDetail = (job['Lead Source Detail'] || '').trim();
 
-    // Check if it's a lead gen company or partner
-    const isLeadCompany = leadSource === 'lead company' || leadSource.includes('lead gen');
-    const isPartner = leadSource === 'partner';
-
-    if (isLeadCompany && referralSource) {
+    if (leadSourceDetail) {
+      // Representing another company
       return {
-        name: referralSource.toUpperCase(),
-        label: `Represent as ${referralSource} technician`,
+        name: leadSourceDetail.toUpperCase(),
+        label: `Represent as ${leadSourceDetail} technician`,
         style: 'bg-amber-100 text-amber-800 border-amber-300',
         icon: '🏢'
       };
-    } else if (isPartner && referralSource) {
-      return {
-        name: referralSource.toUpperCase(),
-        label: 'Partner referral',
-        style: 'bg-purple-100 text-purple-800 border-purple-300',
-        icon: '🤝'
-      };
     } else {
+      // Default to CLEARAIR
       return {
         name: 'CLEARAIR',
         label: 'Our direct customer',
@@ -199,7 +241,7 @@ export default function TechPortal() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-slate-300">
       {/* Header */}
       <header className="bg-[#0a2540] text-white px-4 py-4 sticky top-0 z-20">
         <div className="flex justify-between items-center">
@@ -410,6 +452,13 @@ export default function TechPortal() {
                       }
                     })()}
 
+                    {/* Referral Source */}
+                    {job['Referral Source'] && (
+                      <div className="mt-2 text-sm text-slate-600">
+                        <span className="text-slate-400">Referral:</span> <span className="font-medium">{job['Referral Source']}</span>
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between mt-3">
                       <a
                         href={`tel:${job['Phone Number']}`}
@@ -418,14 +467,17 @@ export default function TechPortal() {
                       >
                         {formatPhone(job['Phone Number'])}
                       </a>
-                      <svg
-                        className={`w-5 h-5 text-slate-400 transition-transform ${expandedJob === job['Lead ID'] ? 'rotate-180' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
+                      <div className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#14b8a6] text-white">
+                        <span className="text-xs font-medium">{expandedJob === job['Lead ID'] ? 'Less' : 'More Info'}</span>
+                        <svg
+                          className={`w-4 h-4 transition-transform ${expandedJob === job['Lead ID'] ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
                     </div>
                   </div>
 
@@ -470,48 +522,48 @@ export default function TechPortal() {
                                 <span className="font-bold">{rep.name}</span>
                               </div>
                               <p className="text-sm">{rep.label}</p>
-                              <p className="text-xs mt-1 opacity-75">Introduce yourself as a {job['Referral Source'] || 'partner'} technician</p>
+                              <p className="text-xs mt-1 opacity-75">Introduce yourself as a {job['Lead Source Detail'] || 'ClearAir'} technician</p>
                             </div>
                           ) : null;
                         })()}
 
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <p className="text-xs text-slate-500">Service</p>
-                            <p className="text-sm font-medium text-slate-800">{job['Service Requested']}</p>
+                            <p className="text-sm text-slate-500">Service</p>
+                            <p className="text-base font-medium text-slate-800">{job['Service Requested']}</p>
                           </div>
                           <div>
-                            <p className="text-xs text-slate-500">Property Type</p>
-                            <p className="text-sm font-medium text-slate-800">{job['Property Type'] || '-'}</p>
+                            <p className="text-sm text-slate-500">Property Type</p>
+                            <p className="text-base font-medium text-slate-800">{job['Property Type'] || '-'}</p>
                           </div>
                           <div>
-                            <p className="text-xs text-slate-500"># of Units</p>
-                            <p className="text-sm font-medium text-slate-800">{job['# of Units'] || '-'}</p>
+                            <p className="text-sm text-slate-500"># of Units</p>
+                            <p className="text-base font-medium text-slate-800">{job['# of Units'] || '-'}</p>
                           </div>
                           <div>
-                            <p className="text-xs text-slate-500"># of Vents</p>
-                            <p className="text-sm font-medium text-slate-800">{job['# of Vents'] || '-'}</p>
+                            <p className="text-sm text-slate-500"># of Vents</p>
+                            <p className="text-base font-medium text-slate-800">{job['# of Vents'] || '-'}</p>
                           </div>
                         </div>
 
                         {/* Access Info - Always show */}
                         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
-                          <p className="text-xs font-semibold text-amber-700 mb-2">ACCESS INFO</p>
-                          <div className="grid grid-cols-2 gap-2 text-sm">
+                          <p className="text-sm font-semibold text-amber-700 mb-2">ACCESS INFO</p>
+                          <div className="grid grid-cols-2 gap-3 text-base">
                             <div>
-                              <span className="text-amber-600 text-xs">Gate Code:</span>
+                              <span className="text-amber-600 text-sm">Gate Code:</span>
                               <p className="font-medium">{job['Gate Code'] || '-'}</p>
                             </div>
                             <div>
-                              <span className="text-amber-600 text-xs">Pets:</span>
+                              <span className="text-amber-600 text-sm">Pets:</span>
                               <p className="font-medium">{job['Pets?'] || 'None'}</p>
                             </div>
                             <div>
-                              <span className="text-amber-600 text-xs">Parking:</span>
+                              <span className="text-amber-600 text-sm">Parking:</span>
                               <p className="font-medium">{job['Parking Info'] || '-'}</p>
                             </div>
                             <div>
-                              <span className="text-amber-600 text-xs">Access:</span>
+                              <span className="text-amber-600 text-sm">Access:</span>
                               <p className="font-medium">{job['Access Instructions'] || '-'}</p>
                             </div>
                           </div>
@@ -520,8 +572,8 @@ export default function TechPortal() {
                         {/* Customer Notes */}
                         {job['Customer Issue/Notes'] && (
                           <div className="bg-slate-50 rounded-lg p-3">
-                            <p className="text-xs font-semibold text-slate-500 mb-1">NOTES</p>
-                            <p className="text-sm text-slate-700">{job['Customer Issue/Notes']}</p>
+                            <p className="text-sm font-semibold text-slate-500 mb-1">NOTES</p>
+                            <p className="text-base text-slate-700">{job['Customer Issue/Notes']}</p>
                           </div>
                         )}
 
@@ -529,12 +581,12 @@ export default function TechPortal() {
                         {(job['Check In'] || job['Check Out']) && (
                           <div className="mt-3 bg-slate-50 rounded-lg p-3 grid grid-cols-2 gap-3">
                             <div>
-                              <p className="text-xs text-slate-500">Check In</p>
-                              <p className="text-sm font-semibold text-slate-700">{job['Check In'] || '-'}</p>
+                              <p className="text-sm text-slate-500">Check In</p>
+                              <p className="text-base font-semibold text-slate-700">{job['Check In'] || '-'}</p>
                             </div>
                             <div>
-                              <p className="text-xs text-slate-500">Check Out</p>
-                              <p className="text-sm font-semibold text-slate-700">{job['Check Out'] || '-'}</p>
+                              <p className="text-sm text-slate-500">Check Out</p>
+                              <p className="text-base font-semibold text-slate-700">{job['Check Out'] || '-'}</p>
                             </div>
                           </div>
                         )}
@@ -592,6 +644,15 @@ export default function TechPortal() {
                                   Check Out - Job Complete
                                 </>
                               )}
+                            </button>
+                            <button
+                              onClick={() => setAddServiceJob(job)}
+                              className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-semibold flex items-center justify-center gap-2 transition"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                              Add New Service (Upsell)
                             </button>
                           </div>
                         )}
@@ -663,6 +724,82 @@ export default function TechPortal() {
             fetchLeads();
           }}
         />
+      )}
+
+      {/* Add New Service Modal */}
+      {addServiceJob && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setAddServiceJob(null)}>
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="bg-blue-500 text-white px-5 py-4">
+              <h2 className="text-lg font-semibold">Add New Service</h2>
+              <p className="text-blue-100 text-sm">Upsell for {addServiceJob['Customer Name']}</p>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="bg-slate-50 rounded-lg p-3 text-sm">
+                <p className="text-slate-500 mb-1">Customer Info (will be copied)</p>
+                <p className="font-medium">{addServiceJob['Customer Name']}</p>
+                <p className="text-slate-600">{addServiceJob['Address']}, {addServiceJob['City']}</p>
+                <p className="text-slate-600">{formatPhone(addServiceJob['Phone Number'])}</p>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm">
+                <p className="text-amber-700 font-medium flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Lead Source: Repeat Customer
+                </p>
+                <p className="text-amber-600 text-xs mt-1">Referral company will NOT get credit for this service</p>
+              </div>
+
+              <div>
+                <label className="block text-slate-600 text-sm font-medium mb-2">Select New Service *</label>
+                <select
+                  value={selectedNewService}
+                  onChange={(e) => setSelectedNewService(e.target.value)}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none text-base"
+                >
+                  <option value="">Choose a service...</option>
+                  {services.filter(s => s !== addServiceJob['Service Requested']).map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="px-5 py-4 bg-slate-50 border-t flex gap-3">
+              <button
+                onClick={() => {
+                  setAddServiceJob(null);
+                  setSelectedNewService('');
+                }}
+                className="flex-1 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddNewService}
+                disabled={!selectedNewService || addingService}
+                className="flex-1 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {addingService ? (
+                  <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Create Lead
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
