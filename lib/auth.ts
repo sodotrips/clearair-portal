@@ -9,18 +9,26 @@ const SPREADSHEET_ID = '1sWJpsvt8aNnmwTssfQ3GWvxa8-RVUy2M7eLHM5YSN3k';
 async function getUsers() {
   // Use environment variable in production, file in development
   let auth;
-  if (process.env.GOOGLE_CREDENTIALS) {
-    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
-    auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-  } else {
-    const credentialsPath = path.join(process.cwd(), 'google-credentials.json');
-    auth = new google.auth.GoogleAuth({
-      keyFile: credentialsPath,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
+  try {
+    if (process.env.GOOGLE_CREDENTIALS) {
+      console.log('Using GOOGLE_CREDENTIALS env var');
+      const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+      console.log('Parsed credentials, client_email:', credentials.client_email);
+      auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      });
+    } else {
+      console.log('Using local credentials file');
+      const credentialsPath = path.join(process.cwd(), 'google-credentials.json');
+      auth = new google.auth.GoogleAuth({
+        keyFile: credentialsPath,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      });
+    }
+  } catch (parseError) {
+    console.error('Error parsing GOOGLE_CREDENTIALS:', parseError);
+    return [];
   }
 
   const sheets = google.sheets({ version: 'v4', auth });
@@ -32,6 +40,7 @@ async function getUsers() {
     });
 
     const rows = response.data.values || [];
+    console.log('Found', rows.length, 'rows in Users sheet');
     if (rows.length < 2) return [];
 
     const headers = rows[0];
@@ -43,7 +52,7 @@ async function getUsers() {
       return user;
     });
   } catch (error) {
-    console.error('Error fetching users:', error);
+    console.error('Error fetching users from sheet:', error);
     return [];
   }
 }
