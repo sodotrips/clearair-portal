@@ -8,12 +8,22 @@ const SPREADSHEET_ID = '1sWJpsvt8aNnmwTssfQ3GWvxa8-RVUy2M7eLHM5YSN3k';
 const SHEET_NAME = 'ACTIVE LEADS';
 
 async function getAuthClient() {
-  const credentialsPath = path.join(process.cwd(), 'google-credentials.json');
-  const auth = new google.auth.GoogleAuth({
-    keyFile: credentialsPath,
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  });
-  return auth;
+  // Use environment variable in production, file in development
+  if (process.env.GOOGLE_CREDENTIALS) {
+    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+    return auth;
+  } else {
+    const credentialsPath = path.join(process.cwd(), 'google-credentials.json');
+    const auth = new google.auth.GoogleAuth({
+      keyFile: credentialsPath,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+    return auth;
+  }
 }
 
 // Column mapping for updates

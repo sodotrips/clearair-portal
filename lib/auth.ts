@@ -7,11 +7,21 @@ import type { NextAuthOptions } from 'next-auth';
 const SPREADSHEET_ID = '1sWJpsvt8aNnmwTssfQ3GWvxa8-RVUy2M7eLHM5YSN3k';
 
 async function getUsers() {
-  const credentialsPath = path.join(process.cwd(), 'google-credentials.json');
-  const auth = new google.auth.GoogleAuth({
-    keyFile: credentialsPath,
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  });
+  // Use environment variable in production, file in development
+  let auth;
+  if (process.env.GOOGLE_CREDENTIALS) {
+    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+    auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+  } else {
+    const credentialsPath = path.join(process.cwd(), 'google-credentials.json');
+    auth = new google.auth.GoogleAuth({
+      keyFile: credentialsPath,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+  }
 
   const sheets = google.sheets({ version: 'v4', auth });
 
