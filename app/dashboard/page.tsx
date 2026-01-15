@@ -30,6 +30,10 @@ export default function Dashboard() {
   const [commissionModalLead, setCommissionModalLead] = useState<Lead | null>(null);
   const [todaysAppointmentsExpanded, setTodaysAppointmentsExpanded] = useState(false);
   const [showQuickImport, setShowQuickImport] = useState(false);
+  const [showAgentSettings, setShowAgentSettings] = useState(false);
+  const [agentSettings, setAgentSettings] = useState<Record<string, string>>({});
+  const [agentLoading, setAgentLoading] = useState(false);
+  const [agentTestResult, setAgentTestResult] = useState<string | null>(null);
   const userRole = (session?.user as any)?.role;
 
   // Dropdown options for inline editing
@@ -52,11 +56,67 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchLeads();
+    fetchAgentSettings();
   }, []);
 
   useEffect(() => {
     filterLeadsByView();
   }, [leads, currentView, searchTerm]);
+
+  async function fetchAgentSettings() {
+    try {
+      const response = await fetch('/api/settings');
+      const data = await response.json();
+      if (data.settings) {
+        setAgentSettings(data.settings);
+      }
+    } catch (err) {
+      console.error('Failed to fetch agent settings:', err);
+    }
+  }
+
+  async function updateAgentSetting(key: string, value: string) {
+    setAgentLoading(true);
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setAgentSettings(prev => ({ ...prev, [key]: value }));
+      }
+    } catch (err) {
+      console.error('Failed to update setting:', err);
+    } finally {
+      setAgentLoading(false);
+    }
+  }
+
+  async function testDailySummaryAgent() {
+    setAgentLoading(true);
+    setAgentTestResult(null);
+    try {
+      const response = await fetch('/api/agents/daily-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ test: true }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setAgentTestResult(`✅ Test SMS sent to ${data.sentTo}`);
+      } else if (data.skipped) {
+        setAgentTestResult(`⚠️ Skipped: ${data.reason}`);
+      } else {
+        setAgentTestResult(`❌ Error: ${data.error}`);
+      }
+    } catch (err) {
+      setAgentTestResult(`❌ Failed to connect`);
+    } finally {
+      setAgentLoading(false);
+    }
+  }
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -388,6 +448,18 @@ export default function Dashboard() {
                   </svg>
                   Tech Portal
                 </Link>
+                <button
+                  onClick={() => setShowAgentSettings(true)}
+                  className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Agents
+                  {agentSettings['daily_summary_enabled'] === 'true' && (
+                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                  )}
+                </button>
               </>
             )}
             <div className="flex items-center gap-3 border-l border-slate-600 pl-4 ml-2">
@@ -538,7 +610,7 @@ export default function Dashboard() {
         </div>
 
         {/* Main Content Card */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm">
           {/* Tabs */}
           <div className="flex">
             {tabs.map(tab => (
@@ -607,7 +679,14 @@ export default function Dashboard() {
           </div>
 
           {/* Table */}
-          <div className="h-[300px] overflow-y-auto overflow-x-auto">
+          <div
+            className="overflow-auto"
+            style={{
+              height: '500px',
+              overflowX: 'scroll',
+              overflowY: 'scroll'
+            }}
+          >
           {loading && (
             <div className="text-center py-16 text-slate-500 h-full flex flex-col items-center justify-center">
               <div className="animate-spin w-8 h-8 border-3 border-[#14b8a6] border-t-transparent rounded-full mb-4"></div>
@@ -620,8 +699,8 @@ export default function Dashboard() {
           )}
 
           {!loading && !error && (
-            <div>
-              <table className="w-full" style={{ tableLayout: 'fixed' }}>
+            <div style={{ minWidth: '1800px' }}>
+              <table style={{ tableLayout: 'fixed', width: '100%' }}>
                 <thead className="sticky top-0 z-10 bg-slate-300">
                   <tr className="bg-slate-300 border-b border-slate-400">
                     {columns.map((col, index) => (
@@ -1023,6 +1102,112 @@ export default function Dashboard() {
           onClose={() => setShowQuickImport(false)}
           onSuccess={() => fetchLeads()}
         />
+      )}
+
+      {/* Agent Settings Modal */}
+      {showAgentSettings && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowAgentSettings(false)}>
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="bg-gradient-to-r from-cyan-600 to-teal-600 text-white px-6 py-4">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <h2 className="text-lg font-semibold">Agent Settings</h2>
+                </div>
+                <button onClick={() => setShowAgentSettings(false)} className="text-white/80 hover:text-white">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Daily Summary Agent */}
+              <div className="border border-slate-200 rounded-lg p-4">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="font-semibold text-[#0a2540] flex items-center gap-2">
+                      <span className="text-lg">📊</span>
+                      Daily Summary Agent
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Sends daily summary at 6pm Houston time
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => updateAgentSetting('daily_summary_enabled', agentSettings['daily_summary_enabled'] === 'true' ? 'false' : 'true')}
+                    disabled={agentLoading}
+                    className={`relative w-14 h-7 rounded-full transition-colors ${
+                      agentSettings['daily_summary_enabled'] === 'true' ? 'bg-green-500' : 'bg-slate-300'
+                    }`}
+                  >
+                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                      agentSettings['daily_summary_enabled'] === 'true' ? 'translate-x-8' : 'translate-x-1'
+                    }`}></div>
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs text-slate-500 uppercase tracking-wide">Send To</label>
+                    <p className="font-medium text-slate-700">{agentSettings['daily_summary_phone'] || '281-904-4674'}</p>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-slate-500 uppercase tracking-wide">Schedule</label>
+                    <p className="font-medium text-slate-700">6:00 PM Daily (Houston)</p>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-slate-500 uppercase tracking-wide">Conditions</label>
+                    <p className="text-sm text-slate-600">Only sends if there are completed jobs today</p>
+                  </div>
+                </div>
+
+                {/* Test Button */}
+                <div className="mt-4 pt-4 border-t border-slate-200">
+                  <button
+                    onClick={testDailySummaryAgent}
+                    disabled={agentLoading}
+                    className="w-full py-2.5 bg-[#0a2540] hover:bg-[#1a3a5c] text-white rounded-lg font-medium transition flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {agentLoading ? (
+                      <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                        Send Test Summary Now
+                      </>
+                    )}
+                  </button>
+
+                  {agentTestResult && (
+                    <div className={`mt-3 p-3 rounded-lg text-sm ${
+                      agentTestResult.startsWith('✅') ? 'bg-green-50 text-green-700' :
+                      agentTestResult.startsWith('⚠️') ? 'bg-amber-50 text-amber-700' :
+                      'bg-red-50 text-red-700'
+                    }`}>
+                      {agentTestResult}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Future agents can be added here */}
+              <div className="text-center text-sm text-slate-400">
+                More agents coming soon...
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

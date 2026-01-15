@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import ScheduleModal from '../components/ScheduleModal';
+import QuoteModal from '../components/QuoteModal';
 
 // Dynamically import the map to avoid SSR issues with Leaflet
 const JobMap = dynamic(() => import('../components/JobMap'), {
@@ -31,6 +32,7 @@ export default function TechPortal() {
   const [addServiceJob, setAddServiceJob] = useState<Lead | null>(null);
   const [addingService, setAddingService] = useState(false);
   const [selectedNewService, setSelectedNewService] = useState('');
+  const [quoteJob, setQuoteJob] = useState<Lead | null>(null);
 
   const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
   // Houston timezone helper
@@ -241,7 +243,7 @@ export default function TechPortal() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-300">
+    <div className="min-h-screen bg-slate-500">
       {/* Header */}
       <header className="bg-[#0a2540] text-white px-4 py-4 sticky top-0 z-20">
         <div className="flex justify-between items-center">
@@ -630,18 +632,27 @@ export default function TechPortal() {
                               Job In Progress {job['Check In'] && `(started ${job['Check In']})`}
                             </div>
                             <button
+                              onClick={() => setQuoteJob(job)}
+                              className="w-full py-4 bg-[#14b8a6] hover:bg-[#0d9488] text-white rounded-xl font-semibold text-lg flex items-center justify-center gap-2 transition"
+                            >
+                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              Create Quote & Collect Payment
+                            </button>
+                            <button
                               onClick={() => handleCheckInOut(job['Lead ID'], 'checkout')}
                               disabled={checkingIn === job['Lead ID']}
-                              className="w-full py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold text-lg flex items-center justify-center gap-2 transition disabled:opacity-50"
+                              className="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold flex items-center justify-center gap-2 transition disabled:opacity-50"
                             >
                               {checkingIn === job['Lead ID'] ? (
-                                <div className="animate-spin w-6 h-6 border-2 border-white border-t-transparent rounded-full"></div>
+                                <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
                               ) : (
                                 <>
-                                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
-                                  Check Out - Job Complete
+                                  Check Out (No Payment)
                                 </>
                               )}
                             </button>
@@ -721,6 +732,18 @@ export default function TechPortal() {
           onClose={() => setRescheduleJob(null)}
           onSuccess={() => {
             setRescheduleJob(null);
+            fetchLeads();
+          }}
+        />
+      )}
+
+      {/* Quote Modal */}
+      {quoteJob && (
+        <QuoteModal
+          lead={quoteJob}
+          onClose={() => setQuoteJob(null)}
+          onSuccess={() => {
+            setQuoteJob(null);
             fetchLeads();
           }}
         />
