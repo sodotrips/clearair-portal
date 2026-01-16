@@ -276,17 +276,28 @@ export default function TechPortal() {
     return isAssigned && isClosed && isOnDate;
   });
 
-  // Get history jobs (all CLOSED and QUOTED jobs for the tech)
+  // Get history jobs (only QUOTED jobs for follow-up)
   const historyJobs = leads.filter(l => {
     const status = l['Status']?.toUpperCase();
     const isAssigned = l['Assigned To'] === selectedTech;
-    const isCompleted = status === 'CLOSED' || status === 'QUOTED';
-    return isAssigned && isCompleted;
+    const isQuoted = status === 'QUOTED';
+    return isAssigned && isQuoted;
   }).sort((a, b) => {
     // Sort by appointment date descending (most recent first)
-    const dateA = a['Appointment Date'] || '';
-    const dateB = b['Appointment Date'] || '';
-    return dateB.localeCompare(dateA);
+    // Parse dates to compare properly
+    const parseDate = (dateStr: string) => {
+      if (!dateStr) return new Date(0);
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
+        const [month, day, year] = dateStr.split('/').map(Number);
+        return new Date(year, month - 1, day);
+      }
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return new Date(year, month - 1, day);
+      }
+      return new Date(0);
+    };
+    return parseDate(b['Appointment Date']).getTime() - parseDate(a['Appointment Date']).getTime();
   });
 
   const statusStyles: Record<string, string> = {
@@ -923,22 +934,21 @@ export default function TechPortal() {
           </>
         )}
 
-        {/* History View */}
+        {/* History View - Follow-up Jobs */}
         {activeView === 'history' && (
           <div>
             <div className="bg-white rounded-xl shadow-sm p-4 mb-4">
-              <h2 className="text-lg font-semibold text-[#0a2540]">Job History</h2>
-              <p className="text-sm text-slate-500">{historyJobs.length} jobs completed</p>
+              <h2 className="text-lg font-semibold text-[#0a2540]">Follow-up Jobs</h2>
+              <p className="text-sm text-slate-500">{historyJobs.length} jobs need follow-up</p>
             </div>
 
             {historyJobs.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm p-8 text-center">
-                <p className="text-slate-500">No completed jobs yet</p>
+                <p className="text-slate-500">No jobs need follow-up</p>
               </div>
             ) : (
               <div className="space-y-3">
                 {historyJobs.map((job, idx) => {
-                  const status = job['Status']?.toUpperCase();
                   return (
                     <div key={idx} className="bg-white rounded-xl shadow-sm p-4">
                       <div className="flex justify-between items-start mb-2">
@@ -946,36 +956,36 @@ export default function TechPortal() {
                           <p className="font-semibold text-[#0a2540]">{job['Customer Name']}</p>
                           <p className="text-sm text-slate-500">{job['Service Requested']}</p>
                         </div>
-                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          status === 'CLOSED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                        }`}>
-                          {status === 'CLOSED' ? 'Closed' : 'Quoted'}
+                        <span className="px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-700">
+                          Quoted
                         </span>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-slate-600">
+                      <div className="flex items-center gap-4 text-sm text-slate-600 mb-2">
                         <span className="flex items-center gap-1">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
                           {job['Appointment Date']}
                         </span>
-                        {job['Amount Paid'] && status === 'CLOSED' && (
-                          <span className="flex items-center gap-1 text-green-600 font-medium">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            ${job['Amount Paid']}
-                          </span>
-                        )}
-                        {job['Total Cost'] && status === 'QUOTED' && (
+                        {job['Total Cost'] && (
                           <span className="flex items-center gap-1 text-amber-600 font-medium">
                             Quote: ${job['Total Cost']}
                           </span>
                         )}
                       </div>
-                      <div className="mt-2 text-xs text-slate-400">
+                      <div className="text-xs text-slate-400 mb-3">
                         {job['Address']}{job['City'] ? `, ${job['City']}` : ''}
                       </div>
+                      {/* Call Button */}
+                      <a
+                        href={`tel:${job['Phone Number']}`}
+                        className="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-medium transition text-sm"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                        Call {formatPhone(job['Phone Number'])}
+                      </a>
                     </div>
                   );
                 })}
