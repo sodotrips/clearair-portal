@@ -956,11 +956,22 @@ export default function TechPortal() {
                           <p className="font-semibold text-[#0a2540]">{job['Customer Name']}</p>
                           <p className="text-sm text-slate-500">{job['Service Requested']}</p>
                         </div>
-                        <span className="px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-700">
-                          Quoted
-                        </span>
+                        <div className="text-right">
+                          <span className="px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-700">
+                            Quoted
+                          </span>
+                          <a
+                            href={`tel:${job['Phone Number']}`}
+                            className="flex items-center gap-1 text-green-600 hover:text-green-700 text-sm mt-1 justify-end"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                            </svg>
+                            {formatPhone(job['Phone Number'])}
+                          </a>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-slate-600 mb-2">
+                      <div className="flex items-center gap-4 text-sm text-slate-600">
                         <span className="flex items-center gap-1">
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -973,19 +984,9 @@ export default function TechPortal() {
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-slate-400 mb-3">
+                      <div className="text-xs text-slate-400 mt-1">
                         {job['Address']}{job['City'] ? `, ${job['City']}` : ''}
                       </div>
-                      {/* Call Button */}
-                      <a
-                        href={`tel:${job['Phone Number']}`}
-                        className="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-medium transition text-sm"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                        </svg>
-                        Call {formatPhone(job['Phone Number'])}
-                      </a>
                     </div>
                   );
                 })}
