@@ -236,7 +236,7 @@ export default function AnalyticsDashboard() {
   };
 
   // Technician performance
-  const techStats: Record<string, { total: number; completed: number }> = {};
+  const techStats: Record<string, { total: number; closed: number }> = {};
   filteredLeads.forEach(lead => {
     const tech = lead['Assigned To'];
     if (tech && tech !== '-') {
