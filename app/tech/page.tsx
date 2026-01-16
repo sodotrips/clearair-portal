@@ -37,10 +37,14 @@ export default function TechPortal() {
 
   // Edit mode state
   const [editingJobId, setEditingJobId] = useState<string | null>(null);
+  const [editService, setEditService] = useState('');
+  const [editPropertyType, setEditPropertyType] = useState('');
   const [editUnits, setEditUnits] = useState('');
   const [editVents, setEditVents] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const propertyTypes = ['Single Family', 'Townhouse', 'Apartment', 'Commercial - Office'];
 
   const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
   // Houston timezone helper
@@ -155,6 +159,8 @@ export default function TechPortal() {
   // Start editing a job
   function startEditJob(job: Lead) {
     setEditingJobId(job['Lead ID']);
+    setEditService(job['Service Requested'] || '');
+    setEditPropertyType(job['Property Type'] || '');
     setEditUnits(job['# of Units'] || '');
     setEditVents(job['# of Vents'] || '');
     setEditNotes(job['Customer Issue/Notes'] || '');
@@ -163,6 +169,8 @@ export default function TechPortal() {
   // Cancel editing
   function cancelEdit() {
     setEditingJobId(null);
+    setEditService('');
+    setEditPropertyType('');
     setEditUnits('');
     setEditVents('');
     setEditNotes('');
@@ -178,6 +186,8 @@ export default function TechPortal() {
         body: JSON.stringify({
           rowIndex: job['rowIndex'],
           updates: {
+            'Service Requested': editService,
+            'Property Type': editPropertyType,
             '# of Units': editUnits,
             '# of Vents': editVents,
             'Customer Issue/Notes': editNotes,
@@ -642,6 +652,34 @@ export default function TechPortal() {
                         {editingJobId === job['Lead ID'] ? (
                           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
                             <p className="text-sm font-semibold text-blue-700 mb-3">EDIT JOB DETAILS</p>
+                            <div className="grid grid-cols-2 gap-4 mb-3">
+                              <div>
+                                <label className="text-sm text-slate-600">Service</label>
+                                <select
+                                  value={editService}
+                                  onChange={(e) => setEditService(e.target.value)}
+                                  className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-base bg-white"
+                                >
+                                  <option value="">Select Service</option>
+                                  {services.map(s => (
+                                    <option key={s} value={s}>{s}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="text-sm text-slate-600">Property Type</label>
+                                <select
+                                  value={editPropertyType}
+                                  onChange={(e) => setEditPropertyType(e.target.value)}
+                                  className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-base bg-white"
+                                >
+                                  <option value="">Select Type</option>
+                                  {propertyTypes.map(pt => (
+                                    <option key={pt} value={pt}>{pt}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
                             <div className="grid grid-cols-2 gap-4 mb-3">
                               <div>
                                 <label className="text-sm text-slate-600"># of Units</label>
