@@ -187,6 +187,15 @@ export default function TechPortal() {
     return timeOrder.indexOf(a['Time Window'] || '') - timeOrder.indexOf(b['Time Window'] || '');
   });
 
+  // Get quoted jobs for today (visited but not closed/paid)
+  const quotedToday = leads.filter(l => {
+    const status = l['Status']?.toUpperCase();
+    const isAssigned = l['Assigned To'] === selectedTech;
+    const isQuoted = status === 'QUOTED';
+    const isOnDate = isDateMatch(l['Appointment Date'], selectedDate);
+    return isAssigned && isQuoted && isOnDate;
+  });
+
   // Get closed jobs for today
   const closedToday = leads.filter(l => {
     const status = l['Status']?.toUpperCase();
@@ -333,21 +342,30 @@ export default function TechPortal() {
         </div>
 
         {/* Stats Summary */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="bg-white rounded-xl shadow-sm p-4">
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="bg-white rounded-xl shadow-sm p-3">
             <div className="flex items-center gap-2">
-              <span className="text-2xl">📋</span>
+              <span className="text-xl">📋</span>
               <div>
-                <p className="text-2xl font-bold text-[#0a2540]">{myJobs.length}</p>
-                <p className="text-xs text-slate-500">Jobs Scheduled</p>
+                <p className="text-xl font-bold text-[#0a2540]">{myJobs.length}</p>
+                <p className="text-xs text-slate-500">Scheduled</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-4">
+          <div className="bg-white rounded-xl shadow-sm p-3">
             <div className="flex items-center gap-2">
-              <span className="text-2xl">✅</span>
+              <span className="text-xl">🏠</span>
               <div>
-                <p className="text-2xl font-bold text-green-600">{closedToday.length}</p>
+                <p className="text-xl font-bold text-amber-600">{quotedToday.length}</p>
+                <p className="text-xs text-slate-500">Visited</p>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm p-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">✅</span>
+              <div>
+                <p className="text-xl font-bold text-green-600">{closedToday.length}</p>
                 <p className="text-xs text-slate-500">Closed</p>
               </div>
             </div>
