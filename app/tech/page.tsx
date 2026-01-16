@@ -593,28 +593,37 @@ export default function TechPortal() {
                   {expandedJob === job['Lead ID'] && (
                     <div className="border-t border-slate-100">
                       {/* Quick Actions */}
-                      <div className="p-4 bg-slate-50 grid grid-cols-2 gap-2">
+                      <div className="p-4 bg-slate-50 grid grid-cols-3 gap-2">
                         <a
                           href={`tel:${job['Phone Number']}`}
-                          className="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-medium transition"
+                          className="flex items-center justify-center gap-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-medium transition text-sm"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                           </svg>
-                          Call Customer
+                          Call
                         </a>
                         <a
                           href={`https://maps.google.com/?q=${encodeURIComponent(job['Address'] + ', ' + job['City'] + ', TX ' + job['Zip Code'])}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg font-medium transition"
+                          className="flex items-center justify-center gap-1 bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg font-medium transition text-sm"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                           </svg>
                           Navigate
                         </a>
+                        <button
+                          onClick={() => startEditJob(job)}
+                          className="flex items-center justify-center gap-1 bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-lg font-medium transition text-sm"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          Edit
+                        </button>
                       </div>
 
                       {/* Job Details */}
@@ -634,19 +643,6 @@ export default function TechPortal() {
                             </div>
                           ) : null;
                         })()}
-
-                        {/* Edit Button */}
-                        {editingJobId !== job['Lead ID'] && (
-                          <button
-                            onClick={() => startEditJob(job)}
-                            className="mb-3 flex items-center gap-1 text-sm text-[#14b8a6] hover:text-[#0d9488]"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                            Edit Job Details
-                          </button>
-                        )}
 
                         {/* Edit Mode */}
                         {editingJobId === job['Lead ID'] ? (
