@@ -693,6 +693,31 @@ export default function TechPortal() {
               ))
             )}
 
+            {/* Visited Jobs Section */}
+            {quotedToday.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
+                  Visited Today
+                </h3>
+                <div className="space-y-2">
+                  {quotedToday.map((job, idx) => (
+                    <div key={idx} className="bg-white rounded-lg p-3 flex justify-between items-center">
+                      <div>
+                        <p className="font-medium text-slate-700">{job['Customer Name']}</p>
+                        <p className="text-xs text-slate-500">{job['Service Requested']}</p>
+                        {job['Total Cost'] && (
+                          <p className="text-xs text-amber-600 font-medium mt-1">Quote: ${job['Total Cost']}</p>
+                        )}
+                      </div>
+                      <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-semibold">
+                        Quoted
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Closed Jobs Section */}
             {closedToday.length > 0 && (
               <div className="mt-6">
