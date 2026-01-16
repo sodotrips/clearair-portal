@@ -44,8 +44,15 @@ export default function TechPortal() {
     return `${year}-${month}-${day}`;
   };
 
-  const [selectedDate, setSelectedDate] = useState(() => getHoustonDate());
+  const [selectedDate, setSelectedDate] = useState('');
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
+
+  // Set initial date on client side only to avoid hydration mismatch
+  useEffect(() => {
+    if (!selectedDate) {
+      setSelectedDate(getHoustonDate());
+    }
+  }, []);
 
   const techs = ['Amit', 'Tech 2', 'Subcontractor'];
 
