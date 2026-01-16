@@ -20,7 +20,7 @@ export default function EditModal({ lead, onClose, onSuccess }: EditModalProps) 
   const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
   const leadSources = ['Google Ads', 'Facebook Ads', 'Organic', 'Referral', 'Lead Company', 'Repeat Customer', 'Partner'];
   const propertyTypes = ['Single Family', 'Townhouse', 'Apartment', 'Commercial - Office'];
-  const statuses = ['NEW', 'SCHEDULED', 'QUOTED', 'IN PROGRESS', 'COMPLETED', 'CANCELED'];
+  const statuses = ['NEW', 'SCHEDULED', 'IN PROGRESS', 'QUOTED', 'CLOSED', 'CANCELED'];
   const priorities = ['LOW', 'MEDIUM', 'HIGH'];
 
   // Form state

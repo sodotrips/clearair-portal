@@ -102,20 +102,20 @@ export default function AnalyticsDashboard() {
     total: filteredLeads.length,
     new: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'NEW').length,
     scheduled: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'SCHEDULED').length,
-    completed: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'COMPLETED').length,
+    closed: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'CLOSED').length,
     canceled: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'CANCELED').length,
     inProgress: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'IN PROGRESS').length,
   };
 
   const conversionRate = stats.total > 0
-    ? Math.round((stats.completed / stats.total) * 100)
+    ? Math.round((stats.closed / stats.total) * 100)
     : 0;
 
   // Status distribution for donut chart
   const statusData = {
-    labels: ['New', 'Scheduled', 'In Progress', 'Completed', 'Canceled'],
+    labels: ['New', 'Scheduled', 'In Progress', 'Closed', 'Canceled'],
     datasets: [{
-      data: [stats.new, stats.scheduled, stats.inProgress, stats.completed, stats.canceled],
+      data: [stats.new, stats.scheduled, stats.inProgress, stats.closed, stats.canceled],
       backgroundColor: [
         '#3b82f6', // blue
         '#14b8a6', // teal
@@ -241,11 +241,11 @@ export default function AnalyticsDashboard() {
     const tech = lead['Assigned To'];
     if (tech && tech !== '-') {
       if (!techStats[tech]) {
-        techStats[tech] = { total: 0, completed: 0 };
+        techStats[tech] = { total: 0, closed: 0 };
       }
       techStats[tech].total++;
-      if (lead['Status']?.toUpperCase() === 'COMPLETED') {
-        techStats[tech].completed++;
+      if (lead['Status']?.toUpperCase() === 'CLOSED') {
+        techStats[tech].closed++;
       }
     }
   });
@@ -260,8 +260,8 @@ export default function AnalyticsDashboard() {
         borderRadius: 6,
       },
       {
-        label: 'Completed',
-        data: Object.values(techStats).map(t => t.completed),
+        label: 'Closed',
+        data: Object.values(techStats).map(t => t.closed),
         backgroundColor: '#22c55e',
         borderRadius: 6,
       }
@@ -351,8 +351,8 @@ export default function AnalyticsDashboard() {
             <p className="text-3xl font-bold text-[#0a2540] mt-1">{stats.total}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5">
-            <p className="text-slate-500 text-sm font-medium">Completed</p>
-            <p className="text-3xl font-bold text-green-600 mt-1">{stats.completed}</p>
+            <p className="text-slate-500 text-sm font-medium">Closed</p>
+            <p className="text-3xl font-bold text-green-600 mt-1">{stats.closed}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5">
             <p className="text-slate-500 text-sm font-medium">Conversion Rate</p>
@@ -454,7 +454,7 @@ export default function AnalyticsDashboard() {
                   { status: 'New', count: stats.new, color: 'bg-blue-500' },
                   { status: 'Scheduled', count: stats.scheduled, color: 'bg-teal-500' },
                   { status: 'In Progress', count: stats.inProgress, color: 'bg-purple-500' },
-                  { status: 'Completed', count: stats.completed, color: 'bg-green-500' },
+                  { status: 'Closed', count: stats.closed, color: 'bg-green-500' },
                   { status: 'Canceled', count: stats.canceled, color: 'bg-slate-400' },
                 ].map(row => (
                   <tr key={row.status} className="border-b border-slate-100">

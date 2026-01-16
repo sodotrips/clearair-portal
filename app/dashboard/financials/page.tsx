@@ -118,11 +118,11 @@ export default function FinancialDashboard() {
   const filteredLeads = dateRange === 'all' ? leads : filterByDateRange(leads);
 
   // Calculate financial metrics
-  const completedLeads = filteredLeads.filter(l => l['Status']?.toUpperCase() === 'COMPLETED');
+  const closedLeads = filteredLeads.filter(l => l['Status']?.toUpperCase() === 'CLOSED');
   const quotedLeads = filteredLeads.filter(l => parseCurrency(l['Quote Amount']) > 0);
 
   const totalQuoted = filteredLeads.reduce((sum, l) => sum + parseCurrency(l['Quote Amount']), 0);
-  const totalRevenue = completedLeads.reduce((sum, l) => sum + parseCurrency(l['Final Amount'] || l['Quote Amount']), 0);
+  const totalRevenue = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Final Amount'] || l['Quote Amount']), 0);
   const pendingRevenue = filteredLeads
     .filter(l => {
       const status = l['Status']?.toUpperCase();
@@ -130,17 +130,17 @@ export default function FinancialDashboard() {
     })
     .reduce((sum, l) => sum + parseCurrency(l['Quote Amount']), 0);
 
-  const avgJobValue = completedLeads.length > 0
-    ? totalRevenue / completedLeads.length
+  const avgJobValue = closedLeads.length > 0
+    ? totalRevenue / closedLeads.length
     : 0;
 
   const conversionRate = quotedLeads.length > 0
-    ? Math.round((completedLeads.length / quotedLeads.length) * 100)
+    ? Math.round((closedLeads.length / quotedLeads.length) * 100)
     : 0;
 
   // Revenue by service type
   const revenueByService: Record<string, number> = {};
-  completedLeads.forEach(lead => {
+  closedLeads.forEach(lead => {
     const service = lead['Service Requested'] || 'Unknown';
     const amount = parseCurrency(lead['Final Amount'] || lead['Quote Amount']);
     revenueByService[service] = (revenueByService[service] || 0) + amount;
@@ -163,7 +163,7 @@ export default function FinancialDashboard() {
 
   // Revenue by technician
   const revenueByTech: Record<string, { revenue: number; jobs: number }> = {};
-  completedLeads.forEach(lead => {
+  closedLeads.forEach(lead => {
     const tech = lead['Assigned To'] || 'Unassigned';
     const amount = parseCurrency(lead['Final Amount'] || lead['Quote Amount']);
     if (!revenueByTech[tech]) {
@@ -185,7 +185,7 @@ export default function FinancialDashboard() {
 
   // Revenue by city
   const revenueByCity: Record<string, number> = {};
-  completedLeads.forEach(lead => {
+  closedLeads.forEach(lead => {
     const city = lead['City'] || 'Unknown';
     const amount = parseCurrency(lead['Final Amount'] || lead['Quote Amount']);
     revenueByCity[city] = (revenueByCity[city] || 0) + amount;
@@ -218,7 +218,7 @@ export default function FinancialDashboard() {
       months[key] = 0;
     }
 
-    completedLeads.forEach(lead => {
+    closedLeads.forEach(lead => {
       const leadDate = parseDate(lead['Appointment Date'] || lead['Timestamp Received']);
       if (leadDate) {
         const key = leadDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
@@ -293,7 +293,7 @@ export default function FinancialDashboard() {
     let leadGenRevenue = 0;
     let partnerRevenue = 0;
 
-    completedLeads.forEach(lead => {
+    closedLeads.forEach(lead => {
       const revenue = parseCurrency(lead['Final Amount'] || lead['Quote Amount']);
       const leadSource = lead['Lead Source'] || '';
 
@@ -483,7 +483,7 @@ export default function FinancialDashboard() {
           <div className="bg-white rounded-xl shadow-sm p-5">
             <p className="text-slate-500 text-sm font-medium">Total Revenue</p>
             <p className="text-2xl font-bold text-green-600 mt-1">{formatCurrency(totalRevenue)}</p>
-            <p className="text-xs text-slate-400 mt-1">{completedLeads.length} completed jobs</p>
+            <p className="text-xs text-slate-400 mt-1">{closedLeads.length} closed jobs</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5">
             <p className="text-slate-500 text-sm font-medium">Pending Revenue</p>
@@ -590,7 +590,7 @@ export default function FinancialDashboard() {
             // Calculate provider metrics
             const providerMetrics: Record<string, {
               leads: number;
-              completed: number;
+              closed: number;
               revenue: number;
               commissionOwed: number;
             }> = {};
@@ -600,13 +600,13 @@ export default function FinancialDashboard() {
               if (!provider || provider === '-') return;
 
               if (!providerMetrics[provider]) {
-                providerMetrics[provider] = { leads: 0, completed: 0, revenue: 0, commissionOwed: 0 };
+                providerMetrics[provider] = { leads: 0, closed: 0, revenue: 0, commissionOwed: 0 };
               }
 
               providerMetrics[provider].leads++;
 
-              if (lead['Status']?.toUpperCase() === 'COMPLETED') {
-                providerMetrics[provider].completed++;
+              if (lead['Status']?.toUpperCase() === 'CLOSED') {
+                providerMetrics[provider].closed++;
                 const revenue = parseCurrency(lead['Final Amount'] || lead['Quote Amount']);
                 providerMetrics[provider].revenue += revenue;
 
@@ -652,8 +652,8 @@ export default function FinancialDashboard() {
                     </thead>
                     <tbody>
                       {sortedProviders.map(([provider, data]) => {
-                        const closeRate = data.leads > 0 ? Math.round((data.completed / data.leads) * 100) : 0;
-                        const avgJob = data.completed > 0 ? data.revenue / data.completed : 0;
+                        const closeRate = data.leads > 0 ? Math.round((data.closed / data.leads) * 100) : 0;
+                        const avgJob = data.closed > 0 ? data.revenue / data.closed : 0;
                         const pctOfTotal = totalProviderRevenue > 0 ? (data.revenue / totalProviderRevenue) * 100 : 0;
 
                         return (
@@ -667,7 +667,7 @@ export default function FinancialDashboard() {
                               </div>
                             </td>
                             <td className="py-3 px-4 text-sm text-right text-slate-600">{data.leads}</td>
-                            <td className="py-3 px-4 text-sm text-right text-slate-600">{data.completed}</td>
+                            <td className="py-3 px-4 text-sm text-right text-slate-600">{data.closed}</td>
                             <td className="py-3 px-4 text-sm text-right">
                               <span className={`font-medium ${closeRate >= 60 ? 'text-green-600' : closeRate >= 40 ? 'text-amber-600' : 'text-red-500'}`}>
                                 {closeRate}%
@@ -704,7 +704,7 @@ export default function FinancialDashboard() {
                           {sortedProviders.reduce((sum, [, d]) => sum + d.leads, 0)}
                         </td>
                         <td className="py-3 px-4 text-sm text-right text-slate-800">
-                          {sortedProviders.reduce((sum, [, d]) => sum + d.completed, 0)}
+                          {sortedProviders.reduce((sum, [, d]) => sum + d.closed, 0)}
                         </td>
                         <td className="py-3 px-4 text-sm text-right text-slate-800">-</td>
                         <td className="py-3 px-4 text-sm text-right text-green-600">
@@ -731,7 +731,7 @@ export default function FinancialDashboard() {
                         <p className="text-sm text-amber-700">Top Performing Provider</p>
                         <p className="text-lg font-bold text-amber-900">{sortedProviders[0][0]}</p>
                         <p className="text-xs text-amber-600">
-                          {formatCurrency(sortedProviders[0][1].revenue)} revenue from {sortedProviders[0][1].completed} jobs
+                          {formatCurrency(sortedProviders[0][1].revenue)} revenue from {sortedProviders[0][1].closed} jobs
                         </p>
                       </div>
                     </div>
@@ -907,7 +907,7 @@ export default function FinancialDashboard() {
               <tfoot>
                 <tr className="bg-slate-50 font-semibold">
                   <td className="py-2 px-3 text-slate-800">Total</td>
-                  <td className="py-2 px-3 text-right">{completedLeads.length}</td>
+                  <td className="py-2 px-3 text-right">{closedLeads.length}</td>
                   <td className="py-2 px-3 text-right">{formatCurrency(totalRevenue)}</td>
                   <td className="py-2 px-3 text-right text-purple-600">{formatCurrency(commissions.sophia.commission)}</td>
                   <td className="py-2 px-3 text-right text-teal-600">{formatCurrency(commissions.amit.commission)}</td>
@@ -966,7 +966,7 @@ export default function FinancialDashboard() {
                 {filteredLeads
                   .filter(l => {
                     const status = l['Status']?.toUpperCase();
-                    return status === 'COMPLETED' || status === 'PAID';
+                    return status === 'CLOSED' || status === 'PAID';
                   })
                   .slice(0, 20)
                   .map((lead, idx) => (
@@ -986,7 +986,7 @@ export default function FinancialDashboard() {
                       <td className="py-3 px-4 text-sm text-slate-600">{lead['Service Requested']}</td>
                       <td className="py-3 px-4">
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          lead['Status']?.toUpperCase() === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                          lead['Status']?.toUpperCase() === 'CLOSED' ? 'bg-green-100 text-green-700' :
                           lead['Status']?.toUpperCase() === 'SCHEDULED' ? 'bg-teal-100 text-teal-700' :
                           lead['Status']?.toUpperCase() === 'QUOTED' ? 'bg-amber-100 text-amber-700' :
                           'bg-slate-100 text-slate-600'

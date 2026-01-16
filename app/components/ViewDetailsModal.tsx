@@ -35,7 +35,7 @@ export default function ViewDetailsModal({ lead, onClose, onEdit, onSchedule }: 
     'SCHEDULED': 'bg-teal-100 text-teal-700',
     'QUOTED': 'bg-amber-100 text-amber-700',
     'IN PROGRESS': 'bg-purple-100 text-purple-700',
-    'COMPLETED': 'bg-green-100 text-green-700',
+    'CLOSED': 'bg-emerald-100 text-emerald-700',
     'CANCELED': 'bg-slate-100 text-slate-500',
   };
 

@@ -348,7 +348,7 @@ export default function TechPortal() {
               <span className="text-2xl">✅</span>
               <div>
                 <p className="text-2xl font-bold text-green-600">{closedToday.length}</p>
-                <p className="text-xs text-slate-500">Completed</p>
+                <p className="text-xs text-slate-500">Closed</p>
               </div>
             </div>
           </div>
@@ -675,11 +675,11 @@ export default function TechPortal() {
               ))
             )}
 
-            {/* Completed Jobs Section */}
+            {/* Closed Jobs Section */}
             {closedToday.length > 0 && (
               <div className="mt-6">
                 <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
-                  Completed Today
+                  Closed Today
                 </h3>
                 <div className="space-y-2">
                   {closedToday.map((job, idx) => (
@@ -689,7 +689,7 @@ export default function TechPortal() {
                         <p className="text-xs text-slate-500">{job['Service Requested']}</p>
                       </div>
                       <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-semibold">
-                        Completed
+                        Closed
                       </span>
                     </div>
                   ))}
