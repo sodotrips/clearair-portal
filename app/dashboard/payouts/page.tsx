@@ -94,7 +94,7 @@ export default function PayoutsPage() {
     return parseFloat(cleaned) || 0;
   };
 
-  // Filter leads that are completed and paid within date range
+  // Filter leads that are closed and paid within date range
   const filteredLeads = useMemo(() => {
     const startDate = new Date(dateRange.start);
     startDate.setHours(0, 0, 0, 0);
@@ -106,8 +106,8 @@ export default function PayoutsPage() {
       const amountPaid = parseNumber(lead['Amount Paid']);
       const appointmentDate = parseDate(lead['Appointment Date']);
 
-      // Must be completed and have payment
-      if (status !== 'COMPLETED' || amountPaid <= 0) return false;
+      // Must be CLOSED status and have payment
+      if (status !== 'CLOSED' || amountPaid <= 0) return false;
 
       // Check date range
       if (appointmentDate) {
@@ -136,37 +136,37 @@ export default function PayoutsPage() {
 
     // Calculate lead company payouts
     leadCompanyMap.forEach((companyLeads, companyName) => {
-      let totalRevenue = 0;
+      let totalGrossProfit = 0;
       let totalCommission = 0;
 
       companyLeads.forEach(lead => {
-        const amountPaid = parseNumber(lead['Amount Paid']);
+        const grossProfit = parseNumber(lead['Profit $']);
         const commissionPercent = parseNumber(lead['Lead Company Commission %']) || 0;
-        totalRevenue += amountPaid;
-        totalCommission += (amountPaid * commissionPercent / 100);
+        totalGrossProfit += grossProfit;
+        totalCommission += (grossProfit * commissionPercent / 100);
       });
 
       summaries.push({
         name: companyName,
         type: 'lead_company',
         leads: companyLeads,
-        totalRevenue,
+        totalRevenue: totalGrossProfit,
         commissionPercent: companyLeads.length > 0 ? parseNumber(companyLeads[0]['Lead Company Commission %']) : 0,
         commissionAmount: totalCommission,
       });
     });
 
-    // Calculate Sophia's commission (across all completed leads)
-    let sophiaTotalRevenue = 0;
+    // Calculate Sophia's commission (across all closed leads)
+    let sophiaTotalGrossProfit = 0;
     let sophiaCommission = 0;
     const sophiaLeads: Lead[] = [];
 
     filteredLeads.forEach(lead => {
-      const amountPaid = parseNumber(lead['Amount Paid']);
+      const grossProfit = parseNumber(lead['Profit $']);
       const sophiaPercent = parseNumber(lead['Sophia Commission %']) || 0;
       if (sophiaPercent > 0) {
-        sophiaTotalRevenue += amountPaid;
-        sophiaCommission += (amountPaid * sophiaPercent / 100);
+        sophiaTotalGrossProfit += grossProfit;
+        sophiaCommission += (grossProfit * sophiaPercent / 100);
         sophiaLeads.push(lead);
       }
     });
@@ -176,23 +176,23 @@ export default function PayoutsPage() {
         name: 'Sophia',
         type: 'sophia',
         leads: sophiaLeads,
-        totalRevenue: sophiaTotalRevenue,
+        totalRevenue: sophiaTotalGrossProfit,
         commissionPercent: sophiaLeads.length > 0 ? parseNumber(sophiaLeads[0]['Sophia Commission %']) : 0,
         commissionAmount: sophiaCommission,
       });
     }
 
     // Calculate Amit's commission
-    let amitTotalRevenue = 0;
+    let amitTotalGrossProfit = 0;
     let amitCommission = 0;
     const amitLeads: Lead[] = [];
 
     filteredLeads.forEach(lead => {
-      const amountPaid = parseNumber(lead['Amount Paid']);
+      const grossProfit = parseNumber(lead['Profit $']);
       const amitPercent = parseNumber(lead['Amit Commission %']) || 0;
       if (amitPercent > 0) {
-        amitTotalRevenue += amountPaid;
-        amitCommission += (amountPaid * amitPercent / 100);
+        amitTotalGrossProfit += grossProfit;
+        amitCommission += (grossProfit * amitPercent / 100);
         amitLeads.push(lead);
       }
     });
@@ -202,7 +202,7 @@ export default function PayoutsPage() {
         name: 'Amit',
         type: 'amit',
         leads: amitLeads,
-        totalRevenue: amitTotalRevenue,
+        totalRevenue: amitTotalGrossProfit,
         commissionPercent: amitLeads.length > 0 ? parseNumber(amitLeads[0]['Amit Commission %']) : 0,
         commissionAmount: amitCommission,
       });
@@ -212,7 +212,7 @@ export default function PayoutsPage() {
   }, [filteredLeads]);
 
   // Calculate totals
-  const totalRevenue = filteredLeads.reduce((sum, lead) => sum + parseNumber(lead['Amount Paid']), 0);
+  const totalGrossProfit = filteredLeads.reduce((sum, lead) => sum + parseNumber(lead['Profit $']), 0);
   const totalPayouts = payoutSummaries.reduce((sum, s) => sum + s.commissionAmount, 0);
 
   const formatCurrency = (amount: number) => {
@@ -267,10 +267,10 @@ export default function PayoutsPage() {
 
     // Summary
     csv += 'SUMMARY\n';
-    csv += `Completed Jobs,${filteredLeads.length}\n`;
-    csv += `Total Revenue,${formatCurrency(totalRevenue)}\n`;
+    csv += `Closed Jobs,${filteredLeads.length}\n`;
+    csv += `Total Gross Profit,${formatCurrency(totalGrossProfit)}\n`;
     csv += `Total Payouts Due,${formatCurrency(totalPayouts)}\n`;
-    csv += `Net Profit,${formatCurrency(totalRevenue - totalPayouts)}\n\n`;
+    csv += `Net Profit,${formatCurrency(totalGrossProfit - totalPayouts)}\n\n`;
 
     // Payout breakdown
     csv += 'PAYOUT BREAKDOWN\n';
@@ -282,19 +282,19 @@ export default function PayoutsPage() {
     });
 
     csv += '\nDETAILED TRANSACTIONS\n';
-    csv += 'Payee,Lead ID,Customer,Service,Appointment Date,Amount Paid,Commission %,Commission Amount\n';
+    csv += 'Payee,Lead ID,Job ID,Lead Company,Customer,Service,Appointment Date,Payment Date,Gross Profit,Commission %,Commission Amount\n';
 
     payoutSummaries.forEach(summary => {
       summary.leads.forEach(lead => {
-        const amountPaid = parseNumber(lead['Amount Paid']);
+        const grossProfit = parseNumber(lead['Profit $']);
         const commissionPercent = summary.type === 'lead_company'
           ? parseNumber(lead['Lead Company Commission %'])
           : summary.type === 'sophia'
           ? parseNumber(lead['Sophia Commission %'])
           : parseNumber(lead['Amit Commission %']);
-        const commission = amountPaid * commissionPercent / 100;
+        const commission = grossProfit * commissionPercent / 100;
 
-        csv += `"${summary.name}","${lead['Lead ID']}","${lead['Customer Name']}","${lead['Service Requested']}","${lead['Appointment Date']}",${formatCurrency(amountPaid)},${commissionPercent}%,${formatCurrency(commission)}\n`;
+        csv += `"${summary.name}","${lead['Lead ID']}","${lead['Lead Job ID'] || ''}","${lead['Lead Source Detail'] || ''}","${lead['Customer Name']}","${lead['Service Requested']}","${lead['Appointment Date']}","${lead['Payment Date'] || ''}",${formatCurrency(grossProfit)},${commissionPercent}%,${formatCurrency(commission)}\n`;
       });
     });
 
@@ -423,12 +423,12 @@ export default function PayoutsPage() {
             <p className="text-lg font-semibold text-[#0a2540]">{formatDateRange()}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-4">
-            <p className="text-slate-500 text-sm">Completed Jobs</p>
+            <p className="text-slate-500 text-sm">Closed Jobs</p>
             <p className="text-2xl font-bold text-[#0a2540]">{filteredLeads.length}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-4">
-            <p className="text-slate-500 text-sm">Total Revenue</p>
-            <p className="text-2xl font-bold text-green-600">{formatCurrency(totalRevenue)}</p>
+            <p className="text-slate-500 text-sm">Total Gross Profit</p>
+            <p className="text-2xl font-bold text-green-600">{formatCurrency(totalGrossProfit)}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-4">
             <p className="text-slate-500 text-sm">Total Payouts Due</p>
@@ -444,7 +444,7 @@ export default function PayoutsPage() {
 
           {payoutSummaries.length === 0 ? (
             <div className="p-8 text-center text-slate-500">
-              No completed and paid jobs found in this date range.
+              No closed and paid jobs found in this date range.
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
@@ -482,28 +482,34 @@ export default function PayoutsPage() {
                         <thead>
                           <tr className="text-left text-slate-500">
                             <th className="pb-2">Lead ID</th>
+                            <th className="pb-2">Job ID</th>
+                            <th className="pb-2">Lead Company</th>
                             <th className="pb-2">Customer</th>
                             <th className="pb-2">Service</th>
-                            <th className="pb-2 text-right">Paid</th>
+                            <th className="pb-2">Payment Date</th>
+                            <th className="pb-2 text-right">Gross Profit</th>
                             <th className="pb-2 text-right">Commission</th>
                           </tr>
                         </thead>
                         <tbody>
                           {summary.leads.map((lead, i) => {
-                            const amountPaid = parseNumber(lead['Amount Paid']);
+                            const grossProfit = parseNumber(lead['Profit $']);
                             const commissionPercent = summary.type === 'lead_company'
                               ? parseNumber(lead['Lead Company Commission %'])
                               : summary.type === 'sophia'
                               ? parseNumber(lead['Sophia Commission %'])
                               : parseNumber(lead['Amit Commission %']);
-                            const commission = amountPaid * commissionPercent / 100;
+                            const commission = grossProfit * commissionPercent / 100;
 
                             return (
                               <tr key={i} className="border-t border-slate-200">
                                 <td className="py-2 text-slate-600">{lead['Lead ID']}</td>
+                                <td className="py-2 text-slate-600">{lead['Lead Job ID']}</td>
+                                <td className="py-2 text-slate-600">{lead['Lead Source Detail']}</td>
                                 <td className="py-2">{lead['Customer Name']}</td>
                                 <td className="py-2 text-slate-600">{lead['Service Requested']}</td>
-                                <td className="py-2 text-right">{formatCurrency(amountPaid)}</td>
+                                <td className="py-2 text-slate-600">{lead['Payment Date']}</td>
+                                <td className="py-2 text-right">{formatCurrency(grossProfit)}</td>
                                 <td className="py-2 text-right text-red-600">
                                   {formatCurrency(commission)} ({commissionPercent}%)
                                 </td>
@@ -525,10 +531,10 @@ export default function PayoutsPage() {
           <div className="flex justify-between items-center">
             <div>
               <p className="text-white/70 text-sm">Net Profit After Payouts</p>
-              <p className="text-3xl font-bold">{formatCurrency(totalRevenue - totalPayouts)}</p>
+              <p className="text-3xl font-bold">{formatCurrency(totalGrossProfit - totalPayouts)}</p>
             </div>
             <div className="text-right">
-              <p className="text-white/70 text-sm">Revenue: {formatCurrency(totalRevenue)}</p>
+              <p className="text-white/70 text-sm">Gross Profit: {formatCurrency(totalGrossProfit)}</p>
               <p className="text-white/70 text-sm">Payouts: {formatCurrency(totalPayouts)}</p>
             </div>
           </div>

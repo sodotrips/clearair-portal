@@ -187,20 +187,21 @@ export default function TechPortal() {
     return timeOrder.indexOf(a['Time Window'] || '') - timeOrder.indexOf(b['Time Window'] || '');
   });
 
-  // Get completed jobs for today
-  const completedToday = leads.filter(l => {
+  // Get closed jobs for today
+  const closedToday = leads.filter(l => {
     const status = l['Status']?.toUpperCase();
     const isAssigned = l['Assigned To'] === selectedTech;
-    const isCompleted = status === 'COMPLETED';
+    const isClosed = status === 'CLOSED';
     const isOnDate = isDateMatch(l['Appointment Date'], selectedDate);
-    return isAssigned && isCompleted && isOnDate;
+    return isAssigned && isClosed && isOnDate;
   });
 
   const statusStyles: Record<string, string> = {
     'NEW': 'bg-blue-100 text-blue-700',
     'SCHEDULED': 'bg-teal-100 text-teal-700',
     'IN PROGRESS': 'bg-purple-100 text-purple-700',
-    'COMPLETED': 'bg-green-100 text-green-700',
+    'QUOTED': 'bg-amber-100 text-amber-700',
+    'CLOSED': 'bg-emerald-100 text-emerald-700',
   };
 
   // Helper to determine who the tech is representing
@@ -346,7 +347,7 @@ export default function TechPortal() {
             <div className="flex items-center gap-2">
               <span className="text-2xl">✅</span>
               <div>
-                <p className="text-2xl font-bold text-green-600">{completedToday.length}</p>
+                <p className="text-2xl font-bold text-green-600">{closedToday.length}</p>
                 <p className="text-xs text-slate-500">Completed</p>
               </div>
             </div>
@@ -675,13 +676,13 @@ export default function TechPortal() {
             )}
 
             {/* Completed Jobs Section */}
-            {completedToday.length > 0 && (
+            {closedToday.length > 0 && (
               <div className="mt-6">
                 <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">
                   Completed Today
                 </h3>
                 <div className="space-y-2">
-                  {completedToday.map((job, idx) => (
+                  {closedToday.map((job, idx) => (
                     <div key={idx} className="bg-white rounded-lg p-3 flex justify-between items-center opacity-75">
                       <div>
                         <p className="font-medium text-slate-700">{job['Customer Name']}</p>

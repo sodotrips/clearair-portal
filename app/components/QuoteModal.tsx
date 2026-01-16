@@ -140,7 +140,7 @@ export default function QuoteModal({ lead, onClose, onSuccess }: QuoteModalProps
         body: JSON.stringify({
           rowIndex: lead.rowIndex,
           updates: {
-            'Status': 'COMPLETED',
+            'Status': 'CLOSED',
             'Amount Paid': amountPaid,
             'Total Cost': total.toString(),
             // Store quote details in notes or a dedicated field

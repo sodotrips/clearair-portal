@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If checking out, update status to "COMPLETED"
+    // If checking out, update status to "CLOSED"
     if (action === 'checkout') {
       const statusColIndex = headers.indexOf('Status');
       if (statusColIndex !== -1) {
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
           range: `${SHEET_NAME}!${statusColLetter}${rowIndex}`,
           valueInputOption: 'USER_ENTERED',
           requestBody: {
-            values: [['COMPLETED']],
+            values: [['CLOSED']],
           },
         });
       }

@@ -102,7 +102,7 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, userRole
   const getJobsForDate = (date: Date) => {
     return leads.filter(lead => {
       const status = lead['Status']?.toUpperCase();
-      if (status !== 'SCHEDULED' && status !== 'IN PROGRESS' && status !== 'COMPLETED') return false;
+      if (status !== 'SCHEDULED' && status !== 'IN PROGRESS' && status !== 'QUOTED' && status !== 'CLOSED') return false;
 
       const appointmentDate = parseDate(lead['Appointment Date']);
       if (!appointmentDate) return false;
@@ -140,7 +140,8 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, userRole
     switch (status?.toUpperCase()) {
       case 'SCHEDULED': return 'bg-blue-100 border-blue-400 text-blue-800';
       case 'IN PROGRESS': return 'bg-purple-100 border-purple-400 text-purple-800';
-      case 'COMPLETED': return 'bg-green-100 border-green-400 text-green-800';
+      case 'QUOTED': return 'bg-amber-100 border-amber-400 text-amber-800';
+      case 'CLOSED': return 'bg-emerald-100 border-emerald-400 text-emerald-800';
       default: return 'bg-slate-100 border-slate-400 text-slate-800';
     }
   };
@@ -330,8 +331,12 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, userRole
             <span className="text-xs text-slate-300">In Progress</span>
           </div>
           <div className="flex items-center gap-1 ml-2">
-            <span className="w-3 h-3 rounded bg-green-400"></span>
-            <span className="text-xs text-slate-300">Completed</span>
+            <span className="w-3 h-3 rounded bg-amber-400"></span>
+            <span className="text-xs text-slate-300">Quoted</span>
+          </div>
+          <div className="flex items-center gap-1 ml-2">
+            <span className="w-3 h-3 rounded bg-emerald-400"></span>
+            <span className="text-xs text-slate-300">Closed</span>
           </div>
         </div>
       </div>
@@ -411,10 +416,11 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, userRole
               {/* Jobs List */}
               <div className="h-[280px] overflow-y-auto calendar-scroll p-1.5 space-y-1">
                 {sortJobsByTime(jobs).map((job, jobIndex) => {
-                  const isCompleted = job['Status']?.toUpperCase() === 'COMPLETED';
+                  const jobStatus = job['Status']?.toUpperCase();
+                  const isClosed = jobStatus === 'CLOSED';
                   const isDispatcher = userRole === 'Dispatcher';
-                  const canClick = !(isDispatcher && isCompleted);
-                  const canDrag = !isCompleted;
+                  const canClick = !(isDispatcher && isClosed);
+                  const canDrag = !isClosed;
                   return (
                   <div
                     key={jobIndex}
@@ -423,10 +429,10 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, userRole
                     onDragEnd={handleDragEnd}
                     onClick={() => canClick && onSelectLead?.(job)}
                     className={`p-2 rounded border-l-3 transition text-xs ${getStatusColor(job['Status'])} ${
-                      isCompleted ? 'cursor-default opacity-75' : 'cursor-grab active:cursor-grabbing'
+                      isClosed ? 'cursor-default opacity-75' : 'cursor-grab active:cursor-grabbing'
                     } ${!canClick ? 'cursor-not-allowed' : 'hover:shadow-md'} ${draggedJob?.rowIndex === job.rowIndex ? 'opacity-50 ring-2 ring-teal-500' : ''}`}
                     style={{ borderLeftWidth: '3px' }}
-                    title={isDispatcher && isCompleted ? 'Completed jobs are restricted' : isCompleted ? 'Completed jobs cannot be rescheduled' : 'Drag to reschedule'}
+                    title={isDispatcher && isClosed ? 'Closed jobs are restricted' : isClosed ? 'Closed jobs cannot be rescheduled' : 'Drag to reschedule'}
                   >
                     <div className="font-semibold truncate">{job['Customer Name']}</div>
                     <div className="text-[10px] opacity-75 mt-0.5">{getTimeLabel(job['Time Window'])}</div>

@@ -22,7 +22,7 @@ interface Lead {
 
 interface DailySummary {
   todayDate: string;
-  completedJobsToday: number;
+  closedJobsToday: number;
   revenueCollectedToday: number;
   pendingPaymentJobs: number;
   pendingPaymentAmount: number;
@@ -136,7 +136,7 @@ function calculateSummary(leads: Lead[]): DailySummary {
   const today = getHoustonDateString();
   const tomorrow = getTomorrowDateString();
 
-  let completedJobsToday = 0;
+  let closedJobsToday = 0;
   let revenueCollectedToday = 0;
   let pendingPaymentJobs = 0;
   let pendingPaymentAmount = 0;
@@ -152,13 +152,13 @@ function calculateSummary(leads: Lead[]): DailySummary {
     const confirmed = (lead['AU'] || '').toUpperCase();
 
     // Completed today
-    if (status === 'COMPLETED' && isDateMatch(apptDate, today)) {
-      completedJobsToday++;
+    if (status === 'CLOSED' && isDateMatch(apptDate, today)) {
+      closedJobsToday++;
       revenueCollectedToday += amountPaid;
     }
 
-    // Pending payment (completed but not fully paid)
-    if (status === 'COMPLETED' && totalCost > 0 && amountPaid < totalCost) {
+    // Pending payment (closed but not fully paid)
+    if (status === 'CLOSED' && totalCost > 0 && amountPaid < totalCost) {
       pendingPaymentJobs++;
       pendingPaymentAmount += (totalCost - amountPaid);
     }
@@ -171,17 +171,17 @@ function calculateSummary(leads: Lead[]): DailySummary {
       }
     }
 
-    // Weekly revenue (all completed this week)
-    if (status === 'COMPLETED' && isDateInCurrentWeek(apptDate) && amountPaid > 0) {
+    // Weekly revenue (all closed this week)
+    if (status === 'CLOSED' && isDateInCurrentWeek(apptDate) && amountPaid > 0) {
       weeklyRevenue += amountPaid;
     }
   }
 
-  const hasData = completedJobsToday > 0;
+  const hasData = closedJobsToday > 0;
 
   return {
     todayDate: today,
-    completedJobsToday,
+    closedJobsToday,
     revenueCollectedToday,
     pendingPaymentJobs,
     pendingPaymentAmount,
@@ -212,7 +212,7 @@ function formatSummaryMessage(summary: DailySummary): string {
   let message = `📊 ClearAir Daily Summary\n`;
   message += `━━━━━━━━━━━━━━━━━━━\n`;
   message += `Today (${dateStr}):\n`;
-  message += `✅ Completed: ${summary.completedJobsToday} jobs\n`;
+  message += `✅ Closed: ${summary.closedJobsToday} jobs\n`;
   message += `💰 Collected: ${formatCurrency(summary.revenueCollectedToday)}\n`;
 
   if (summary.pendingPaymentJobs > 0) {
@@ -285,12 +285,12 @@ export async function POST(request: NextRequest) {
     // Calculate summary
     const summary = calculateSummary(leads);
 
-    // If no completed jobs today and not a test, skip sending
+    // If no closed jobs today and not a test, skip sending
     if (!summary.hasData && !isTest) {
       return NextResponse.json({
         success: true,
         skipped: true,
-        reason: 'No completed jobs today - SMS not sent',
+        reason: 'No closed jobs today - SMS not sent',
         summary,
       });
     }

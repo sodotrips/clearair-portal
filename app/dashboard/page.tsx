@@ -34,21 +34,49 @@ export default function Dashboard() {
   const [agentSettings, setAgentSettings] = useState<Record<string, string>>({});
   const [agentLoading, setAgentLoading] = useState(false);
   const [agentTestResult, setAgentTestResult] = useState<string | null>(null);
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const userRole = (session?.user as any)?.role;
+
+  // Map column headers to actual field names
+  const columnToField: Record<string, string> = {
+    'Lead ID': 'Lead ID',
+    'Status': 'Status',
+    'Customer': 'Customer Name',
+    'Phone': 'Phone Number',
+    'Address': 'Address',
+    'City': 'City',
+    'Service': 'Service Requested',
+    'Created': 'Timestamp Received',
+    'Technician': 'Assigned To',
+    'Appointment': 'Appointment Date',
+    'Time Window': 'Time Window',
+    'Follow-up': 'Follow-up Date',
+    'Customer Notes': 'Customer Issue/Notes',
+    'Lead Source': 'Lead Source',
+    'Referral Source': 'Referral Source',
+    'Amount Paid': 'Amount Paid',
+    'Total Cost': 'Total Cost',
+    'Profit $': 'Profit $',
+    'Sophia %': 'Sophia Commission %',
+    'Amit %': 'Amit Commission %',
+    'Lead Co %': 'Lead Company Commission %',
+  };
 
   // Dropdown options for inline editing
   const cities = ['Houston', 'Katy', 'Sugar Land', 'Pearland', 'Spring', 'Cypress', 'The Woodlands', 'Humble', 'Pasadena', 'League City', 'Missouri City', 'Baytown', 'Conroe', 'Richmond', 'Tomball'];
   const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
   const techs = ['Amit', 'Tech 2', 'Subcontractor'];
-  const statuses = ['NEW', 'SCHEDULED', 'QUOTED', 'IN PROGRESS', 'COMPLETED', 'CANCELED'];
+  const statuses = ['NEW', 'SCHEDULED', 'IN PROGRESS', 'QUOTED', 'CLOSED', 'CANCELED'];
   const timeWindows = ['08:00AM - 11:00AM', '11:00AM - 2:00PM', '2:00PM - 5:00PM'];
 
   // Column widths per view
   const defaultWidths: Record<string, number[]> = {
     new: [140, 110, 100, 160, 140, 200, 120, 160, 100, 100, 110, 250],
     scheduled: [140, 110, 100, 160, 140, 200, 120, 160, 100, 110, 160, 110],
-    followups: [140, 110, 100, 160, 140, 200, 120, 160, 100, 110, 110],
-    completed: [50, 110, 100, 160, 140, 200, 120, 160, 100, 110, 100, 120, 100, 100, 90, 90, 90, 90],
+    followups: [140, 110, 100, 110, 160, 140, 200, 120, 160, 100, 110],
+    quoted: [50, 110, 100, 160, 140, 200, 120, 160, 100, 110, 100, 120, 100, 100, 90, 90, 90, 90],
+    closed: [50, 110, 100, 160, 140, 200, 120, 160, 100, 110, 100, 120, 100, 100, 90, 90, 90, 90],
     canceled: [140, 110, 100, 160, 140, 200, 120, 160, 100, 110],
   };
   const [columnWidths, setColumnWidths] = useState<Record<string, number[]>>(defaultWidths);
@@ -61,7 +89,69 @@ export default function Dashboard() {
 
   useEffect(() => {
     filterLeadsByView();
-  }, [leads, currentView, searchTerm]);
+  }, [leads, currentView, searchTerm, sortColumn, sortDirection]);
+
+  // Handle column sort
+  const handleSort = (column: string) => {
+    if (column === 'Actions') return; // Don't sort Actions column
+
+    if (sortColumn === column) {
+      // Toggle direction if same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column, default to ascending
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Sort function for leads
+  const sortLeads = (leadsToSort: Lead[]) => {
+    if (!sortColumn) return leadsToSort;
+
+    const field = columnToField[sortColumn] || sortColumn;
+
+    return [...leadsToSort].sort((a, b) => {
+      const aRaw = a[field] || '';
+      const bRaw = b[field] || '';
+
+      // Handle date fields
+      if (field.includes('Date') || field === 'Timestamp Received') {
+        const parseDate = (dateStr: string): number => {
+          if (!dateStr) return 0;
+          if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
+            const [month, day, year] = dateStr.split('/');
+            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).getTime();
+          }
+          if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            return new Date(dateStr).getTime();
+          }
+          return new Date(dateStr).getTime() || 0;
+        };
+        const aNum = parseDate(aRaw);
+        const bNum = parseDate(bRaw);
+        if (aNum < bNum) return sortDirection === 'asc' ? -1 : 1;
+        if (aNum > bNum) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      }
+      // Handle numeric fields
+      else if (field.includes('Amount') || field.includes('Cost') || field.includes('Profit') || field.includes('%')) {
+        const aNum = parseFloat(aRaw.replace(/[^0-9.-]/g, '')) || 0;
+        const bNum = parseFloat(bRaw.replace(/[^0-9.-]/g, '')) || 0;
+        if (aNum < bNum) return sortDirection === 'asc' ? -1 : 1;
+        if (aNum > bNum) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      }
+      // Handle string fields
+      else {
+        const aStr = aRaw.toLowerCase();
+        const bStr = bRaw.toLowerCase();
+        if (aStr < bStr) return sortDirection === 'asc' ? -1 : 1;
+        if (aStr > bStr) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      }
+    });
+  };
 
   async function fetchAgentSettings() {
     try {
@@ -253,8 +343,8 @@ export default function Dashboard() {
 
   async function updateLeadStatus(lead: Lead, newStatus: string) {
     let confirmMsg = '';
-    if (newStatus === 'COMPLETED') {
-      confirmMsg = `Mark "${lead['Customer Name']}" as completed?`;
+    if (newStatus === 'CLOSED') {
+      confirmMsg = `Mark "${lead['Customer Name']}" as closed?`;
     } else if (newStatus === 'CANCELED') {
       confirmMsg = `Cancel lead for "${lead['Customer Name']}"?`;
     } else if (newStatus === 'NEW') {
@@ -294,10 +384,15 @@ export default function Dashboard() {
     } else if (currentView === 'followups') {
       filtered = leads.filter(l => {
         const status = l['Status']?.toUpperCase();
-        return status !== 'COMPLETED' && status !== 'CANCELED' && l['Follow-up Date'];
+        // Check multiple possible column names for Follow-up Date
+        const followUpDate = l['Follow-up Date'] || l['Follow Up Date'] || l['Followup Date'] || l['Follow-Up Date'] || '';
+        const hasFollowUpDate = followUpDate.trim() !== '';
+        return status !== 'CLOSED' && status !== 'CANCELED' && hasFollowUpDate;
       });
-    } else if (currentView === 'completed') {
-      filtered = leads.filter(l => l['Status']?.toUpperCase() === 'COMPLETED');
+    } else if (currentView === 'quoted') {
+      filtered = leads.filter(l => l['Status']?.toUpperCase() === 'QUOTED');
+    } else if (currentView === 'closed') {
+      filtered = leads.filter(l => l['Status']?.toUpperCase() === 'CLOSED');
     } else if (currentView === 'canceled') {
       filtered = leads.filter(l => l['Status']?.toUpperCase() === 'CANCELED');
     }
@@ -313,18 +408,21 @@ export default function Dashboard() {
       );
     }
 
+    // Apply sorting
+    filtered = sortLeads(filtered);
+
     setFilteredLeads(filtered);
   }
 
-  // Get today's appointments (including completed)
+  // Get today's appointments (including closed)
   const todaysAppointments = leads.filter(l => {
     const status = l['Status']?.toUpperCase();
-    return (status === 'SCHEDULED' || status === 'IN PROGRESS' || status === 'COMPLETED') && isToday(l['Appointment Date']);
+    return (status === 'SCHEDULED' || status === 'IN PROGRESS' || status === 'QUOTED' || status === 'CLOSED') && isToday(l['Appointment Date']);
   }).sort((a, b) => {
-    const aCompleted = a['Status']?.toUpperCase() === 'COMPLETED';
-    const bCompleted = b['Status']?.toUpperCase() === 'COMPLETED';
-    // Completed jobs go to the bottom
-    if (aCompleted !== bCompleted) return aCompleted ? 1 : -1;
+    const aClosed = a['Status']?.toUpperCase() === 'CLOSED';
+    const bClosed = b['Status']?.toUpperCase() === 'CLOSED';
+    // Closed jobs go to the bottom
+    if (aClosed !== bClosed) return aClosed ? 1 : -1;
     // Then sort by time window
     const timeOrder = ['08:00AM - 11:00AM', '11:00AM - 2:00PM', '2:00PM - 5:00PM'];
     return timeOrder.indexOf(a['Time Window'] || '') - timeOrder.indexOf(b['Time Window'] || '');
@@ -335,17 +433,21 @@ export default function Dashboard() {
     scheduled: leads.filter(l => l['Status']?.toUpperCase() === 'SCHEDULED').length,
     followups: leads.filter(l => {
       const status = l['Status']?.toUpperCase();
-      return status !== 'COMPLETED' && status !== 'CANCELED' && l['Follow-up Date'];
+      const followUpDate = l['Follow-up Date'] || l['Follow Up Date'] || l['Followup Date'] || l['Follow-Up Date'] || '';
+      const hasFollowUpDate = followUpDate.trim() !== '';
+      return status !== 'CLOSED' && status !== 'CANCELED' && hasFollowUpDate;
     }).length,
-    completed: leads.filter(l => l['Status']?.toUpperCase() === 'COMPLETED').length,
+    quoted: leads.filter(l => l['Status']?.toUpperCase() === 'QUOTED').length,
+    closed: leads.filter(l => l['Status']?.toUpperCase() === 'CLOSED').length,
     canceled: leads.filter(l => l['Status']?.toUpperCase() === 'CANCELED').length,
   };
 
   const allTabs = [
     { id: 'new', label: 'New Leads', count: stats.newLeads },
     { id: 'scheduled', label: 'Scheduled', count: stats.scheduled },
+    { id: 'quoted', label: 'Quoted', count: stats.quoted, adminOnly: true },
     { id: 'followups', label: 'Follow-ups', count: stats.followups },
-    { id: 'completed', label: 'Completed', count: stats.completed, adminOnly: true },
+    { id: 'closed', label: 'Closed', count: stats.closed, adminOnly: true },
     { id: 'canceled', label: 'Canceled', count: stats.canceled },
   ];
 
@@ -355,15 +457,16 @@ export default function Dashboard() {
   const statCards = [
     { id: 'new', label: 'New Leads', count: stats.newLeads, accentColor: 'bg-blue-500', icon: '📋' },
     { id: 'scheduled', label: 'Scheduled', count: stats.scheduled, accentColor: 'bg-teal-500', icon: '📅' },
-    { id: 'followups', label: 'Follow-ups', count: stats.followups, accentColor: 'bg-orange-500', icon: '🔔' },
-    { id: 'completed', label: 'Completed', count: stats.completed, accentColor: 'bg-green-500', icon: '✅' },
+    { id: 'quoted', label: 'Quoted', count: stats.quoted, accentColor: 'bg-amber-500', icon: '💰' },
+    { id: 'closed', label: 'Closed', count: stats.closed, accentColor: 'bg-emerald-500', icon: '✅' },
   ];
 
   const columnsByView: Record<string, string[]> = {
     new: ['Actions', 'Lead ID', 'Status', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Created', 'Technician', 'Appointment', 'Customer Notes'],
     scheduled: ['Actions', 'Lead ID', 'Status', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Technician', 'Appointment', 'Time Window', 'Follow-up'],
-    followups: ['Actions', 'Lead ID', 'Status', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Technician', 'Appointment', 'Follow-up'],
-    completed: ['Actions', 'Lead ID', 'Status', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Technician', 'Appointment', 'Lead Source', 'Referral Source', 'Amount Paid', 'Total Cost', 'Profit $', 'Sophia %', 'Amit %', 'Lead Co %'],
+    followups: ['Actions', 'Lead ID', 'Status', 'Follow-up', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Technician', 'Appointment'],
+    quoted: ['Actions', 'Lead ID', 'Status', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Technician', 'Appointment', 'Lead Source', 'Referral Source', 'Amount Paid', 'Total Cost', 'Profit $', 'Sophia %', 'Amit %', 'Lead Co %'],
+    closed: ['Actions', 'Lead ID', 'Status', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Technician', 'Appointment', 'Lead Source', 'Referral Source', 'Amount Paid', 'Total Cost', 'Profit $', 'Sophia %', 'Amit %', 'Lead Co %'],
     canceled: ['Actions', 'Lead ID', 'Status', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Technician', 'Appointment'],
   };
 
@@ -372,9 +475,9 @@ export default function Dashboard() {
   const statusStyles: Record<string, string> = {
     'NEW': 'bg-blue-100 text-blue-700',
     'SCHEDULED': 'bg-teal-100 text-teal-700',
-    'QUOTED': 'bg-amber-100 text-amber-700',
     'IN PROGRESS': 'bg-purple-100 text-purple-700',
-    'COMPLETED': 'bg-green-100 text-green-700',
+    'QUOTED': 'bg-amber-100 text-amber-700',
+    'CLOSED': 'bg-emerald-100 text-emerald-700',
     'CANCELED': 'bg-slate-100 text-slate-500',
   };
 
@@ -476,28 +579,37 @@ export default function Dashboard() {
       </header>
 
       <div className="max-w-7xl mx-auto px-6 py-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 mb-4">
-          {statCards.map(card => (
-            <div
-              key={card.id}
-              onClick={() => setCurrentView(card.id)}
-              className={`bg-[#E0EBF7] rounded-lg overflow-hidden cursor-pointer transition-all hover:bg-[#d0dde9] ${
-                currentView === card.id ? 'ring-2 ring-[#14b8a6] shadow-md' : 'shadow-sm'
-              }`}
-            >
-              <div className={`h-0.5 ${card.accentColor}`}></div>
-              <div className="px-3 py-2">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-slate-600 text-xs font-medium uppercase tracking-wide">{card.label}</p>
-                    <p className="text-[#0a2540] text-2xl font-bold">{card.count}</p>
-                  </div>
-                  <div className={`w-8 h-8 rounded-md ${card.accentColor} bg-opacity-20 flex items-center justify-center`}>
-                    <span className="text-base">{card.icon}</span>
+        {/* Stats Cards - Status Flow */}
+        <div className="flex items-center justify-between gap-2 mt-2 mb-4">
+          {statCards.map((card, index) => (
+            <div key={card.id} className="flex items-center flex-1">
+              <div
+                onClick={() => setCurrentView(card.id)}
+                className={`bg-[#E0EBF7] rounded-lg overflow-hidden cursor-pointer transition-all hover:bg-[#d0dde9] w-full ${
+                  currentView === card.id ? 'ring-2 ring-[#14b8a6] shadow-md' : 'shadow-sm'
+                }`}
+              >
+                <div className={`h-1 ${card.accentColor}`}></div>
+                <div className="px-3 py-2">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-slate-600 text-xs font-medium uppercase tracking-wide">{card.label}</p>
+                      <p className="text-[#0a2540] text-2xl font-bold">{card.count}</p>
+                    </div>
+                    <div className={`w-8 h-8 rounded-md ${card.accentColor} bg-opacity-20 flex items-center justify-center`}>
+                      <span className="text-base">{card.icon}</span>
+                    </div>
                   </div>
                 </div>
               </div>
+              {/* Arrow between cards */}
+              {index < statCards.length - 1 && (
+                <div className="flex items-center px-2 flex-shrink-0">
+                  <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -545,18 +657,18 @@ export default function Dashboard() {
                   representingStyle = isLeadCompany ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700';
                 }
 
-                const isCompleted = appt['Status']?.toUpperCase() === 'COMPLETED';
-                // Count completed jobs before this one to determine alternating shade
-                const completedCountBefore = todaysAppointments.slice(0, idx).filter(a => a['Status']?.toUpperCase() === 'COMPLETED').length;
+                const isClosed = appt['Status']?.toUpperCase() === 'CLOSED';
+                // Count closed jobs before this one to determine alternating shade
+                const closedCountBefore = todaysAppointments.slice(0, idx).filter(a => a['Status']?.toUpperCase() === 'CLOSED').length;
                 return (
-                <div key={idx} className={`px-4 py-2 ${isCompleted ? (completedCountBefore % 2 === 0 ? 'bg-green-50' : 'bg-[#f7fef9]') : (idx % 2 === 1 ? 'bg-slate-100' : 'bg-white')}`}>
+                <div key={idx} className={`px-4 py-2 ${isClosed ? (closedCountBefore % 2 === 0 ? 'bg-emerald-50' : 'bg-[#f0fdf4]') : (idx % 2 === 1 ? 'bg-slate-100' : 'bg-white')}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className={`px-2 py-1 rounded text-xs font-semibold min-w-[120px] text-center ${isCompleted ? 'bg-green-200 text-green-700' : 'bg-[#14b8a6]/10 text-[#14b8a6]'}`}>
+                      <div className={`px-2 py-1 rounded text-xs font-semibold min-w-[120px] text-center ${isClosed ? 'bg-emerald-200 text-emerald-700' : 'bg-[#14b8a6]/10 text-[#14b8a6]'}`}>
                         {appt['Time Window'] || 'No time set'}
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className={`text-xs font-semibold ${isCompleted ? 'text-green-600' : 'text-[#14b8a6]'}`}>{isCompleted ? '✓' : `Job ${idx + 1}`}</span>
+                        <span className={`text-xs font-semibold ${isClosed ? 'text-emerald-600' : 'text-[#14b8a6]'}`}>{isClosed ? '✓' : `Job ${idx + 1}`}</span>
                         <span className="font-semibold text-sm text-[#0a2540]">{appt['Customer Name']}</span>
                         <span className="text-xs text-slate-400">•</span>
                         <span className="text-xs text-slate-500">{appt['City']}</span>
@@ -706,14 +818,31 @@ export default function Dashboard() {
                     {columns.map((col, index) => (
                       <th
                         key={col}
-                        className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider relative select-none"
+                        className={`px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider relative select-none ${col !== 'Actions' ? 'cursor-pointer hover:bg-slate-400/50' : ''}`}
                         style={index === 0 ? { width: 140, minWidth: 140, maxWidth: 140 } : { width: columnWidths[currentView][index] }}
+                        onClick={() => handleSort(col)}
                       >
-                        <span className="truncate block">{col}</span>
+                        <div className="flex items-center gap-1">
+                          <span className="truncate">{col}</span>
+                          {sortColumn === col && (
+                            <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              {sortDirection === 'asc' ? (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              ) : (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              )}
+                            </svg>
+                          )}
+                          {col !== 'Actions' && sortColumn !== col && (
+                            <svg className="w-3 h-3 flex-shrink-0 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                            </svg>
+                          )}
+                        </div>
                         {index > 0 && index < columns.length - 1 && (
                           <div
                             className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize group flex items-center justify-center hover:bg-[#14b8a6]/20"
-                            onMouseDown={(e) => startResize(index, e)}
+                            onMouseDown={(e) => { e.stopPropagation(); startResize(index, e); }}
                           >
                             <div className="w-0.5 h-4 bg-slate-400 group-hover:bg-[#14b8a6] transition"></div>
                           </div>
@@ -729,9 +858,9 @@ export default function Dashboard() {
                     return (
                       <tr key={index} className="hover:bg-slate-50 transition border-b border-slate-300">
                         {/* Actions Column - Not editable */}
-                        <td className="px-0 py-1 bg-slate-100 border border-slate-300" style={{ width: currentView === 'completed' ? 50 : 130, minWidth: currentView === 'completed' ? 50 : 130, maxWidth: currentView === 'completed' ? 50 : 130 }}>
+                        <td className="px-0 py-1 bg-slate-100 border border-slate-300" style={{ width: (currentView === 'quoted' || currentView === 'closed') ? 50 : 130, minWidth: (currentView === 'quoted' || currentView === 'closed') ? 50 : 130, maxWidth: (currentView === 'quoted' || currentView === 'closed') ? 50 : 130 }}>
                           <div className="flex items-center justify-center gap-0">
-                            {currentView === 'completed' ? (
+                            {(currentView === 'quoted' || currentView === 'closed') ? (
                               /* Commission adjustment button for Completed tab only */
                               <button
                                 onClick={() => setCommissionModalLead(lead)}
@@ -783,7 +912,7 @@ export default function Dashboard() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                   </svg>
                                 </button>
-                                {status !== 'COMPLETED' && status !== 'CANCELED' && (
+                                {status !== 'CLOSED' && status !== 'CANCELED' && (
                                   <button
                                     onClick={() => updateLeadStatus(lead, 'CANCELED')}
                                     className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition"
@@ -816,7 +945,7 @@ export default function Dashboard() {
                         </td>
 
                         {/* Status */}
-                        {currentView === 'completed' ? (
+                        {(currentView === 'quoted' || currentView === 'closed') ? (
                           <td className="px-4 py-3 text-sm">
                             <span className={`px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${statusStyles[status] || 'bg-slate-100 text-slate-600'}`}>
                               {lead['Status'] || ''}
@@ -840,8 +969,15 @@ export default function Dashboard() {
                           />
                         )}
 
+                        {/* Follow-up Date - only for followups view, positioned after Status */}
+                        {currentView === 'followups' && (
+                          <td className="px-4 py-3 text-sm text-slate-600 truncate">
+                            {formatDate(lead['Follow-up Date'] || lead['Follow Up Date'] || lead['Followup Date'] || lead['Follow-Up Date'] || '')}
+                          </td>
+                        )}
+
                         {/* Customer Name */}
-                        {currentView === 'completed' ? (
+                        {(currentView === 'quoted' || currentView === 'closed') ? (
                           <td className="px-4 py-3 text-sm text-slate-900 font-medium truncate">
                             {lead['Customer Name'] || ''}
                           </td>
@@ -858,7 +994,7 @@ export default function Dashboard() {
                         )}
 
                         {/* Phone */}
-                        {currentView === 'completed' ? (
+                        {(currentView === 'quoted' || currentView === 'closed') ? (
                           <td className="px-4 py-3 text-sm text-[#14b8a6] font-medium truncate">
                             {formatPhone(lead['Phone Number'])}
                           </td>
@@ -876,7 +1012,7 @@ export default function Dashboard() {
                         )}
 
                         {/* Address */}
-                        {currentView === 'completed' ? (
+                        {(currentView === 'quoted' || currentView === 'closed') ? (
                           <td className="px-4 py-3 text-sm text-slate-600 truncate">
                             {lead['Address'] || ''}
                           </td>
@@ -893,7 +1029,7 @@ export default function Dashboard() {
                         )}
 
                         {/* City */}
-                        {currentView === 'completed' ? (
+                        {(currentView === 'quoted' || currentView === 'closed') ? (
                           <td className="px-4 py-3 text-sm text-slate-600 truncate">
                             {lead['City'] || ''}
                           </td>
@@ -910,7 +1046,7 @@ export default function Dashboard() {
                         )}
 
                         {/* Service */}
-                        {currentView === 'completed' ? (
+                        {(currentView === 'quoted' || currentView === 'closed') ? (
                           <td className="px-4 py-3 text-sm text-slate-600 truncate">
                             {lead['Service Requested'] || ''}
                           </td>
@@ -935,7 +1071,7 @@ export default function Dashboard() {
                         )}
 
                         {/* Technician */}
-                        {currentView === 'completed' ? (
+                        {(currentView === 'quoted' || currentView === 'closed') ? (
                           <td className="px-4 py-3 text-sm text-slate-600 truncate">
                             {lead['Assigned To'] || ''}
                           </td>
@@ -953,7 +1089,7 @@ export default function Dashboard() {
                         )}
 
                         {/* Appointment Date */}
-                        {currentView === 'completed' ? (
+                        {(currentView === 'quoted' || currentView === 'closed') ? (
                           <td className="px-4 py-3 text-sm text-slate-600 truncate">
                             {formatDate(lead['Appointment Date'])}
                           </td>
@@ -984,10 +1120,11 @@ export default function Dashboard() {
                               className="text-slate-600"
                             />
                             <td className="px-4 py-3 text-sm text-slate-600 truncate">
-                              {formatDate(lead['Follow-up Date']) || ''}
+                              {formatDate(lead['Follow-up Date'] || lead['Follow Up Date'] || lead['Followup Date'] || lead['Follow-Up Date'] || '')}
                             </td>
                           </>
                         )}
+
 
                         {/* New view Customer Notes */}
                         {currentView === 'new' && (
@@ -1002,15 +1139,8 @@ export default function Dashboard() {
                           />
                         )}
 
-                        {/* Follow-ups view Follow-up date */}
-                        {currentView === 'followups' && (
-                          <td className="px-4 py-3 text-sm text-slate-600 truncate">
-                            {formatDate(lead['Follow-up Date']) || ''}
-                          </td>
-                        )}
-
-                        {/* Completed view extra columns - all read-only */}
-                        {currentView === 'completed' && (
+                        {/* Completed/Closed view extra columns - all read-only */}
+                        {(currentView === 'quoted' || currentView === 'closed') && (
                           <>
                             <td className="px-4 py-3 text-sm text-slate-600 truncate">
                               {lead['Lead Source'] || ''}
@@ -1166,7 +1296,7 @@ export default function Dashboard() {
 
                   <div>
                     <label className="text-xs text-slate-500 uppercase tracking-wide">Conditions</label>
-                    <p className="text-sm text-slate-600">Only sends if there are completed jobs today</p>
+                    <p className="text-sm text-slate-600">Only sends if there are closed jobs today</p>
                   </div>
                 </div>
 
