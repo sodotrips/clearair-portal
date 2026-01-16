@@ -33,6 +33,7 @@ export default function TechPortal() {
   const [addingService, setAddingService] = useState(false);
   const [selectedNewService, setSelectedNewService] = useState('');
   const [quoteJob, setQuoteJob] = useState<Lead | null>(null);
+  const [activeView, setActiveView] = useState<'schedule' | 'history'>('schedule');
 
   const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
   // Houston timezone helper
@@ -212,6 +213,19 @@ export default function TechPortal() {
     return isAssigned && isClosed && isOnDate;
   });
 
+  // Get history jobs (all CLOSED and QUOTED jobs for the tech)
+  const historyJobs = leads.filter(l => {
+    const status = l['Status']?.toUpperCase();
+    const isAssigned = l['Assigned To'] === selectedTech;
+    const isCompleted = status === 'CLOSED' || status === 'QUOTED';
+    return isAssigned && isCompleted;
+  }).sort((a, b) => {
+    // Sort by appointment date descending (most recent first)
+    const dateA = a['Appointment Date'] || '';
+    const dateB = b['Appointment Date'] || '';
+    return dateB.localeCompare(dateA);
+  });
+
   const statusStyles: Record<string, string> = {
     'NEW': 'bg-blue-100 text-blue-700',
     'SCHEDULED': 'bg-teal-100 text-teal-700',
@@ -302,6 +316,9 @@ export default function TechPortal() {
       </header>
 
       <div className="p-4">
+        {/* Schedule View */}
+        {activeView === 'schedule' && (
+          <>
         {/* Date Selector */}
         <div className="bg-white rounded-xl shadow-sm p-4 mb-4">
           <div className="flex items-center justify-between">
@@ -748,21 +765,90 @@ export default function TechPortal() {
             )}
           </div>
         )}
+          </>
+        )}
+
+        {/* History View */}
+        {activeView === 'history' && (
+          <div>
+            <div className="bg-white rounded-xl shadow-sm p-4 mb-4">
+              <h2 className="text-lg font-semibold text-[#0a2540]">Job History</h2>
+              <p className="text-sm text-slate-500">{historyJobs.length} jobs completed</p>
+            </div>
+
+            {historyJobs.length === 0 ? (
+              <div className="bg-white rounded-xl shadow-sm p-8 text-center">
+                <p className="text-slate-500">No completed jobs yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {historyJobs.map((job, idx) => {
+                  const status = job['Status']?.toUpperCase();
+                  return (
+                    <div key={idx} className="bg-white rounded-xl shadow-sm p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="font-semibold text-[#0a2540]">{job['Customer Name']}</p>
+                          <p className="text-sm text-slate-500">{job['Service Requested']}</p>
+                        </div>
+                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                          status === 'CLOSED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          {status === 'CLOSED' ? 'Closed' : 'Quoted'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-slate-600">
+                        <span className="flex items-center gap-1">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          {job['Appointment Date']}
+                        </span>
+                        {job['Amount Paid'] && status === 'CLOSED' && (
+                          <span className="flex items-center gap-1 text-green-600 font-medium">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            ${job['Amount Paid']}
+                          </span>
+                        )}
+                        {job['Total Cost'] && status === 'QUOTED' && (
+                          <span className="flex items-center gap-1 text-amber-600 font-medium">
+                            Quote: ${job['Total Cost']}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-2 text-xs text-slate-400">
+                        {job['Address']}{job['City'] ? `, ${job['City']}` : ''}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 py-3 flex justify-around">
-        <button className="flex flex-col items-center text-[#14b8a6]">
+        <button
+          onClick={() => setActiveView('schedule')}
+          className={`flex flex-col items-center ${activeView === 'schedule' ? 'text-[#14b8a6]' : 'text-slate-400'}`}
+        >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
-          <span className="text-xs mt-1 font-medium">Schedule</span>
+          <span className={`text-xs mt-1 ${activeView === 'schedule' ? 'font-medium' : ''}`}>Schedule</span>
         </button>
-        <button className="flex flex-col items-center text-slate-400">
+        <button
+          onClick={() => setActiveView('history')}
+          className={`flex flex-col items-center ${activeView === 'history' ? 'text-[#14b8a6]' : 'text-slate-400'}`}
+        >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
           </svg>
-          <span className="text-xs mt-1">History</span>
+          <span className={`text-xs mt-1 ${activeView === 'history' ? 'font-medium' : ''}`}>History</span>
         </button>
         <button className="flex flex-col items-center text-slate-400">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
