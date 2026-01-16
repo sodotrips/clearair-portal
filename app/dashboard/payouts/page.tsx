@@ -213,7 +213,10 @@ export default function PayoutsPage() {
 
   // Calculate totals
   const totalGrossProfit = filteredLeads.reduce((sum, lead) => sum + parseNumber(lead['Profit $']), 0);
-  const totalPayouts = payoutSummaries.reduce((sum, s) => sum + s.commissionAmount, 0);
+  // Exclude Amit's commission from total payouts (he's the owner)
+  const totalPayouts = payoutSummaries
+    .filter(s => s.type !== 'amit')
+    .reduce((sum, s) => sum + s.commissionAmount, 0);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
