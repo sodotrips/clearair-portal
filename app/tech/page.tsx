@@ -35,6 +35,13 @@ export default function TechPortal() {
   const [quoteJob, setQuoteJob] = useState<Lead | null>(null);
   const [activeView, setActiveView] = useState<'schedule' | 'history'>('schedule');
 
+  // Edit mode state
+  const [editingJobId, setEditingJobId] = useState<string | null>(null);
+  const [editUnits, setEditUnits] = useState('');
+  const [editVents, setEditVents] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+
   const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
   // Houston timezone helper
   const getHoustonDate = (date: Date = new Date()) => {
@@ -142,6 +149,52 @@ export default function TechPortal() {
       alert('Failed to connect to server');
     } finally {
       setCheckingIn(null);
+    }
+  }
+
+  // Start editing a job
+  function startEditJob(job: Lead) {
+    setEditingJobId(job['Lead ID']);
+    setEditUnits(job['# of Units'] || '');
+    setEditVents(job['# of Vents'] || '');
+    setEditNotes(job['Customer Issue/Notes'] || '');
+  }
+
+  // Cancel editing
+  function cancelEdit() {
+    setEditingJobId(null);
+    setEditUnits('');
+    setEditVents('');
+    setEditNotes('');
+  }
+
+  // Save job edits
+  async function saveJobEdits(job: Lead) {
+    setSaving(true);
+    try {
+      const response = await fetch('/api/leads/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rowIndex: job['rowIndex'],
+          updates: {
+            '# of Units': editUnits,
+            '# of Vents': editVents,
+            'Customer Issue/Notes': editNotes,
+          },
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        await fetchLeads();
+        cancelEdit();
+      } else {
+        alert(data.error || 'Failed to save');
+      }
+    } catch (err) {
+      alert('Failed to connect to server');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -572,24 +625,92 @@ export default function TechPortal() {
                           ) : null;
                         })()}
 
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm text-slate-500">Service</p>
-                            <p className="text-base font-medium text-slate-800">{job['Service Requested']}</p>
+                        {/* Edit Button */}
+                        {editingJobId !== job['Lead ID'] && (
+                          <button
+                            onClick={() => startEditJob(job)}
+                            className="mb-3 flex items-center gap-1 text-sm text-[#14b8a6] hover:text-[#0d9488]"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            Edit Job Details
+                          </button>
+                        )}
+
+                        {/* Edit Mode */}
+                        {editingJobId === job['Lead ID'] ? (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3">
+                            <p className="text-sm font-semibold text-blue-700 mb-3">EDIT JOB DETAILS</p>
+                            <div className="grid grid-cols-2 gap-4 mb-3">
+                              <div>
+                                <label className="text-sm text-slate-600"># of Units</label>
+                                <input
+                                  type="text"
+                                  value={editUnits}
+                                  onChange={(e) => setEditUnits(e.target.value)}
+                                  className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-base"
+                                  placeholder="e.g., 2"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-sm text-slate-600"># of Vents</label>
+                                <input
+                                  type="text"
+                                  value={editVents}
+                                  onChange={(e) => setEditVents(e.target.value)}
+                                  className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-base"
+                                  placeholder="e.g., 12"
+                                />
+                              </div>
+                            </div>
+                            <div className="mb-3">
+                              <label className="text-sm text-slate-600">Notes</label>
+                              <textarea
+                                value={editNotes}
+                                onChange={(e) => setEditNotes(e.target.value)}
+                                className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-base"
+                                rows={3}
+                                placeholder="Add notes about the job..."
+                              />
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => saveJobEdits(job)}
+                                disabled={saving}
+                                className="flex-1 bg-[#14b8a6] hover:bg-[#0d9488] disabled:bg-slate-300 text-white py-2 rounded-lg font-medium"
+                              >
+                                {saving ? 'Saving...' : 'Save Changes'}
+                              </button>
+                              <button
+                                onClick={cancelEdit}
+                                disabled={saving}
+                                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium"
+                              >
+                                Cancel
+                              </button>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm text-slate-500">Property Type</p>
-                            <p className="text-base font-medium text-slate-800">{job['Property Type'] || '-'}</p>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm text-slate-500">Service</p>
+                              <p className="text-base font-medium text-slate-800">{job['Service Requested']}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-slate-500">Property Type</p>
+                              <p className="text-base font-medium text-slate-800">{job['Property Type'] || '-'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-slate-500"># of Units</p>
+                              <p className="text-base font-medium text-slate-800">{job['# of Units'] || '-'}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-slate-500"># of Vents</p>
+                              <p className="text-base font-medium text-slate-800">{job['# of Vents'] || '-'}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm text-slate-500"># of Units</p>
-                            <p className="text-base font-medium text-slate-800">{job['# of Units'] || '-'}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-slate-500"># of Vents</p>
-                            <p className="text-base font-medium text-slate-800">{job['# of Vents'] || '-'}</p>
-                          </div>
-                        </div>
+                        )}
 
                         {/* Access Info - Always show */}
                         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
@@ -614,8 +735,8 @@ export default function TechPortal() {
                           </div>
                         </div>
 
-                        {/* Customer Notes */}
-                        {job['Customer Issue/Notes'] && (
+                        {/* Customer Notes - hide when editing */}
+                        {job['Customer Issue/Notes'] && editingJobId !== job['Lead ID'] && (
                           <div className="bg-slate-50 rounded-lg p-3">
                             <p className="text-sm font-semibold text-slate-500 mb-1">NOTES</p>
                             <p className="text-base text-slate-700">{job['Customer Issue/Notes']}</p>
