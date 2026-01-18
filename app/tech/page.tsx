@@ -276,12 +276,12 @@ export default function TechPortal() {
     return isAssigned && isClosed && isOnDate;
   });
 
-  // Get history jobs (QUOTED and CLOSED jobs)
+  // Get history jobs (only QUOTED - exclude CLOSED and CANCELED)
   const historyJobs = leads.filter(l => {
     const status = l['Status']?.toUpperCase();
     const isAssigned = l['Assigned To'] === selectedTech;
-    const isHistory = status === 'QUOTED' || status === 'CLOSED';
-    return isAssigned && isHistory;
+    const isQuoted = status === 'QUOTED';
+    return isAssigned && isQuoted;
   }).sort((a, b) => {
     // Sort by appointment date descending (most recent first)
     // Parse dates to compare properly
@@ -937,9 +937,9 @@ export default function TechPortal() {
         {/* History View - Follow-up Jobs */}
         {activeView === 'history' && (
           <div>
-            <div className="bg-white rounded-xl shadow-sm p-4 mb-4">
-              <h2 className="text-lg font-semibold text-[#0a2540]">Job History</h2>
-              <p className="text-sm text-slate-500">{historyJobs.length} jobs</p>
+            <div className="bg-[#0a2540] rounded-xl shadow-sm p-4 mb-4">
+              <h2 className="text-lg font-semibold text-white">Follow-up Jobs</h2>
+              <p className="text-sm text-teal-300">{historyJobs.length} jobs need follow-up</p>
             </div>
 
             {historyJobs.length === 0 ? (
@@ -949,7 +949,6 @@ export default function TechPortal() {
             ) : (
               <div className="space-y-3">
                 {historyJobs.map((job, idx) => {
-                  const status = job['Status']?.toUpperCase();
                   return (
                     <div key={idx} className="bg-teal-50 border border-teal-200 rounded-xl shadow-sm p-4">
                       <div className="flex justify-between items-start mb-2">
@@ -958,10 +957,8 @@ export default function TechPortal() {
                           <p className="text-sm text-slate-500">{job['Service Requested']}</p>
                         </div>
                         <div className="text-right">
-                          <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                            status === 'CLOSED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                          }`}>
-                            {status === 'CLOSED' ? 'Closed' : 'Quoted'}
+                          <span className="px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-700">
+                            Quoted
                           </span>
                           <a
                             href={`tel:${job['Phone Number']}`}
@@ -981,12 +978,7 @@ export default function TechPortal() {
                           </svg>
                           Scheduled: {job['Appointment Date']}
                         </span>
-                        {status === 'CLOSED' && job['Amount Paid'] && (
-                          <span className="flex items-center gap-1 text-green-600 font-medium">
-                            Paid: ${job['Amount Paid']}
-                          </span>
-                        )}
-                        {status === 'QUOTED' && job['Total Cost'] && (
+                        {job['Total Cost'] && (
                           <span className="flex items-center gap-1 text-amber-600 font-medium">
                             Quote: ${job['Total Cost']}
                           </span>
