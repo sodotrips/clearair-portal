@@ -11,6 +11,15 @@ const client = accountSid && authToken ? twilio(accountSid, authToken) : null;
 
 export { client, twilioPhone, messagingServiceSid };
 
+// Build the sender params for client.messages.create()
+// Uses Messaging Service SID if available, falls back to phone number
+export function getSenderParams(): { messagingServiceSid: string } | { from: string } {
+  if (messagingServiceSid) {
+    return { messagingServiceSid };
+  }
+  return { from: twilioPhone || '' };
+}
+
 // TEST MODE: Set to true to prevent real SMS from being sent
 export const SMS_TEST_MODE = process.env.SMS_TEST_MODE === 'true';
 

@@ -4,12 +4,12 @@ import { getAuthClient, SPREADSHEET_ID, SHEET_NAME, DATA_RANGE } from '@/lib/goo
 import {
   client,
   twilioPhone,
-  messagingServiceSid,
   formatPhoneForTwilio,
   getGoogleMapsLink,
   getHoustonDateTime,
   getRepresentingText,
-  shouldSendSMS
+  shouldSendSMS,
+  getSenderParams,
 } from '@/lib/twilio';
 
 // Tech phone numbers - add more as needed
@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
       try {
         await client.messages.create({
           body: sms,
-          messagingServiceSid: messagingServiceSid,
+          ...getSenderParams(),
           to: formatPhoneForTwilio(techPhone),
         });
         results.push({ tech: techName, success: true, message: `Sent ${jobs.length} jobs` });

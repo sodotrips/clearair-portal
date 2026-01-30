@@ -4,12 +4,11 @@ import { getAuthClient, SPREADSHEET_ID, SHEET_NAME, DATA_RANGE, columnIndexToLet
 import {
   client,
   twilioPhone,
-  messagingServiceSid,
   formatPhoneForTwilio,
   getHoustonDateTime,
   formatDateForSMS,
   shouldSendSMS,
-  SMS_TEST_MODE
+  getSenderParams,
 } from '@/lib/twilio';
 
 // Header name for the appointment confirmation column (column AU)
@@ -92,12 +91,16 @@ export async function POST(request: NextRequest) {
       const isOnDate = isDateMatch(lead['Appointment Date']);
       const hasPhone = lead['Phone Number'] && lead['Phone Number'] !== '-';
 
-      // If specific leadId provided, only process that one
+      // Duplicate-send protection: skip if reminder already sent (confirmation already set)
+      const confirmationStatus = (lead[CONFIRMATION_HEADER] || '').trim().toUpperCase();
+      const alreadyReminded = confirmationStatus === 'PENDING' || confirmationStatus === 'YES' || confirmationStatus === 'NO';
+
+      // If specific leadId provided, only process that one (bypass duplicate check for manual sends)
       if (leadId) {
         return lead['Lead ID'] === leadId && hasPhone;
       }
 
-      return isScheduled && isOnDate && hasPhone;
+      return isScheduled && isOnDate && hasPhone && !alreadyReminded;
     });
 
     const results: Array<{
@@ -150,7 +153,7 @@ export async function POST(request: NextRequest) {
       try {
         await client.messages.create({
           body: sms,
-          messagingServiceSid: messagingServiceSid,
+          ...getSenderParams(),
           to: formatPhoneForTwilio(phone),
         });
 
