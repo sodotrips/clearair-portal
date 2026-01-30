@@ -122,7 +122,7 @@ export default function FinancialDashboard() {
   const quotedLeads = filteredLeads.filter(l => parseCurrency(l['Quote Amount']) > 0);
 
   const totalQuoted = filteredLeads.reduce((sum, l) => sum + parseCurrency(l['Quote Amount']), 0);
-  const totalRevenue = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Final Amount'] || l['Quote Amount']), 0);
+  const totalRevenue = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Profit $']), 0);
   const pendingRevenue = filteredLeads
     .filter(l => {
       const status = l['Status']?.toUpperCase();
@@ -130,7 +130,7 @@ export default function FinancialDashboard() {
     })
     .reduce((sum, l) => sum + parseCurrency(l['Quote Amount']), 0);
 
-  const avgJobValue = closedLeads.length > 0
+  const avgJobProfit = closedLeads.length > 0
     ? totalRevenue / closedLeads.length
     : 0;
 
@@ -481,7 +481,7 @@ export default function FinancialDashboard() {
         {/* Financial KPI Cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-white rounded-xl shadow-sm p-5">
-            <p className="text-slate-500 text-sm font-medium">Total Revenue</p>
+            <p className="text-slate-500 text-sm font-medium">Total Profit</p>
             <p className="text-2xl font-bold text-green-600 mt-1">{formatCurrency(totalRevenue)}</p>
             <p className="text-xs text-slate-400 mt-1">{closedLeads.length} closed jobs</p>
           </div>
@@ -496,8 +496,8 @@ export default function FinancialDashboard() {
             <p className="text-xs text-slate-400 mt-1">{quotedLeads.length} quotes sent</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5">
-            <p className="text-slate-500 text-sm font-medium">Avg Job Value</p>
-            <p className="text-2xl font-bold text-[#14b8a6] mt-1">{formatCurrency(avgJobValue)}</p>
+            <p className="text-slate-500 text-sm font-medium">Avg Job Profit</p>
+            <p className="text-2xl font-bold text-[#14b8a6] mt-1">{formatCurrency(avgJobProfit)}</p>
             <p className="text-xs text-slate-400 mt-1">Per completed job</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5">

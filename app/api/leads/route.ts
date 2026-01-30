@@ -31,7 +31,7 @@ export async function GET() {
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A:DU`,
+      range: `${SHEET_NAME}!A:EZ`,
     });
 
     const rows = response.data.values;

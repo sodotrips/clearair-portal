@@ -59,16 +59,13 @@ export default function TechPortal() {
   const [selectedDate, setSelectedDate] = useState('');
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
 
-  // Set initial date on client side only to avoid hydration mismatch
+  const techs = ['Amit', 'Tech 2', 'Subcontractor'];
+
+  // Set initial date and fetch leads on client side
   useEffect(() => {
     if (!selectedDate) {
       setSelectedDate(getHoustonDate());
     }
-  }, []);
-
-  const techs = ['Amit', 'Tech 2', 'Subcontractor'];
-
-  useEffect(() => {
     fetchLeads();
   }, []);
 
@@ -226,7 +223,7 @@ export default function TechPortal() {
   };
 
   const isDateMatch = (apptDate: string, targetDate: string) => {
-    if (!apptDate) return false;
+    if (!apptDate || !targetDate) return false;
 
     // Convert target date (YYYY-MM-DD) to compare
     const [targetYear, targetMonth, targetDay] = targetDate.split('-');
@@ -346,6 +343,18 @@ export default function TechPortal() {
   const isToday = (dateStr: string) => {
     return dateStr === getHoustonDate();
   };
+
+  // Show loading state while data is being fetched
+  if (loading || !selectedDate) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-500">
@@ -861,7 +870,7 @@ export default function TechPortal() {
                                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                   </svg>
-                                  Check Out (No Payment)
+                                  Check Out (Quote Only)
                                 </>
                               )}
                             </button>
@@ -937,9 +946,9 @@ export default function TechPortal() {
         {/* History View - Follow-up Jobs */}
         {activeView === 'history' && (
           <div>
-            <div className="bg-[#0a2540] rounded-xl shadow-sm p-4 mb-4">
-              <h2 className="text-lg font-semibold text-white">Follow-up Jobs</h2>
-              <p className="text-sm text-teal-300">{historyJobs.length} jobs need follow-up</p>
+            <div className="bg-teal-400 rounded-xl shadow-sm p-4 mb-4">
+              <h2 className="text-lg font-semibold text-[#0a2540]">Follow-up Jobs</h2>
+              <p className="text-sm text-white">{historyJobs.length} jobs need follow-up</p>
             </div>
 
             {historyJobs.length === 0 ? (
@@ -949,8 +958,14 @@ export default function TechPortal() {
             ) : (
               <div className="space-y-3">
                 {historyJobs.map((job, idx) => {
+                  const rep = getRepresentingInfo(job);
                   return (
                     <div key={idx} className="bg-teal-50 border border-teal-200 rounded-xl shadow-sm p-4">
+                      {/* Company Brand Badge */}
+                      <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold mb-2 ${rep.style}`}>
+                        <span>{rep.icon}</span>
+                        <span>{rep.name}</span>
+                      </div>
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <p className="font-semibold text-[#0a2540]">{job['Customer Name']}</p>
@@ -971,17 +986,27 @@ export default function TechPortal() {
                           </a>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-slate-600">
-                        <span className="flex items-center gap-1">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          Scheduled: {job['Appointment Date']}
-                        </span>
-                        {job['Total Cost'] && (
-                          <span className="flex items-center gap-1 text-amber-600 font-medium">
-                            Quote: ${job['Total Cost']}
+                      <div className="text-sm text-slate-600">
+                        <div className="flex items-center gap-4">
+                          <span className="flex items-center gap-1">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            Scheduled: {job['Appointment Date']}
                           </span>
+                          {job['Quote Amount'] && (
+                            <span className="flex items-center gap-1 text-amber-600 font-medium">
+                              Quote: ${job['Quote Amount']}
+                            </span>
+                          )}
+                        </div>
+                        {job['Follow-up Date'] && (
+                          <div className="flex items-center gap-1 mt-1 text-teal-600">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Follow-up: {job['Follow-up Date']}
+                          </div>
                         )}
                       </div>
                       <div className="text-xs text-slate-400 mt-1">
@@ -997,31 +1022,31 @@ export default function TechPortal() {
       </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 py-3 flex justify-around">
+      <div className="fixed bottom-0 left-0 right-0 bg-[#0a2540] px-4 py-4 flex justify-around shadow-lg">
         <button
-          onClick={() => setActiveView('schedule')}
-          className={`flex flex-col items-center ${activeView === 'schedule' ? 'text-[#14b8a6]' : 'text-slate-400'}`}
+          onClick={() => { setActiveView('schedule'); fetchLeads(); }}
+          className={`flex flex-col items-center px-6 py-2 rounded-lg transition ${activeView === 'schedule' ? 'bg-teal-500 text-white' : 'text-slate-300 hover:text-white'}`}
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
-          <span className={`text-xs mt-1 ${activeView === 'schedule' ? 'font-medium' : ''}`}>Schedule</span>
+          <span className={`text-xs mt-1 font-medium`}>Schedule</span>
         </button>
         <button
-          onClick={() => setActiveView('history')}
-          className={`flex flex-col items-center ${activeView === 'history' ? 'text-[#14b8a6]' : 'text-slate-400'}`}
+          onClick={() => { setActiveView('history'); fetchLeads(); }}
+          className={`flex flex-col items-center px-6 py-2 rounded-lg transition ${activeView === 'history' ? 'bg-teal-500 text-white' : 'text-slate-300 hover:text-white'}`}
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
           </svg>
-          <span className={`text-xs mt-1 ${activeView === 'history' ? 'font-medium' : ''}`}>History</span>
+          <span className={`text-xs mt-1 font-medium`}>History</span>
         </button>
-        <button className="flex flex-col items-center text-slate-400">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button className="flex flex-col items-center px-6 py-2 rounded-lg text-slate-300 hover:text-white transition">
+          <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
-          <span className="text-xs mt-1">Settings</span>
+          <span className="text-xs mt-1 font-medium">Settings</span>
         </button>
       </div>
 

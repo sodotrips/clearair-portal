@@ -39,7 +39,7 @@ export default function AnalyticsDashboard() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [dateRange, setDateRange] = useState('30'); // days
+  const [dateRange, setDateRange] = useState('thisMonth');
 
   useEffect(() => {
     fetchLeads();
@@ -85,13 +85,41 @@ export default function AnalyticsDashboard() {
   // Filter leads by date range
   const filterByDateRange = (leads: Lead[]) => {
     const today = getHoustonDate();
-    const daysAgo = new Date(today);
-    daysAgo.setDate(daysAgo.getDate() - parseInt(dateRange));
+    let startDate: Date;
+    let endDate: Date = today;
+
+    switch (dateRange) {
+      case 'thisWeek': {
+        // Start of current week (Sunday)
+        startDate = new Date(today);
+        startDate.setDate(today.getDate() - today.getDay());
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      }
+      case 'thisMonth': {
+        // Start of current month
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        break;
+      }
+      case 'lastMonth': {
+        // Start and end of last month
+        startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        endDate = new Date(today.getFullYear(), today.getMonth(), 0); // Last day of previous month
+        break;
+      }
+      case 'thisYear': {
+        // Start of current year
+        startDate = new Date(today.getFullYear(), 0, 1);
+        break;
+      }
+      default:
+        startDate = new Date(0); // All time
+    }
 
     return leads.filter(lead => {
       const leadDate = parseDate(lead['Timestamp Received']);
       if (!leadDate) return false;
-      return leadDate >= daysAgo && leadDate <= today;
+      return leadDate >= startDate && leadDate <= endDate;
     });
   };
 
@@ -102,6 +130,7 @@ export default function AnalyticsDashboard() {
     total: filteredLeads.length,
     new: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'NEW').length,
     scheduled: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'SCHEDULED').length,
+    quoted: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'QUOTED').length,
     closed: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'CLOSED').length,
     canceled: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'CANCELED').length,
     inProgress: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'IN PROGRESS').length,
@@ -113,13 +142,14 @@ export default function AnalyticsDashboard() {
 
   // Status distribution for donut chart
   const statusData = {
-    labels: ['New', 'Scheduled', 'In Progress', 'Closed', 'Canceled'],
+    labels: ['New', 'Scheduled', 'In Progress', 'Quoted', 'Closed', 'Canceled'],
     datasets: [{
-      data: [stats.new, stats.scheduled, stats.inProgress, stats.closed, stats.canceled],
+      data: [stats.new, stats.scheduled, stats.inProgress, stats.quoted, stats.closed, stats.canceled],
       backgroundColor: [
         '#3b82f6', // blue
         '#14b8a6', // teal
         '#a855f7', // purple
+        '#f59e0b', // amber for quoted
         '#22c55e', // green
         '#94a3b8', // slate
       ],
@@ -189,30 +219,86 @@ export default function AnalyticsDashboard() {
     }]
   };
 
-  // Leads over time (last 30 days or selected range)
+  // Leads over time based on selected range
   const getLeadsOverTime = () => {
-    const days = dateRange === 'all' ? 30 : parseInt(dateRange);
     const today = getHoustonDate();
     const data: Record<string, number> = {};
+    let days: number;
 
-    // Initialize all days with 0
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      const key = `${date.getMonth() + 1}/${date.getDate()}`;
-      data[key] = 0;
+    switch (dateRange) {
+      case 'thisWeek':
+        days = 7;
+        break;
+      case 'thisMonth':
+        days = today.getDate(); // Days so far this month
+        break;
+      case 'lastMonth': {
+        const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+        days = lastMonthEnd.getDate(); // Days in last month
+        break;
+      }
+      case 'thisYear':
+        days = Math.ceil((today.getTime() - new Date(today.getFullYear(), 0, 1).getTime()) / (1000 * 60 * 60 * 24));
+        break;
+      default:
+        days = 30; // All time defaults to 30 day view
     }
 
-    // Count leads per day
-    filteredLeads.forEach(lead => {
-      const leadDate = parseDate(lead['Timestamp Received']);
-      if (leadDate) {
-        const key = `${leadDate.getMonth() + 1}/${leadDate.getDate()}`;
-        if (data[key] !== undefined) {
-          data[key]++;
-        }
+    // For year view, group by month instead of day
+    if (dateRange === 'thisYear') {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      for (let i = 0; i <= today.getMonth(); i++) {
+        data[months[i]] = 0;
       }
-    });
+
+      filteredLeads.forEach(lead => {
+        const leadDate = parseDate(lead['Timestamp Received']);
+        if (leadDate) {
+          const key = months[leadDate.getMonth()];
+          if (data[key] !== undefined) {
+            data[key]++;
+          }
+        }
+      });
+    } else if (dateRange === 'lastMonth') {
+      // Show days of last month
+      const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+      const daysInLastMonth = lastMonthEnd.getDate();
+
+      for (let i = 1; i <= daysInLastMonth; i++) {
+        const key = `${today.getMonth()}/${i}`;
+        data[key] = 0;
+      }
+
+      filteredLeads.forEach(lead => {
+        const leadDate = parseDate(lead['Timestamp Received']);
+        if (leadDate) {
+          const key = `${leadDate.getMonth() + 1}/${leadDate.getDate()}`;
+          if (data[key] !== undefined) {
+            data[key]++;
+          }
+        }
+      });
+    } else {
+      // Initialize all days with 0
+      for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const key = `${date.getMonth() + 1}/${date.getDate()}`;
+        data[key] = 0;
+      }
+
+      // Count leads per day
+      filteredLeads.forEach(lead => {
+        const leadDate = parseDate(lead['Timestamp Received']);
+        if (leadDate) {
+          const key = `${leadDate.getMonth() + 1}/${leadDate.getDate()}`;
+          if (data[key] !== undefined) {
+            data[key]++;
+          }
+        }
+      });
+    }
 
     return data;
   };
@@ -330,10 +416,11 @@ export default function AnalyticsDashboard() {
               onChange={(e) => setDateRange(e.target.value)}
               className="bg-[#1a3a5c] text-white border border-slate-600 rounded-lg px-4 py-2 text-sm"
             >
-              <option value="7">Last 7 days</option>
-              <option value="30">Last 30 days</option>
-              <option value="90">Last 90 days</option>
-              <option value="all">All time</option>
+              <option value="thisWeek">This Week</option>
+              <option value="thisMonth">This Month</option>
+              <option value="lastMonth">Last Month</option>
+              <option value="thisYear">This Year</option>
+              <option value="all">All Time</option>
             </select>
           </div>
         </div>
@@ -351,16 +438,16 @@ export default function AnalyticsDashboard() {
             <p className="text-3xl font-bold text-[#0a2540] mt-1">{stats.total}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5">
+            <p className="text-slate-500 text-sm font-medium">Pending</p>
+            <p className="text-3xl font-bold text-amber-500 mt-1">{stats.new + stats.scheduled + stats.quoted + stats.inProgress}</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm p-5">
             <p className="text-slate-500 text-sm font-medium">Closed</p>
             <p className="text-3xl font-bold text-green-600 mt-1">{stats.closed}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5">
             <p className="text-slate-500 text-sm font-medium">Conversion Rate</p>
             <p className="text-3xl font-bold text-[#14b8a6] mt-1">{conversionRate}%</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-5">
-            <p className="text-slate-500 text-sm font-medium">Pending</p>
-            <p className="text-3xl font-bold text-amber-500 mt-1">{stats.new + stats.scheduled + stats.inProgress}</p>
           </div>
         </div>
 
@@ -454,6 +541,7 @@ export default function AnalyticsDashboard() {
                   { status: 'New', count: stats.new, color: 'bg-blue-500' },
                   { status: 'Scheduled', count: stats.scheduled, color: 'bg-teal-500' },
                   { status: 'In Progress', count: stats.inProgress, color: 'bg-purple-500' },
+                  { status: 'Quoted', count: stats.quoted, color: 'bg-amber-500' },
                   { status: 'Closed', count: stats.closed, color: 'bg-green-500' },
                   { status: 'Canceled', count: stats.canceled, color: 'bg-slate-400' },
                 ].map(row => (

@@ -1,19 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import path from 'path';
-
-const SPREADSHEET_ID = '1sWJpsvt8aNnmwTssfQ3GWvxa8-RVUy2M7eLHM5YSN3k';
-const SHEET_NAME = 'ACTIVE LEADS';
-
-// Convert column index to letter (0=A, 25=Z, 26=AA, etc.)
-function colIndexToLetter(index: number): string {
-  let letter = '';
-  while (index >= 0) {
-    letter = String.fromCharCode((index % 26) + 65) + letter;
-    index = Math.floor(index / 26) - 1;
-  }
-  return letter;
-}
+import { getAuthClient, SPREADSHEET_ID, SHEET_NAME, columnIndexToLetter as colIndexToLetter } from '@/lib/google-sheets';
 
 // Get current time in Houston timezone
 function getHoustonTime(): string {
@@ -38,13 +25,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Action must be "checkin" or "checkout"' }, { status: 400 });
     }
 
-    // Google Sheets setup
-    const credentialsPath = path.join(process.cwd(), 'google-credentials.json');
-    const auth = new google.auth.GoogleAuth({
-      keyFile: credentialsPath,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-
+    // Google Sheets setup (supports both env var and keyFile auth)
+    const auth = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
 
     // Get all leads to find headers and row
@@ -119,7 +101,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If checking out, update status to "CLOSED"
+    // If checking out (no payment), update status to "QUOTED"
     if (action === 'checkout') {
       const statusColIndex = headers.indexOf('Status');
       if (statusColIndex !== -1) {
@@ -129,7 +111,7 @@ export async function POST(request: NextRequest) {
           range: `${SHEET_NAME}!${statusColLetter}${rowIndex}`,
           valueInputOption: 'USER_ENTERED',
           requestBody: {
-            values: [['CLOSED']],
+            values: [['QUOTED']],
           },
         });
       }

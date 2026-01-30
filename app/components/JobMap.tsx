@@ -110,58 +110,30 @@ export default function JobMap({ jobs, onRouteOptimized }: JobMapProps) {
       needsGeocoding.push({ job, index: i });
     }
 
-    // Set progress for geocoding
-    setGeocodeProgress({ current: 0, total: needsGeocoding.length });
+    // Geocode any addresses that need it
+    if (needsGeocoding.length > 0) {
+      setGeocodeProgress({ current: 0, total: needsGeocoding.length });
 
-    // Second pass: geocode only addresses that need it
-    for (let i = 0; i < needsGeocoding.length; i++) {
-      setGeocodeProgress({ current: i + 1, total: needsGeocoding.length });
-      const { job, index } = needsGeocoding[i];
-      const address = `${job['Address']}, ${job['City']}, TX ${job['Zip Code']}`;
+      for (let i = 0; i < needsGeocoding.length; i++) {
+        setGeocodeProgress({ current: i + 1, total: needsGeocoding.length });
+        const { job, index } = needsGeocoding[i];
+        const address = `${job['Address']}, ${job['City']}, TX ${job['Zip Code']}`;
 
-      try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
-          {
-            headers: {
-              'User-Agent': 'ClearAirDispatcher/1.0'
-            }
+        try {
+          const response = await fetch('/api/geocode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address }),
+          });
+          const data = await response.json();
+
+          if (data.success) {
+            geocodeCache.current[address] = { lat: data.lat, lng: data.lng };
+            results[index] = { job, lat: data.lat, lng: data.lng };
           }
-        );
-
-        const data = await response.json();
-
-        if (data && data.length > 0) {
-          const lat = parseFloat(data[0].lat);
-          const lng = parseFloat(data[0].lon);
-
-          geocodeCache.current[address] = { lat, lng };
-          results[index] = { job, lat, lng };
-        } else {
-          // Fallback to city
-          const cityResponse = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(job['City'] + ', TX')}&limit=1`,
-            {
-              headers: {
-                'User-Agent': 'ClearAirDispatcher/1.0'
-              }
-            }
-          );
-          const cityData = await cityResponse.json();
-
-          if (cityData && cityData.length > 0) {
-            const lat = parseFloat(cityData[0].lat);
-            const lng = parseFloat(cityData[0].lon);
-            results[index] = { job, lat, lng };
-          }
+        } catch (err) {
+          console.error('[JobMap] Geocoding error for:', address, err);
         }
-
-        // Rate limiting - only between geocoding requests
-        if (i < needsGeocoding.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      } catch (err) {
-        console.error('Geocoding error:', err);
       }
     }
 

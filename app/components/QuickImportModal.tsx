@@ -17,9 +17,12 @@ interface ParsedLead {
   serviceRequested: string;
   leadSource: string;
   leadSourceDetail: string;
+  referralSource: string;
+  leadJobId: string;
   appointmentDate: string;
   timeWindow: string;
   customerNotes: string;
+  propertyType: string;
   assignedTo: string;
 }
 
@@ -37,9 +40,195 @@ export default function QuickImportModal({ onClose, onSuccess }: QuickImportModa
   const techs = ['Amit', 'Tech 2', 'Subcontractor'];
 
   // Houston area cities for matching
-  const houstonCities = ['Houston', 'Katy', 'Sugar Land', 'Pearland', 'Spring', 'Cypress', 'The Woodlands', 'Humble', 'Pasadena', 'League City', 'Missouri City', 'Baytown', 'Conroe', 'Richmond', 'Tomball', 'Friendswood', 'Stafford', 'Bellaire', 'Webster', 'Alvin', 'Rosenberg', 'Galveston', 'Texas City', 'La Porte', 'Deer Park', 'Channelview', 'Kingwood', 'Atascocita', 'Clear Lake', 'Galena Park', 'Jacinto City', 'South Houston', 'West University Place', 'Hedwig Village', 'Bunker Hill Village', 'Piney Point Village', 'Hunters Creek Village', 'Memorial', 'Spring Branch', 'Heights', 'Montrose', 'Midtown', 'Downtown', 'Third Ward', 'Fifth Ward', 'Acres Homes', 'Greenspoint', 'Willowbrook', 'Champions', 'Klein', 'Aldine', 'Sunnyside', 'Sharpstown', 'Alief', 'Westchase', 'Briarforest', 'Energy Corridor', 'Eldridge', 'Bear Creek', 'Copperfield', 'Fairfield', 'Jersey Village', 'Cinco Ranch', 'Fulshear', 'Brookshire', 'Sealy', 'Waller', 'Hockley', 'Magnolia', 'Pinehurst', 'Woodloch', 'Shenandoah', 'Oak Ridge North', 'Panorama Village', 'Cut and Shoot', 'Willis', 'New Caney', 'Porter', 'Huffman', 'Crosby', 'Mont Belvieu', 'Dayton', 'Liberty', 'Cleveland', 'Splendora', 'Patton Village', 'Roman Forest', 'Plum Grove'];
+  const houstonCities = ['Houston', 'Katy', 'Sugar Land', 'Pearland', 'Spring', 'Cypress', 'The Woodlands', 'Humble', 'Pasadena', 'League City', 'Missouri City', 'Baytown', 'Conroe', 'Richmond', 'Tomball', 'Friendswood', 'Stafford', 'Bellaire', 'Webster', 'Alvin', 'Rosenberg', 'Galveston', 'Texas City', 'La Porte', 'Deer Park', 'Channelview', 'Kingwood', 'Atascocita', 'Clear Lake', 'Galena Park', 'Jacinto City', 'South Houston', 'Seabrook', 'Brookshire', 'West University Place', 'Hedwig Village', 'Bunker Hill Village', 'Piney Point Village', 'Hunters Creek Village', 'Memorial', 'Spring Branch', 'Heights', 'Montrose', 'Midtown', 'Downtown', 'Third Ward', 'Fifth Ward', 'Acres Homes', 'Greenspoint', 'Willowbrook', 'Champions', 'Klein', 'Aldine', 'Sunnyside', 'Sharpstown', 'Alief', 'Westchase', 'Briarforest', 'Energy Corridor', 'Eldridge', 'Bear Creek', 'Copperfield', 'Fairfield', 'Jersey Village', 'Cinco Ranch', 'Fulshear', 'Brookshire', 'Sealy', 'Waller', 'Hockley', 'Magnolia', 'Pinehurst', 'Woodloch', 'Shenandoah', 'Oak Ridge North', 'Panorama Village', 'Cut and Shoot', 'Willis', 'New Caney', 'Porter', 'Huffman', 'Crosby', 'Mont Belvieu', 'Dayton', 'Liberty', 'Cleveland', 'Splendora', 'Patton Village', 'Roman Forest', 'Plum Grove'];
+
+  // Month name to number mapping
+  const monthNames: Record<string, string> = {
+    'january': '01', 'february': '02', 'march': '03', 'april': '04',
+    'may': '05', 'june': '06', 'july': '07', 'august': '08',
+    'september': '09', 'october': '10', 'november': '11', 'december': '12',
+  };
+
+  // Parser for "New job #" format from lead gen companies
+  // Format: New job # [Company] [RefNum] [Name] ([Phone] #[Unit]) [Address], [City], [State] [Zip] [Service]
+  const parseNewJobFormat = (text: string): ParsedLead | null => {
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+    if (!lines[0] || !lines[0].toLowerCase().startsWith('new job')) return null;
+
+    const firstLine = lines[0];
+
+    // Extract phone from parentheses: (9895597919 #0018) - ignore extension
+    const phoneParenRegex = /\((\d{10,11})(?:\s*#\w+)?\)/;
+    const phoneParenMatch = firstLine.match(phoneParenRegex);
+    if (!phoneParenMatch) return null;
+
+    const rawPhone = phoneParenMatch[1];
+    const digits = rawPhone.length === 11 && rawPhone.startsWith('1') ? rawPhone.slice(1) : rawPhone;
+    const phone = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+
+    // Split first line around the phone parentheses (use match index to avoid matching other parens like "(HOUSTON)")
+    const phoneStart = firstLine.indexOf(phoneParenMatch[0]);
+    const phoneEnd = phoneStart + phoneParenMatch[0].length;
+    const beforePhone = firstLine.substring(0, phoneStart).trim();
+    const afterPhone = firstLine.substring(phoneEnd).trim();
+
+    // Parse beforePhone: "New job # Kirby CC 328963 Guy Beard"
+    // Remove "New job #" prefix
+    const afterPrefix = beforePhone.replace(/^new\s+job\s*#?\s*/i, '').trim();
+
+    // Find the reference number (standalone digits) to split company from name
+    // Pattern: [Company words] [RefNumber] [Name words]
+    const refMatch = afterPrefix.match(/^(.+?)\s+(\d{4,})\s+(.+)$/);
+    let companyName = '';
+    let refNumber = '';
+    let customerName = '';
+
+    if (refMatch) {
+      companyName = refMatch[1].trim();
+      refNumber = refMatch[2];
+      customerName = refMatch[3].trim();
+    } else {
+      // Fallback: no ref number, try to split company and name
+      // If no numeric ref, treat everything as customer name
+      customerName = afterPrefix;
+    }
+
+    // Parse afterPhone: "16638 Millridge Ln, Houston, Texas 77095 Air Duct Cleaning"
+    let address = '';
+    let city = '';
+    let zip = '';
+    let serviceRequested = '';
+
+    // Split by commas
+    const addressParts = afterPhone.split(',').map(p => p.trim());
+
+    if (addressParts.length >= 2) {
+      // First part is street address
+      address = addressParts[0];
+
+      // Second part is city
+      city = addressParts[1];
+
+      // Third part has state, zip, and possibly service
+      if (addressParts.length >= 3) {
+        const lastPart = addressParts.slice(2).join(', ');
+
+        // Extract zip from after state name (avoids matching house numbers)
+        const stateZipMatch = lastPart.match(/(?:Texas|TX)\s+(\d{5})(?:-\d{4})?/i);
+        if (stateZipMatch) {
+          zip = stateZipMatch[1];
+        }
+
+        // Remove state name and zip to get service
+        const serviceMatch = lastPart.replace(/\b(?:Texas|TX)\b/i, '').replace(/\b\d{5}(?:-\d{4})?\b/, '').trim();
+        if (serviceMatch) {
+          // Match against known services
+          const lower = serviceMatch.toLowerCase();
+          if (lower.includes('dryer vent')) serviceRequested = 'Dryer Vent Cleaning';
+          else if (lower.includes('air duct') || lower.includes('duct cleaning')) serviceRequested = 'Air Duct Cleaning';
+          else if (lower.includes('insulation')) serviceRequested = 'Attic Insulation';
+          else if (lower.includes('duct replacement')) serviceRequested = 'Duct Replacement';
+          else if (lower.includes('chimney')) serviceRequested = 'Chimney Services';
+        }
+      }
+    }
+
+    // Parse date line: "January 29, 2026, 9:00 am January 29, 2026, 11:00 am"
+    let appointmentDate = '';
+    let timeWindow = '';
+
+    if (lines.length >= 2) {
+      const dateLine = lines[1];
+
+      // Match written month format: "January 29, 2026, 9:00 am"
+      const dateTimePattern = /(\w+)\s+(\d{1,2}),?\s*(\d{4}),?\s*(\d{1,2}:\d{2}\s*(?:am|pm))/gi;
+      const dateMatches = [...dateLine.matchAll(dateTimePattern)];
+
+      if (dateMatches.length >= 1) {
+        const firstMatch = dateMatches[0];
+        const monthStr = firstMatch[1].toLowerCase();
+        const day = firstMatch[2];
+        const year = firstMatch[3];
+        const startTime = firstMatch[4].trim();
+
+        const monthNum = monthNames[monthStr];
+        if (monthNum) {
+          appointmentDate = `${monthNum}/${day.padStart(2, '0')}/${year}`;
+        }
+
+        // Get time window - format to match dropdown: "10:00AM - 12:00PM"
+        if (dateMatches.length >= 2) {
+          const endTime = dateMatches[1][4].trim();
+          // Convert "9:00 am" → "9:00AM"
+          const formatTime = (t: string) => t.replace(/\s*(am|pm)/i, (_, p) => p.toUpperCase());
+          timeWindow = `${formatTime(startTime)} - ${formatTime(endTime)}`;
+        }
+      }
+    }
+
+    // Parse remaining lines for notes and property type
+    let propertyType = '';
+    const noteLines: string[] = [];
+
+    for (let i = 2; i < lines.length; i++) {
+      const line = lines[i];
+      const lower = line.toLowerCase().trim();
+
+      // Detect property type - exact match on own line
+      if (lower === 'res' || lower === 'residential') {
+        propertyType = 'Residential';
+        continue;
+      }
+      if (lower === 'com' || lower === 'commercial') {
+        propertyType = 'Commercial';
+        continue;
+      }
+
+      // Detect property type at start of line with more text after it
+      if (!propertyType && /^(?:res|residential)\b/i.test(lower)) {
+        propertyType = 'Residential';
+        // Keep the rest as notes (strip "residential / " or "res - " prefix)
+        const remaining = line.replace(/^(?:res|residential)\s*[\/\-,.:]\s*/i, '').trim();
+        if (remaining) noteLines.push(remaining);
+        continue;
+      }
+      if (!propertyType && /^(?:com|commercial)\b/i.test(lower)) {
+        propertyType = 'Commercial';
+        const remaining = line.replace(/^(?:com|commercial)\s*[\/\-,.:]\s*/i, '').trim();
+        if (remaining) noteLines.push(remaining);
+        continue;
+      }
+
+      // Everything else is notes
+      noteLines.push(line);
+    }
+
+    const customerNotes = noteLines.join(' | ');
+
+    return {
+      customerName,
+      phone,
+      address,
+      city,
+      zip,
+      serviceRequested,
+      leadSource: 'Lead Company',
+      leadSourceDetail: 'Air Duct Cleaning Services',
+      referralSource: 'IDO',
+      leadJobId: refNumber,
+      appointmentDate,
+      timeWindow,
+      customerNotes,
+      propertyType,
+      assignedTo: 'Amit',
+    };
+  };
 
   const parseLeadText = (text: string): ParsedLead => {
+    // Try specialized parsers first
+    const newJobResult = parseNewJobFormat(text);
+    if (newJobResult) return newJobResult;
+
     const lines = text.split('\n').map(line => line.trim()).filter(line => line);
 
     let customerName = '';
@@ -318,9 +507,12 @@ export default function QuickImportModal({ onClose, onSuccess }: QuickImportModa
       serviceRequested,
       leadSource: leadSourceDetail ? 'Lead Company' : '',
       leadSourceDetail,
+      referralSource: '',
+      leadJobId: '',
       appointmentDate,
       timeWindow,
       customerNotes,
+      propertyType: '',
       assignedTo: 'Amit',
     };
   };
@@ -394,9 +586,12 @@ export default function QuickImportModal({ onClose, onSuccess }: QuickImportModa
           serviceRequested: parsedLead.serviceRequested,
           leadSource: parsedLead.leadSource,
           leadSourceDetail: parsedLead.leadSourceDetail,
+          referralSource: parsedLead.referralSource,
+          leadJobId: parsedLead.leadJobId,
           appointmentDate: parsedLead.appointmentDate,
           timeWindow: parsedLead.timeWindow,
           customerNotes: parsedLead.customerNotes,
+          propertyType: parsedLead.propertyType,
           assignedTo: parsedLead.assignedTo,
         }),
       });
@@ -591,6 +786,28 @@ Monday 1/15  11-1pm`}
                 </div>
 
                 <div>
+                  <label className={labelClass}>Referral Source (Col N)</label>
+                  <input
+                    type="text"
+                    value={parsedLead.referralSource}
+                    onChange={(e) => handleFieldChange('referralSource', e.target.value)}
+                    className={inputClass}
+                    placeholder="e.g., IDO"
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClass}>Lead Job ID (Col P)</label>
+                  <input
+                    type="text"
+                    value={parsedLead.leadJobId}
+                    onChange={(e) => handleFieldChange('leadJobId', e.target.value)}
+                    className={inputClass}
+                    placeholder="e.g., 328963"
+                  />
+                </div>
+
+                <div>
                   <label className={labelClass}>Appointment Date</label>
                   <input
                     type="text"
@@ -603,14 +820,13 @@ Monday 1/15  11-1pm`}
 
                 <div>
                   <label className={labelClass}>Time Window</label>
-                  <select
+                  <input
+                    type="text"
                     value={parsedLead.timeWindow}
                     onChange={(e) => handleFieldChange('timeWindow', e.target.value)}
+                    placeholder="e.g., 9:00 am - 11:00 am"
                     className={inputClass}
-                  >
-                    <option value="">Select time...</option>
-                    {timeWindows.map(tw => <option key={tw} value={tw}>{tw}</option>)}
-                  </select>
+                  />
                 </div>
 
                 <div>
@@ -622,6 +838,19 @@ Monday 1/15  11-1pm`}
                   >
                     <option value="">Select tech...</option>
                     {techs.map(tech => <option key={tech} value={tech}>{tech}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className={labelClass}>Property Type</label>
+                  <select
+                    value={parsedLead.propertyType}
+                    onChange={(e) => handleFieldChange('propertyType', e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">Select type...</option>
+                    <option value="Residential">Residential</option>
+                    <option value="Commercial">Commercial</option>
                   </select>
                 </div>
 

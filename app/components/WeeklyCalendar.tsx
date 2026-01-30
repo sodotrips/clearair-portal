@@ -259,6 +259,29 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, userRole
     }
   };
 
+  // Get brand info for color-coded badges
+  const getBrandInfo = (lead: Lead) => {
+    const leadSourceDetail = (lead['Lead Source Detail'] || '').trim();
+    const leadSource = (lead['Lead Source'] || '').toLowerCase();
+    const isExternal = leadSource === 'lead company' || leadSource === 'partner';
+
+    if (!isExternal || !leadSourceDetail) {
+      return { name: 'ClearAir', style: 'bg-teal-200/60 text-teal-800' };
+    }
+
+    const brandKey = leadSourceDetail.toLowerCase();
+    if (brandKey.includes('air duct cleaning services')) {
+      return { name: 'ADCS', style: 'bg-orange-200/60 text-orange-800' };
+    }
+    if (brandKey.includes('local air duct')) {
+      return { name: 'LADP', style: 'bg-purple-200/60 text-purple-800' };
+    }
+    if (brandKey.includes('israel')) {
+      return { name: 'Israel', style: 'bg-sky-200/60 text-sky-800' };
+    }
+    return { name: leadSourceDetail.slice(0, 6), style: 'bg-rose-200/60 text-rose-800' };
+  };
+
   // Custom scrollbar styles
   const scrollbarStyles = `
     .calendar-scroll::-webkit-scrollbar {
@@ -434,7 +457,12 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, userRole
                     style={{ borderLeftWidth: '3px' }}
                     title={isDispatcher && isClosed ? 'Closed jobs are restricted' : isClosed ? 'Closed jobs cannot be rescheduled' : 'Drag to reschedule'}
                   >
-                    <div className="font-semibold truncate">{job['Customer Name']}</div>
+                    <div className="flex items-center gap-1">
+                      <span className="font-semibold truncate">{job['Customer Name']}</span>
+                      <span className={`shrink-0 px-1 py-px rounded text-[9px] font-bold ${getBrandInfo(job).style}`}>
+                        {getBrandInfo(job).name}
+                      </span>
+                    </div>
                     <div className="text-[10px] opacity-75 mt-0.5">{getTimeLabel(job['Time Window'])}</div>
                     <div className="truncate opacity-75 mt-0.5">{job['City']}</div>
                     <div className="truncate opacity-75">{job['Service Requested']}</div>

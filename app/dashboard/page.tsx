@@ -9,6 +9,8 @@ import EditModal from '../components/EditModal';
 import ViewDetailsModal from '../components/ViewDetailsModal';
 import InlineEditCell from '../components/InlineEditCell';
 import CommissionModal from '../components/CommissionModal';
+import CloseDealModal from '../components/CloseDealModal';
+import QuoteLeadModal from '../components/QuoteLeadModal';
 import WeeklyCalendar from '../components/WeeklyCalendar';
 import QuickImportModal from '../components/QuickImportModal';
 
@@ -28,6 +30,8 @@ export default function Dashboard() {
   const [editModalLead, setEditModalLead] = useState<Lead | null>(null);
   const [viewDetailsLead, setViewDetailsLead] = useState<Lead | null>(null);
   const [commissionModalLead, setCommissionModalLead] = useState<Lead | null>(null);
+  const [closeDealModalLead, setCloseDealModalLead] = useState<Lead | null>(null);
+  const [quoteLeadModalLead, setQuoteLeadModalLead] = useState<Lead | null>(null);
   const [todaysAppointmentsExpanded, setTodaysAppointmentsExpanded] = useState(false);
   const [showQuickImport, setShowQuickImport] = useState(false);
   const [showAgentSettings, setShowAgentSettings] = useState(false);
@@ -73,9 +77,9 @@ export default function Dashboard() {
   // Column widths per view
   const defaultWidths: Record<string, number[]> = {
     new: [140, 110, 100, 160, 140, 200, 120, 160, 100, 100, 110, 250],
-    scheduled: [140, 110, 100, 160, 140, 200, 120, 160, 100, 110, 160, 110],
+    scheduled: [140, 110, 100, 160, 160, 140, 200, 120, 160, 100, 110, 160, 110],
     followups: [140, 110, 100, 110, 160, 140, 200, 120, 160, 100, 110],
-    quoted: [50, 110, 100, 160, 140, 200, 120, 160, 100, 110, 100, 120, 100, 100, 90, 90, 90, 90],
+    quoted: [80, 110, 100, 160, 140, 200, 120, 160, 100, 110, 100, 120, 100, 100, 90, 90, 90, 90],
     closed: [50, 110, 100, 160, 140, 200, 120, 160, 100, 110, 100, 120, 100, 100, 90, 90, 90, 90],
     canceled: [140, 110, 100, 160, 140, 200, 120, 160, 100, 110],
   };
@@ -463,7 +467,7 @@ export default function Dashboard() {
 
   const columnsByView: Record<string, string[]> = {
     new: ['Actions', 'Lead ID', 'Status', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Created', 'Technician', 'Appointment', 'Customer Notes'],
-    scheduled: ['Actions', 'Lead ID', 'Status', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Technician', 'Appointment', 'Time Window', 'Follow-up'],
+    scheduled: ['Actions', 'Lead ID', 'Status', 'Brand', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Technician', 'Appointment', 'Time Window', 'Follow-up'],
     followups: ['Actions', 'Lead ID', 'Status', 'Follow-up', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Technician', 'Appointment'],
     quoted: ['Actions', 'Lead ID', 'Status', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Technician', 'Appointment', 'Lead Source', 'Referral Source', 'Amount Paid', 'Total Cost', 'Profit $', 'Sophia %', 'Amit %', 'Lead Co %'],
     closed: ['Actions', 'Lead ID', 'Status', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Technician', 'Appointment', 'Lead Source', 'Referral Source', 'Amount Paid', 'Total Cost', 'Profit $', 'Sophia %', 'Amit %', 'Lead Co %'],
@@ -481,8 +485,55 @@ export default function Dashboard() {
     'CANCELED': 'bg-slate-100 text-slate-500',
   };
 
+  // Brand color mapping for lead source companies
+  const getBrandInfo = (lead: Lead) => {
+    const leadSourceDetail = (lead['Lead Source Detail'] || '').trim();
+    const leadSource = (lead['Lead Source'] || '').toLowerCase();
+    const isExternal = leadSource === 'lead company' || leadSource === 'partner';
+
+    if (!isExternal || !leadSourceDetail) {
+      return { name: 'ClearAir', style: 'bg-teal-100 text-teal-800 border-teal-300' };
+    }
+
+    const brandKey = leadSourceDetail.toLowerCase();
+    if (brandKey.includes('air duct cleaning services')) {
+      return { name: 'Air Duct Cleaning Svc', style: 'bg-orange-100 text-orange-800 border-orange-300' };
+    }
+    if (brandKey.includes('local air duct')) {
+      return { name: 'Local Air Duct Pros', style: 'bg-purple-100 text-purple-800 border-purple-300' };
+    }
+    if (brandKey.includes('israel')) {
+      return { name: 'Israel', style: 'bg-blue-100 text-blue-800 border-blue-300' };
+    }
+    // Fallback for unknown brands
+    return { name: leadSourceDetail, style: 'bg-rose-100 text-rose-800 border-rose-300' };
+  };
+
   return (
     <div className="min-h-screen bg-slate-100">
+      {/* Instant tooltip styles */}
+      <style>{`
+        [data-tip] { position: relative; }
+        [data-tip]::after {
+          content: attr(data-tip);
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          padding: 4px 8px;
+          background: #1e293b;
+          color: white;
+          font-size: 11px;
+          font-weight: 500;
+          border-radius: 4px;
+          white-space: nowrap;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.1s;
+          z-index: 50;
+        }
+        [data-tip]:hover::after { opacity: 1; }
+      `}</style>
       {/* Header */}
       <header className="bg-[#0a2540] text-white px-6 py-4 shadow-lg">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -645,18 +696,7 @@ export default function Dashboard() {
             {todaysAppointmentsExpanded && (
             <div className="divide-y divide-slate-100 h-[200px] overflow-y-auto">
               {todaysAppointments.map((appt, idx) => {
-                // Determine representing company
-                const leadSource = (appt['Lead Source'] || '').toLowerCase();
-                const referralSource = appt['Referral Source'] || appt['Lead Provider'] || '';
-                const isLeadCompany = leadSource === 'lead company' || leadSource.includes('lead gen');
-                const isPartner = leadSource === 'partner';
-                let representingName = 'ClearAir';
-                let representingStyle = 'bg-teal-100 text-teal-700';
-                if ((isLeadCompany || isPartner) && referralSource) {
-                  representingName = referralSource;
-                  representingStyle = isLeadCompany ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700';
-                }
-
+                const brand = getBrandInfo(appt);
                 const isClosed = appt['Status']?.toUpperCase() === 'CLOSED';
                 // Count closed jobs before this one to determine alternating shade
                 const closedCountBefore = todaysAppointments.slice(0, idx).filter(a => a['Status']?.toUpperCase() === 'CLOSED').length;
@@ -676,7 +716,7 @@ export default function Dashboard() {
                         <span className="text-xs text-slate-500">{appt['Service Requested']}</span>
                         <span className="text-xs text-slate-400">•</span>
                         <span className="text-xs text-slate-500">{appt['Assigned To'] || 'Unassigned'}</span>
-                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${representingStyle}`}>{representingName}</span>
+                        <span className={`px-1.5 py-0.5 rounded text-xs font-semibold border ${brand.style}`}>{brand.name}</span>
                         {appt['Check In'] && <span className="text-xs text-green-600">In: {appt['Check In']}</span>}
                         {appt['Check Out'] && <span className="text-xs text-blue-600">Out: {appt['Check Out']}</span>}
                       </div>
@@ -858,65 +898,96 @@ export default function Dashboard() {
                     return (
                       <tr key={index} className="hover:bg-slate-50 transition border-b border-slate-300">
                         {/* Actions Column - Not editable */}
-                        <td className="px-0 py-1 bg-slate-100 border border-slate-300" style={{ width: (currentView === 'quoted' || currentView === 'closed') ? 50 : 130, minWidth: (currentView === 'quoted' || currentView === 'closed') ? 50 : 130, maxWidth: (currentView === 'quoted' || currentView === 'closed') ? 50 : 130 }}>
+                        <td className="px-0 py-1 bg-slate-100 border border-slate-300" style={{ width: (currentView === 'quoted' || currentView === 'closed') ? 80 : 130, minWidth: (currentView === 'quoted' || currentView === 'closed') ? 80 : 130, maxWidth: (currentView === 'quoted' || currentView === 'closed') ? 80 : 130 }}>
                           <div className="flex items-center justify-center gap-0">
                             {(currentView === 'quoted' || currentView === 'closed') ? (
-                              /* Commission adjustment button for Completed tab only */
+                              <>
+                              {/* Close Deal button - only for quoted view */}
+                              {currentView === 'quoted' && (
+                                <button
+                                  onClick={() => setCloseDealModalLead(lead)}
+                                  className="p-1 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100 rounded transition"
+                                  data-tip="Close Deal"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                </button>
+                              )}
+                              {/* Commission adjustment button */}
                               <button
                                 onClick={() => setCommissionModalLead(lead)}
                                 className="p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-100 rounded transition"
-                                title="Adjust Commission"
+                                data-tip="Commission"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                               </button>
+                              </>
                             ) : (
-                              /* Regular action buttons for other tabs */
+                              /* Regular action buttons: View, Edit, Schedule, Quote, Cancel */
                               <>
+                                {/* 1. View */}
                                 <button
                                   onClick={() => setViewDetailsLead(lead)}
                                   className="p-1 text-slate-500 hover:text-slate-700 hover:bg-slate-200 rounded transition"
-                                  title="View Details"
+                                  data-tip="View"
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                   </svg>
                                 </button>
+                                {/* 2. Edit */}
                                 <button
-                                  onClick={() => window.location.href = `tel:${lead['Phone Number']}`}
-                                  className="p-1 text-green-500 hover:text-green-700 hover:bg-green-50 rounded transition"
-                                  title="Call"
+                                  onClick={() => setEditModalLead(lead)}
+                                  className="p-1 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded transition"
+                                  data-tip="Edit"
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                   </svg>
                                 </button>
+                                {/* 3. Schedule */}
                                 <button
                                   onClick={() => setScheduleModalLead(lead)}
                                   className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded transition"
-                                  title="Schedule"
+                                  data-tip="Schedule"
                                 >
                                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                                     <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/>
                                     <path d="M9 14h2v2H9zm4 0h2v2h-2zm4 0h2v2h-2zm-8-3h2v2H9zm4 0h2v2h-2zm4 0h2v2h-2z"/>
                                   </svg>
                                 </button>
-                                <button
-                                  onClick={() => setEditModalLead(lead)}
-                                  className="p-1 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded transition"
-                                  title="Edit All"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                  </svg>
-                                </button>
+                                {/* 4. Quote (scheduled view) / Call (other views) */}
+                                {currentView === 'scheduled' ? (
+                                  <button
+                                    onClick={() => setQuoteLeadModalLead(lead)}
+                                    className="p-1 text-orange-500 hover:text-orange-700 hover:bg-orange-50 rounded transition"
+                                    data-tip="Quote"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => window.location.href = `tel:${lead['Phone Number']}`}
+                                    className="p-1 text-green-500 hover:text-green-700 hover:bg-green-50 rounded transition"
+                                    data-tip="Call"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                    </svg>
+                                  </button>
+                                )}
+                                {/* 5. Cancel */}
                                 {status !== 'CLOSED' && status !== 'CANCELED' && (
                                   <button
                                     onClick={() => updateLeadStatus(lead, 'CANCELED')}
                                     className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition"
-                                    title="Cancel Lead"
+                                    data-tip="Cancel"
                                   >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -927,7 +998,7 @@ export default function Dashboard() {
                                   <button
                                     onClick={() => updateLeadStatus(lead, 'NEW')}
                                     className="p-1 text-green-500 hover:text-green-700 hover:bg-green-50 rounded transition"
-                                    title="Reactivate Lead"
+                                    data-tip="Reactivate"
                                   >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -975,6 +1046,18 @@ export default function Dashboard() {
                             {formatDate(lead['Follow-up Date'] || lead['Follow Up Date'] || lead['Followup Date'] || lead['Follow-Up Date'] || '')}
                           </td>
                         )}
+
+                        {/* Brand - only for scheduled view */}
+                        {currentView === 'scheduled' && (() => {
+                          const brand = getBrandInfo(lead);
+                          return (
+                            <td className="px-4 py-3 text-sm">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${brand.style}`}>
+                                {brand.name}
+                              </span>
+                            </td>
+                          );
+                        })()}
 
                         {/* Customer Name */}
                         {(currentView === 'quoted' || currentView === 'closed') ? (
@@ -1222,6 +1305,24 @@ export default function Dashboard() {
         <CommissionModal
           lead={commissionModalLead}
           onClose={() => setCommissionModalLead(null)}
+          onSuccess={() => fetchLeads()}
+        />
+      )}
+
+      {/* Close Deal Modal */}
+      {closeDealModalLead && (
+        <CloseDealModal
+          lead={closeDealModalLead}
+          onClose={() => setCloseDealModalLead(null)}
+          onSuccess={() => fetchLeads()}
+        />
+      )}
+
+      {/* Quote Lead Modal */}
+      {quoteLeadModalLead && (
+        <QuoteLeadModal
+          lead={quoteLeadModalLead}
+          onClose={() => setQuoteLeadModalLead(null)}
           onSuccess={() => fetchLeads()}
         />
       )}

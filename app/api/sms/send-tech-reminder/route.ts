@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import path from 'path';
+import { getAuthClient, SPREADSHEET_ID, SHEET_NAME, DATA_RANGE } from '@/lib/google-sheets';
 import {
   client,
   twilioPhone,
@@ -11,9 +11,6 @@ import {
   getRepresentingText,
   shouldSendSMS
 } from '@/lib/twilio';
-
-const SPREADSHEET_ID = '1sWJpsvt8aNnmwTssfQ3GWvxa8-RVUy2M7eLHM5YSN3k';
-const SHEET_NAME = 'ACTIVE LEADS';
 
 // Tech phone numbers - add more as needed
 const TECH_PHONES: Record<string, string> = {
@@ -35,20 +32,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { tech, date } = body; // Optional: specific tech and date
 
-    // Google Sheets setup
-    const credentialsPath = path.join(process.cwd(), 'google-credentials.json');
-    const auth = new google.auth.GoogleAuth({
-      keyFile: credentialsPath,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-
+    // Google Sheets setup (supports both env var and keyFile auth)
+    const auth = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
-    const spreadsheetId = SPREADSHEET_ID;
 
-    // Get all leads
+    // Get all leads (wide range to cover all columns)
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${SHEET_NAME}!A:Z`,
+      spreadsheetId: SPREADSHEET_ID,
+      range: DATA_RANGE,
     });
 
     const rows = response.data.values || [];

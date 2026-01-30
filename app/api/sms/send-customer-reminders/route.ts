@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import path from 'path';
+import { getAuthClient, SPREADSHEET_ID, SHEET_NAME, DATA_RANGE, columnIndexToLetter } from '@/lib/google-sheets';
 import {
   client,
   twilioPhone,
@@ -12,11 +12,8 @@ import {
   SMS_TEST_MODE
 } from '@/lib/twilio';
 
-// Column for appointment confirmation status (YES/NO/PENDING)
-const CONFIRMED_COLUMN = 'AU';
-
-const SPREADSHEET_ID = '1sWJpsvt8aNnmwTssfQ3GWvxa8-RVUy2M7eLHM5YSN3k';
-const SHEET_NAME = 'ACTIVE LEADS';
+// Header name for the appointment confirmation column (column AU)
+const CONFIRMATION_HEADER = 'Appointment Confirmed';
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,20 +28,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { date, leadId } = body; // Optional: specific date or single lead
 
-    // Google Sheets setup
-    const credentialsPath = path.join(process.cwd(), 'google-credentials.json');
-    const auth = new google.auth.GoogleAuth({
-      keyFile: credentialsPath,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-
+    // Google Sheets setup (supports both env var and keyFile auth)
+    const auth = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
-    const spreadsheetId = SPREADSHEET_ID;
 
-    // Get all leads
+    // Get all leads (wide range to cover all columns including AU, AR, etc.)
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${SHEET_NAME}!A:Z`,
+      spreadsheetId: SPREADSHEET_ID,
+      range: DATA_RANGE,
     });
 
     const rows = response.data.values || [];
@@ -61,12 +52,10 @@ export async function POST(request: NextRequest) {
       return lead;
     });
 
-    // Find the column index for 'Appointment Confirmed'
-    let confirmedColIndex = headers.indexOf(CONFIRMED_COLUMN);
+    // Find the column index for confirmation status
+    const confirmedColIndex = headers.indexOf(CONFIRMATION_HEADER);
     if (confirmedColIndex === -1) {
-      // Column doesn't exist - we'll need to add it
-      // For now, just note it's missing
-      console.log('Warning: "Appointment Confirmed" column not found in sheet');
+      console.warn(`"${CONFIRMATION_HEADER}" column not found in sheet headers`);
     }
 
     // Calculate tomorrow's date in Houston timezone
@@ -165,12 +154,11 @@ export async function POST(request: NextRequest) {
           to: formatPhoneForTwilio(phone),
         });
 
-        // Update sheet to mark reminder sent
-        // We'll set confirmation to "PENDING" until they reply
+        // Update sheet to mark reminder sent - set confirmation to "PENDING"
         if (confirmedColIndex !== -1) {
-          const colLetter = String.fromCharCode(65 + confirmedColIndex);
+          const colLetter = columnIndexToLetter(confirmedColIndex);
           await sheets.spreadsheets.values.update({
-            spreadsheetId,
+            spreadsheetId: SPREADSHEET_ID,
             range: `${SHEET_NAME}!${colLetter}${job.rowIndex}`,
             valueInputOption: 'USER_ENTERED',
             requestBody: {

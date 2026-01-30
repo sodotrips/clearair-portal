@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import path from 'path';
+import { getAuthClient, SPREADSHEET_ID, SHEET_NAME, DATA_RANGE, columnIndexToLetter } from '@/lib/google-sheets';
 
-const SPREADSHEET_ID = '1sWJpsvt8aNnmwTssfQ3GWvxa8-RVUy2M7eLHM5YSN3k';
-const SHEET_NAME = 'ACTIVE LEADS';
+// Header name for the appointment confirmation column (column AU)
+const CONFIRMATION_HEADER = 'Appointment Confirmed';
 
 // This webhook receives incoming SMS messages from Twilio
 // When a customer replies "C" to confirm their appointment
@@ -21,20 +21,14 @@ export async function POST(request: NextRequest) {
     // Normalize phone number (remove +1 prefix)
     const normalizedPhone = from.replace(/^\+1/, '').replace(/\D/g, '');
 
-    // Google Sheets setup
-    const credentialsPath = path.join(process.cwd(), 'google-credentials.json');
-    const auth = new google.auth.GoogleAuth({
-      keyFile: credentialsPath,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-
+    // Google Sheets setup (supports both env var and keyFile auth)
+    const auth = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
-    const spreadsheetId = SPREADSHEET_ID;
 
-    // Get all leads to find matching phone number
+    // Get all leads (wide range to cover all columns including AU, AR, etc.)
     const response = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${SHEET_NAME}!A:Z`,
+      spreadsheetId: SPREADSHEET_ID,
+      range: DATA_RANGE,
     });
 
     const rows = response.data.values || [];
@@ -44,12 +38,16 @@ export async function POST(request: NextRequest) {
 
     const headers = rows[0];
     const phoneColIndex = headers.indexOf('Phone Number');
-    const confirmedColIndex = headers.indexOf('AU');
+    const confirmedColIndex = headers.indexOf(CONFIRMATION_HEADER);
     const statusColIndex = headers.indexOf('Status');
 
     if (phoneColIndex === -1) {
       console.error('Phone Number column not found');
       return createTwiMLResponse('System error. Please call us directly.');
+    }
+
+    if (confirmedColIndex === -1) {
+      console.warn(`"${CONFIRMATION_HEADER}" column not found in sheet headers`);
     }
 
     // Find the lead with matching phone number and scheduled status
@@ -80,10 +78,10 @@ export async function POST(request: NextRequest) {
     if (body === 'C' || body === 'CONFIRM' || body === 'YES' || body === 'Y') {
       // Update the sheet to mark as confirmed
       if (confirmedColIndex !== -1) {
-        const colLetter = String.fromCharCode(65 + confirmedColIndex);
+        const colLetter = columnIndexToLetter(confirmedColIndex);
         await sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: `Leads!${colLetter}${matchedRow}`,
+          spreadsheetId: SPREADSHEET_ID,
+          range: `${SHEET_NAME}!${colLetter}${matchedRow}`,
           valueInputOption: 'USER_ENTERED',
           requestBody: {
             values: [['YES']],
@@ -103,10 +101,10 @@ export async function POST(request: NextRequest) {
 
       // Update confirmation status
       if (confirmedColIndex !== -1) {
-        const colLetter = String.fromCharCode(65 + confirmedColIndex);
+        const colLetter = columnIndexToLetter(confirmedColIndex);
         await sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: `Leads!${colLetter}${matchedRow}`,
+          spreadsheetId: SPREADSHEET_ID,
+          range: `${SHEET_NAME}!${colLetter}${matchedRow}`,
           valueInputOption: 'USER_ENTERED',
           requestBody: {
             values: [['NO']],

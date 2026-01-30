@@ -2,29 +2,7 @@ import { google } from 'googleapis';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import path from 'path';
-
-const SPREADSHEET_ID = '1sWJpsvt8aNnmwTssfQ3GWvxa8-RVUy2M7eLHM5YSN3k';
-const SHEET_NAME = 'ACTIVE LEADS';
-
-async function getAuthClient() {
-  // Use environment variable in production, file in development
-  if (process.env.GOOGLE_CREDENTIALS) {
-    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-    return auth;
-  } else {
-    const credentialsPath = path.join(process.cwd(), 'google-credentials.json');
-    const auth = new google.auth.GoogleAuth({
-      keyFile: credentialsPath,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-    return auth;
-  }
-}
+import { getAuthClient, SPREADSHEET_ID, SHEET_NAME, columnIndexToLetter } from '@/lib/google-sheets';
 
 // Column mapping for updates
 const COLUMN_MAP: Record<string, number> = {
@@ -46,32 +24,36 @@ const COLUMN_MAP: Record<string, number> = {
   '# of Vents': 18,       // S
   'Customer Issue/Notes': 19, // T
   'Assigned To': 35,      // AJ
+  'Quote Amount': 41,     // AP
+  'Quote Valid Until': 42, // AQ
   'Appointment Date': 43, // AR
   'Time Window': 45,      // AT
   'Access Instructions': 50, // AY
   'Gate Code': 51,        // AZ
   'Parking Info': 52,     // BA
   'Pets': 53,             // BB
+  'Issues Found': 61,     // BJ
+  'Tech Notes': 70,       // BS
+  'Payment Method': 75,   // BX
   'Amount Paid': 77,      // BZ
+  'Balance Due': 78,      // CA
+  'Payment Date': 79,     // CB
+  'Labor Cost': 82,       // CE
+  'Material Cost': 83,    // CF
+  'Subcontractor Cost': 84, // CG
   'Total Cost': 85,       // CH
   'Profit $': 86,         // CI
+  'Profit %': 87,         // CJ
   'Follow-up Date': 100,  // CW
   'Last Modified': 117,   // DN
   'Last Modified By': 118, // DO
   'Sophia Commission %': 119,  // DP
+  'Sophia Commission $': 120,  // DQ
   'Amit Commission %': 121,    // DR
+  'Amit Commission $': 122,    // DS
   'Lead Company Commission %': 123, // DT
+  'Lead Company Commission $': 124, // DU
 };
-
-// Convert column index to letter (e.g., 0 -> A, 26 -> AA, 100 -> CW)
-function columnIndexToLetter(index: number): string {
-  let letter = '';
-  while (index >= 0) {
-    letter = String.fromCharCode((index % 26) + 65) + letter;
-    index = Math.floor(index / 26) - 1;
-  }
-  return letter;
-}
 
 export async function POST(request: Request) {
   try {
@@ -115,11 +97,33 @@ export async function POST(request: Request) {
     const auth = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
 
+    // Check if any fields need dynamic header lookup (not in static COLUMN_MAP)
+    const fieldsToUpdate = Object.keys(updatesWithTimestamp);
+    const unmappedFields = fieldsToUpdate.filter(f => COLUMN_MAP[f] === undefined);
+
+    let dynamicColumnMap: Record<string, number> = {};
+    if (unmappedFields.length > 0) {
+      // Fetch headers from the sheet to resolve unknown columns
+      const headerResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET_NAME}!1:1`,
+      });
+      const headers = headerResponse.data.values?.[0] || [];
+      for (const field of unmappedFields) {
+        const idx = headers.indexOf(field);
+        if (idx !== -1) {
+          dynamicColumnMap[field] = idx;
+        } else {
+          console.warn(`Unknown field not found in headers: ${field}`);
+        }
+      }
+    }
+
     // Build batch update requests
     const updateRequests = [];
 
     for (const [field, value] of Object.entries(updatesWithTimestamp)) {
-      const colIndex = COLUMN_MAP[field];
+      const colIndex = COLUMN_MAP[field] ?? dynamicColumnMap[field];
       if (colIndex === undefined) {
         console.warn(`Unknown field: ${field}`);
         continue;
