@@ -21,6 +21,7 @@ interface Lead {
 export default function Dashboard() {
   const { data: session } = useSession();
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [websiteLeads, setWebsiteLeads] = useState<Lead[]>([]);
   const [filteredLeads, setFilteredLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -74,8 +75,22 @@ export default function Dashboard() {
   const statuses = ['NEW', 'SCHEDULED', 'IN PROGRESS', 'QUOTED', 'CLOSED', 'CANCELED'];
   const timeWindows = ['08:00AM - 11:00AM', '11:00AM - 2:00PM', '2:00PM - 5:00PM'];
 
+  // Website leads columns - dynamically built from sheet headers (defined early for width calc)
+  const websiteLeadCols = websiteLeads.length > 0
+    ? Object.keys(websiteLeads[0]).filter(k => k !== 'rowIndex')
+    : ['Timestamp', 'Name', 'Phone', 'Email', 'Service', 'Message', 'Source'];
+
   // Column widths per view
   const defaultWidths: Record<string, number[]> = {
+    website: [80, ...websiteLeadCols.map(col => {
+      const lower = col.toLowerCase();
+      if (lower.includes('message') || lower.includes('address')) return 280;
+      if (lower.includes('name') || lower.includes('email') || lower.includes('source')) return 180;
+      if (lower.includes('phone')) return 140;
+      if (lower.includes('timestamp') || lower.includes('date')) return 160;
+      if (lower.includes('service')) return 180;
+      return 150;
+    })],
     new: [140, 110, 100, 160, 140, 200, 120, 160, 100, 100, 110, 250],
     scheduled: [140, 110, 100, 160, 160, 140, 200, 120, 160, 100, 110, 160, 110],
     followups: [140, 110, 100, 110, 160, 140, 200, 120, 160, 100, 110],
@@ -88,12 +103,13 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchLeads();
+    fetchWebsiteLeads();
     fetchAgentSettings();
   }, []);
 
   useEffect(() => {
     filterLeadsByView();
-  }, [leads, currentView, searchTerm, sortColumn, sortDirection]);
+  }, [leads, websiteLeads, currentView, searchTerm, sortColumn, sortDirection]);
 
   // Handle column sort
   const handleSort = (column: string) => {
@@ -317,6 +333,120 @@ export default function Dashboard() {
     }
   }
 
+  async function fetchWebsiteLeads() {
+    try {
+      const response = await fetch('/api/leads/website');
+      const data = await response.json();
+      if (!data.error) {
+        setWebsiteLeads(data.leads || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch website leads');
+    }
+  }
+
+  // Promote a website lead to Active Leads
+  async function handlePromoteLead(lead: Lead) {
+    // Case-insensitive field lookup helper
+    const getField = (keys: string[]) => {
+      for (const key of keys) {
+        for (const leadKey of Object.keys(lead)) {
+          if (leadKey.toLowerCase() === key.toLowerCase()) {
+            return lead[leadKey] || '';
+          }
+        }
+      }
+      return '';
+    };
+
+    const name = getField(['name', 'Name', 'customer name', 'Customer Name']);
+    const phone = getField(['phone', 'Phone', 'phone number', 'Phone Number']);
+    const email = getField(['email', 'Email']);
+    const rawService = getField(['service', 'Service', 'service requested', 'Service Requested']);
+    const message = getField(['message', 'Message', 'notes', 'Notes']);
+    const source = getField(['source', 'Source', 'page source', 'Page Source']);
+
+    // Match raw service text to standard service names
+    const serviceLower = rawService.toLowerCase();
+    let service = rawService;
+    if (serviceLower.includes('dryer vent')) service = 'Dryer Vent Cleaning';
+    else if (serviceLower.includes('air duct') || serviceLower.includes('duct cleaning')) service = 'Air Duct Cleaning';
+    else if (serviceLower.includes('insulation')) service = 'Attic Insulation';
+    else if (serviceLower.includes('duct replacement')) service = 'Duct Replacement';
+    else if (serviceLower.includes('chimney')) service = 'Chimney Services';
+
+    if (!confirm(`Promote "${name || 'this lead'}" to Active Leads?`)) return;
+
+    try {
+      const response = await fetch('/api/leads/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: name,
+          phone: phone,
+          email: email,
+          serviceRequested: service,
+          customerNotes: message,
+          leadSource: 'Website',
+          leadSourceDetail: source,
+          address: '',
+          city: '',
+          zip: '',
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        // Mark as PROMOTED on the Website Leads sheet
+        await updateWebsiteLeadStatus(lead, 'PROMOTED');
+        setWebsiteLeads(prev => prev.map(l => l.rowIndex === lead.rowIndex ? { ...l, Status: 'PROMOTED', status: 'PROMOTED' } : l));
+        alert(`Lead promoted successfully! New Lead ID: ${result.leadId}`);
+        fetchLeads();
+      } else {
+        alert('Failed to promote lead: ' + (result.error || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('Failed to connect to server');
+    }
+  }
+
+  // Mark a website lead status (BAD, PROMOTED, etc.)
+  async function updateWebsiteLeadStatus(lead: Lead, status: string) {
+    try {
+      const response = await fetch('/api/leads/website', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rowIndex: lead.rowIndex, status }),
+      });
+      const result = await response.json();
+      return result.success;
+    } catch {
+      return false;
+    }
+  }
+
+  // Demote a website lead (mark as BAD)
+  async function handleDemoteLead(lead: Lead) {
+    const getField = (keys: string[]) => {
+      for (const key of keys) {
+        for (const leadKey of Object.keys(lead)) {
+          if (leadKey.toLowerCase() === key.toLowerCase()) return lead[leadKey] || '';
+        }
+      }
+      return '';
+    };
+    const name = getField(['name', 'Name', 'customer name', 'Customer Name']);
+
+    if (!confirm(`Mark "${name || 'this lead'}" as BAD? (spam/duplicate)`)) return;
+
+    const success = await updateWebsiteLeadStatus(lead, 'BAD');
+    if (success) {
+      setWebsiteLeads(prev => prev.map(l => l.rowIndex === lead.rowIndex ? { ...l, Status: 'BAD', status: 'BAD' } : l));
+    } else {
+      alert('Failed to update status');
+    }
+  }
+
   // Inline edit save handler
   async function handleInlineSave(rowIndex: string, field: string, value: string): Promise<boolean> {
     try {
@@ -380,6 +510,23 @@ export default function Dashboard() {
 
   function filterLeadsByView() {
     let filtered = leads;
+
+    if (currentView === 'website') {
+      // Exclude BAD and PROMOTED leads from website view
+      filtered = websiteLeads.filter(lead => {
+        const s = (lead['Status'] || lead['status'] || '').toUpperCase();
+        return s !== 'BAD' && s !== 'PROMOTED';
+      });
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        filtered = filtered.filter(lead =>
+          Object.values(lead).some(val => (val || '').toLowerCase().includes(term))
+        );
+      }
+      filtered = sortLeads(filtered);
+      setFilteredLeads(filtered);
+      return;
+    }
 
     if (currentView === 'new') {
       filtered = leads.filter(l => l['Status']?.toUpperCase() === 'NEW');
@@ -447,6 +594,7 @@ export default function Dashboard() {
   };
 
   const allTabs = [
+    { id: 'website', label: 'Website Leads', count: websiteLeads.filter(l => { const s = (l['Status'] || l['status'] || '').toUpperCase(); return s !== 'BAD' && s !== 'PROMOTED'; }).length },
     { id: 'new', label: 'New Leads', count: stats.newLeads },
     { id: 'scheduled', label: 'Scheduled', count: stats.scheduled },
     { id: 'quoted', label: 'Quoted', count: stats.quoted, adminOnly: true },
@@ -466,6 +614,7 @@ export default function Dashboard() {
   ];
 
   const columnsByView: Record<string, string[]> = {
+    website: ['Actions', ...websiteLeadCols],
     new: ['Actions', 'Lead ID', 'Status', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Created', 'Technician', 'Appointment', 'Customer Notes'],
     scheduled: ['Actions', 'Lead ID', 'Status', 'Brand', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Technician', 'Appointment', 'Time Window', 'Follow-up'],
     followups: ['Actions', 'Lead ID', 'Status', 'Follow-up', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Technician', 'Appointment'],
@@ -859,7 +1008,7 @@ export default function Dashboard() {
                       <th
                         key={col}
                         className={`px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider relative select-none ${col !== 'Actions' ? 'cursor-pointer hover:bg-slate-400/50' : ''}`}
-                        style={index === 0 ? { width: 140, minWidth: 140, maxWidth: 140 } : { width: columnWidths[currentView][index] }}
+                        style={index === 0 && col === 'Actions' ? { width: 140, minWidth: 140, maxWidth: 140 } : { width: (columnWidths[currentView] || [])[index] || 150 }}
                         onClick={() => handleSort(col)}
                       >
                         <div className="flex items-center gap-1">
@@ -894,6 +1043,53 @@ export default function Dashboard() {
                 <tbody>
                   {filteredLeads.map((lead, index) => {
                     const status = lead['Status']?.toUpperCase() || '';
+
+                    // Website Leads view - read-only table with Promote action
+                    if (currentView === 'website') {
+                      return (
+                        <tr key={index} className="hover:bg-slate-50 transition border-b border-slate-300">
+                          {/* Actions column */}
+                          <td className="px-0 py-1 bg-slate-100 border border-slate-300" style={{ width: 80, minWidth: 80, maxWidth: 80 }}>
+                            <div className="flex items-center justify-center gap-0.5">
+                              <button
+                                onClick={() => handlePromoteLead(lead)}
+                                className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded transition"
+                                data-tip="Promote"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => handleDemoteLead(lead)}
+                                className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition"
+                                data-tip="Demote"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                </svg>
+                              </button>
+                            </div>
+                          </td>
+                          {/* Data columns */}
+                          {websiteLeadCols.map((col, colIdx) => (
+                            <td key={colIdx} className="px-4 py-3 text-sm text-slate-600 truncate" style={{ width: columnWidths['website']?.[colIdx + 1] || 150, minWidth: columnWidths['website']?.[colIdx + 1] || 150 }}>
+                              {col.toLowerCase().includes('phone') && lead[col] ? (
+                                <a href={`tel:${lead[col].replace(/\D/g, '')}`} className="text-teal-600 hover:text-teal-800 font-medium">
+                                  {lead[col]}
+                                </a>
+                              ) : col.toLowerCase().includes('email') && lead[col] ? (
+                                <a href={`mailto:${lead[col]}`} className="text-teal-600 hover:text-teal-800">
+                                  {lead[col]}
+                                </a>
+                              ) : (
+                                lead[col] || ''
+                              )}
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    }
 
                     return (
                       <tr key={index} className="hover:bg-slate-50 transition border-b border-slate-300">
