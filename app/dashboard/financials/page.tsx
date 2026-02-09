@@ -203,24 +203,24 @@ export default function FinancialDashboard() {
 
   // Calculate financial metrics
   const closedLeads = filteredLeads.filter(l => l['Status']?.toUpperCase() === 'CLOSED');
-  const quotedLeads = filteredLeads.filter(l => parseCurrency(l['Quote Amount']) > 0);
+  const quotedOnlyLeads = filteredLeads.filter(l => l['Status']?.toUpperCase() === 'QUOTED');
 
-  const totalQuoted = filteredLeads.reduce((sum, l) => sum + parseCurrency(l['Quote Amount']), 0);
-  const totalRevenue = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Profit $']), 0);
-  const pendingRevenue = filteredLeads
-    .filter(l => {
-      const status = l['Status']?.toUpperCase();
-      return status === 'SCHEDULED' || status === 'IN PROGRESS' || status === 'QUOTED';
-    })
-    .reduce((sum, l) => sum + parseCurrency(l['Quote Amount']), 0);
+  // Card 1: Total Gross Sales (sum of Amount Paid for closed jobs)
+  const totalGrossSales = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Amount Paid']), 0);
 
-  const avgJobProfit = closedLeads.length > 0
-    ? totalRevenue / closedLeads.length
-    : 0;
+  // Card 2: Total Gross Profit (sum of Profit $ for closed jobs)
+  const totalGrossProfit = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Profit $']), 0);
 
-  const conversionRate = quotedLeads.length > 0
-    ? Math.round((closedLeads.length / quotedLeads.length) * 100)
-    : 0;
+  // Card 3: Total Sales Tax (Amount Paid - PreTax amount, where PreTax = Amount Paid / 1.0825)
+  const totalSalesTax = closedLeads.reduce((sum, l) => {
+    const amountPaid = parseCurrency(l['Amount Paid']);
+    const preTax = amountPaid / 1.0825;
+    const tax = amountPaid - preTax;
+    return sum + tax;
+  }, 0);
+
+  // Card 4: Pending Quotes (sum of Quote Amount for QUOTED status only)
+  const pendingQuotes = quotedOnlyLeads.reduce((sum, l) => sum + parseCurrency(l['Quote Amount']), 0);
 
   // Revenue by service type
   const revenueByService: Record<string, number> = {};
@@ -615,31 +615,26 @@ export default function FinancialDashboard() {
         </div>
 
         {/* Financial KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl shadow-sm p-5">
-            <p className="text-slate-500 text-sm font-medium">Total Profit</p>
-            <p className="text-2xl font-bold text-green-600 mt-1">{formatCurrency(totalRevenue)}</p>
+            <p className="text-slate-500 text-sm font-medium">Total Gross Sales</p>
+            <p className="text-2xl font-bold text-blue-600 mt-1">{formatCurrency(totalGrossSales)}</p>
             <p className="text-xs text-slate-400 mt-1">{closedLeads.length} closed jobs</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5">
-            <p className="text-slate-500 text-sm font-medium">Pending Revenue</p>
-            <p className="text-2xl font-bold text-amber-500 mt-1">{formatCurrency(pendingRevenue)}</p>
-            <p className="text-xs text-slate-400 mt-1">Scheduled & quoted</p>
+            <p className="text-slate-500 text-sm font-medium">Total Gross Profit</p>
+            <p className="text-2xl font-bold text-green-600 mt-1">{formatCurrency(totalGrossProfit)}</p>
+            <p className="text-xs text-slate-400 mt-1">From closed jobs</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5">
-            <p className="text-slate-500 text-sm font-medium">Total Quoted</p>
-            <p className="text-2xl font-bold text-blue-600 mt-1">{formatCurrency(totalQuoted)}</p>
-            <p className="text-xs text-slate-400 mt-1">{quotedLeads.length} quotes sent</p>
+            <p className="text-slate-500 text-sm font-medium">Total Sales Tax</p>
+            <p className="text-2xl font-bold text-amber-500 mt-1">{formatCurrency(totalSalesTax)}</p>
+            <p className="text-xs text-slate-400 mt-1">8.25% collected</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5">
-            <p className="text-slate-500 text-sm font-medium">Avg Job Profit</p>
-            <p className="text-2xl font-bold text-[#14b8a6] mt-1">{formatCurrency(avgJobProfit)}</p>
-            <p className="text-xs text-slate-400 mt-1">Per completed job</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-5">
-            <p className="text-slate-500 text-sm font-medium">Close Rate</p>
-            <p className="text-2xl font-bold text-purple-600 mt-1">{conversionRate}%</p>
-            <p className="text-xs text-slate-400 mt-1">Quotes to completed</p>
+            <p className="text-slate-500 text-sm font-medium">Pending Quotes</p>
+            <p className="text-2xl font-bold text-purple-600 mt-1">{formatCurrency(pendingQuotes)}</p>
+            <p className="text-xs text-slate-400 mt-1">{quotedOnlyLeads.length} quotes pending</p>
           </div>
         </div>
 
