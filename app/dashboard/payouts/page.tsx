@@ -96,10 +96,11 @@ export default function PayoutsPage() {
 
   // Filter leads that are closed and paid within date range
   const filteredLeads = useMemo(() => {
-    const startDate = new Date(dateRange.start);
-    startDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(dateRange.end);
-    endDate.setHours(23, 59, 59, 999);
+    // Parse dates as local time (not UTC) to avoid timezone shift
+    const [startYear, startMonth, startDay] = dateRange.start.split('-').map(Number);
+    const [endYear, endMonth, endDay] = dateRange.end.split('-').map(Number);
+    const startDate = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
+    const endDate = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
 
     return leads.filter(lead => {
       const status = lead['Status']?.toUpperCase();

@@ -129,10 +129,11 @@ export default function FinancialDashboard() {
 
   // Filter leads by date range (based on Appointment Date)
   const filterByDateRange = (leads: Lead[]) => {
-    const startDate = new Date(dateRange.start);
-    startDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(dateRange.end);
-    endDate.setHours(23, 59, 59, 999);
+    // Parse dates as local time (not UTC) to avoid timezone shift
+    const [startYear, startMonth, startDay] = dateRange.start.split('-').map(Number);
+    const [endYear, endMonth, endDay] = dateRange.end.split('-').map(Number);
+    const startDate = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0);
+    const endDate = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999);
 
     return leads.filter(lead => {
       const leadDate = parseDate(lead['Appointment Date']);
