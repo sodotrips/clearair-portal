@@ -43,3 +43,4 @@ google-credentials.json
 *.tsbuildinfo
 next-env.d.ts
 .env*.local
+AI-RECEPTIONIST-DESIGN.md

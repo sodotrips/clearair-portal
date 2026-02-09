@@ -289,6 +289,19 @@ export default function Dashboard() {
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
   };
 
+  // Normalize service names to consistent format
+  const normalizeService = (rawService: string) => {
+    if (!rawService) return '';
+    const serviceLower = rawService.toLowerCase();
+    if (serviceLower.includes('dryer') || serviceLower.includes('vent')) return 'Dryer Vent Cleaning';
+    if (serviceLower.includes('air duct') || serviceLower.includes('duct clean') || serviceLower.includes('air-duct')) return 'Air Duct Cleaning';
+    if (serviceLower.includes('both') || (serviceLower.includes('duct') && serviceLower.includes('dryer'))) return 'Air Duct + Dryer Vent';
+    if (serviceLower.includes('insulation')) return 'Attic Insulation';
+    if (serviceLower.includes('duct replacement')) return 'Duct Replacement';
+    if (serviceLower.includes('chimney')) return 'Chimney Services';
+    return rawService; // Return original if no match
+  };
+
   // Houston timezone helper
   const getHoustonDateString = () => {
     const now = new Date();
@@ -766,13 +779,20 @@ export default function Dashboard() {
               </>
             )}
             <div className="flex items-center gap-3 border-l border-slate-600 pl-4 ml-2">
-              <span className="text-slate-400 text-sm">{session?.user?.name}</span>
-              <button
-                onClick={() => signOut({ callbackUrl: '/login' })}
-                className="text-slate-400 hover:text-white text-sm transition"
-              >
-                Sign Out
-              </button>
+              <div className="text-right">
+                <div className="flex items-center gap-3">
+                  <span className="text-slate-400 text-sm">{session?.user?.name}</span>
+                  <button
+                    onClick={() => signOut({ callbackUrl: '/login' })}
+                    className="text-slate-400 hover:text-white text-sm transition"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+                <div className="text-slate-400 text-sm mt-1">
+                  {new Date().toLocaleDateString('en-US', { timeZone: 'America/Chicago', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1082,6 +1102,8 @@ export default function Dashboard() {
                                 <a href={`mailto:${lead[col]}`} className="text-teal-600 hover:text-teal-800">
                                   {lead[col]}
                                 </a>
+                              ) : col.toLowerCase().includes('service') && lead[col] ? (
+                                normalizeService(lead[col])
                               ) : (
                                 lead[col] || ''
                               )}

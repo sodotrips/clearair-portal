@@ -210,8 +210,11 @@ export default function FinancialDashboard() {
   };
 
   const formatDateRange = () => {
-    const start = new Date(dateRange.start);
-    const end = new Date(dateRange.end);
+    // Parse dates as local time (not UTC) to avoid timezone shift
+    const [startYear, startMonth, startDay] = dateRange.start.split('-').map(Number);
+    const [endYear, endMonth, endDay] = dateRange.end.split('-').map(Number);
+    const start = new Date(startYear, startMonth - 1, startDay);
+    const end = new Date(endYear, endMonth - 1, endDay);
     const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
     return `${start.toLocaleDateString('en-US', options)} - ${end.toLocaleDateString('en-US', options)}, ${end.getFullYear()}`;
   };
