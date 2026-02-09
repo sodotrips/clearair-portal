@@ -107,14 +107,14 @@ export default function FinancialDashboard() {
     }).format(value);
   };
 
-  // Filter leads by date range
+  // Filter leads by date range (based on Appointment Date)
   const filterByDateRange = (leads: Lead[]) => {
     const today = getHoustonDate();
     const daysAgo = new Date(today);
     daysAgo.setDate(daysAgo.getDate() - parseInt(dateRange));
 
     return leads.filter(lead => {
-      const leadDate = parseDate(lead['Timestamp Received'] || lead['Appointment Date']);
+      const leadDate = parseDate(lead['Appointment Date']);
       if (!leadDate) return false;
       return leadDate >= daysAgo && leadDate <= today;
     });
@@ -992,11 +992,7 @@ export default function FinancialDashboard() {
               </thead>
               <tbody>
                 {filteredLeads
-                  .filter(l => {
-                    const status = l['Status']?.toUpperCase();
-                    return status === 'CLOSED' || status === 'PAID';
-                  })
-                  .slice(0, 20)
+                  .filter(l => l['Status']?.toUpperCase() === 'CLOSED')
                   .map((lead, idx) => {
                     // Calculate expenses (sum of Labor, Material, Subcontractor costs)
                     const laborCost = parseCurrency(lead['Labor Cost']);

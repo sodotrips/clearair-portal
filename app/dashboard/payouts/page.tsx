@@ -261,6 +261,43 @@ export default function PayoutsPage() {
     });
   };
 
+  const setLast30Days = () => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    setDateRange({
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0],
+    });
+  };
+
+  const setLast90Days = () => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 90);
+    setDateRange({
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0],
+    });
+  };
+
+  const setLast12Months = () => {
+    const end = new Date();
+    const start = new Date();
+    start.setFullYear(start.getFullYear() - 1);
+    setDateRange({
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0],
+    });
+  };
+
+  const setAllTime = () => {
+    setDateRange({
+      start: '2020-01-01',
+      end: new Date().toISOString().split('T')[0],
+    });
+  };
+
   // Export functions
   const exportToCSV = () => {
     // Create CSV content
@@ -395,7 +432,7 @@ export default function PayoutsPage() {
                 className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button onClick={setThisWeek} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
                 This Week
               </button>
@@ -404,6 +441,18 @@ export default function PayoutsPage() {
               </button>
               <button onClick={setThisMonth} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
                 This Month
+              </button>
+              <button onClick={setLast30Days} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
+                Last 30 Days
+              </button>
+              <button onClick={setLast90Days} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
+                Last 90 Days
+              </button>
+              <button onClick={setLast12Months} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
+                Last 12 Months
+              </button>
+              <button onClick={setAllTime} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
+                All Time
               </button>
             </div>
             <button
