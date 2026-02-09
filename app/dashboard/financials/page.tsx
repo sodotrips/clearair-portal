@@ -68,6 +68,7 @@ export default function FinancialDashboard() {
   const [profitAmount, setProfitAmount] = useState('');
   const [partnerCommission, setPartnerCommission] = useState('');
   const [amitCommission, setAmitCommission] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
   const [saving, setSaving] = useState(false);
   const [rowsToShow, setRowsToShow] = useState(50);
 
@@ -441,6 +442,7 @@ export default function FinancialDashboard() {
       const updates: Record<string, string> = {
         'Quote Amount': quoteAmount,
         'Amount Paid': finalAmount,
+        'Payment Method': paymentMethod,
         'Labor Cost': laborCost,
         'Materials Cost': materialCost,
         'Subcontractor Cost': subcontractorCost,
@@ -492,6 +494,7 @@ export default function FinancialDashboard() {
     setEditingLead(null);
     setQuoteAmount('');
     setFinalAmount('');
+    setPaymentMethod('');
     setLaborCost('');
     setMaterialCost('');
     setSubcontractorCost('');
@@ -1158,6 +1161,7 @@ export default function FinancialDashboard() {
                               setEditingLead(lead);
                               setQuoteAmount(lead['Quote Amount'] || '');
                               setFinalAmount(lead['Amount Paid'] || '');
+                              setPaymentMethod(lead['Payment Method'] || '');
                               setLaborCost(lead['Labor Cost'] || '');
                               setMaterialCost(lead['Materials Cost'] || '');
                               setSubcontractorCost(lead['Subcontractor Cost'] || '');
@@ -1261,6 +1265,25 @@ export default function FinancialDashboard() {
                       className="w-full px-3 py-2 border border-green-300 rounded-lg focus:border-green-500 focus:ring-1 focus:ring-green-500 focus:outline-none transition text-sm bg-green-50"
                     />
                   </div>
+                </div>
+                <div className="mt-3">
+                  <label className="block text-slate-700 text-xs font-medium mb-1">Payment Method</label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] focus:outline-none transition text-sm"
+                  >
+                    <option value="">Select method...</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Check">Check</option>
+                    <option value="Credit Card">Credit Card</option>
+                    <option value="Debit Card">Debit Card</option>
+                    <option value="Zelle">Zelle</option>
+                    <option value="Venmo">Venmo</option>
+                    <option value="PayPal">PayPal</option>
+                    <option value="Square">Square</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
               </div>
 
