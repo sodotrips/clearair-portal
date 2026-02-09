@@ -959,6 +959,7 @@ export default function FinancialDashboard() {
                   <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Quote $</th>
                   <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Paid $</th>
                   <th className="text-center py-3 px-3 text-sm font-semibold text-slate-600">Payment Date</th>
+                  <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">PreTax Total</th>
                   <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Expenses</th>
                   <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Total Cost</th>
                   <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Gross Profit</th>
@@ -1009,6 +1010,9 @@ export default function FinancialDashboard() {
                         </td>
                         <td className="py-3 px-3 text-sm text-center text-slate-600">
                           {lead['Payment Date'] || '-'}
+                        </td>
+                        <td className="py-3 px-3 text-sm text-right text-slate-700">
+                          {lead['Amount Paid'] ? formatCurrency(parseCurrency(lead['Amount Paid']) / 1.0825) : '-'}
                         </td>
                         <td className="py-3 px-3 text-sm text-right text-red-500">
                           {expenses > 0 ? formatCurrency(expenses) : '-'}
