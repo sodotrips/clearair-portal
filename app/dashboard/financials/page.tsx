@@ -42,6 +42,11 @@ export default function FinancialDashboard() {
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [quoteAmount, setQuoteAmount] = useState('');
   const [finalAmount, setFinalAmount] = useState('');
+  const [laborCost, setLaborCost] = useState('');
+  const [materialCost, setMaterialCost] = useState('');
+  const [subcontractorCost, setSubcontractorCost] = useState('');
+  const [totalCost, setTotalCost] = useState('');
+  const [profitAmount, setProfitAmount] = useState('');
   const [partnerCommission, setPartnerCommission] = useState('');
   const [amitCommission, setAmitCommission] = useState('');
   const [saving, setSaving] = useState(false);
@@ -358,6 +363,11 @@ export default function FinancialDashboard() {
       const updates: Record<string, string> = {
         'Quote Amount': quoteAmount,
         'Amount Paid': finalAmount,
+        'Labor Cost': laborCost,
+        'Material Cost': materialCost,
+        'Subcontractor Cost': subcontractorCost,
+        'Total Cost': totalCost,
+        'Profit $': profitAmount,
       };
 
       // Only include commission fields if they have values (for partner deals)
@@ -379,16 +389,17 @@ export default function FinancialDashboard() {
 
       const result = await response.json();
       if (result.success) {
+        // Also update the calculated fields for local display
+        const updatedLead = {
+          ...editingLead,
+          ...updates,
+        };
         setLeads(prev => prev.map(lead =>
           lead.rowIndex === editingLead.rowIndex
-            ? { ...lead, ...updates }
+            ? updatedLead
             : lead
         ));
-        setEditingLead(null);
-        setQuoteAmount('');
-        setFinalAmount('');
-        setPartnerCommission('');
-        setAmitCommission('');
+        resetEditForm();
       } else {
         alert('Failed to save: ' + result.error);
       }
@@ -397,6 +408,19 @@ export default function FinancialDashboard() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const resetEditForm = () => {
+    setEditingLead(null);
+    setQuoteAmount('');
+    setFinalAmount('');
+    setLaborCost('');
+    setMaterialCost('');
+    setSubcontractorCost('');
+    setTotalCost('');
+    setProfitAmount('');
+    setPartnerCommission('');
+    setAmitCommission('');
   };
 
   const chartOptions = {
@@ -963,6 +987,7 @@ export default function FinancialDashboard() {
                   <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Expenses</th>
                   <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Total Cost</th>
                   <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Gross Profit</th>
+                  <th className="text-center py-3 px-3 text-sm font-semibold text-slate-600">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -982,14 +1007,7 @@ export default function FinancialDashboard() {
                     return (
                       <tr
                         key={idx}
-                        className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition"
-                        onClick={() => {
-                          setEditingLead(lead);
-                          setQuoteAmount(lead['Quote Amount'] || '');
-                          setFinalAmount(lead['Amount Paid'] || '');
-                          setPartnerCommission(lead['Partner Commission'] || '');
-                          setAmitCommission(lead['Amit Commission'] || '');
-                        }}
+                        className="border-b border-slate-100 hover:bg-slate-50 transition"
                       >
                         <td className="py-3 px-3 text-sm text-slate-600">{lead['Lead ID']}</td>
                         <td className="py-3 px-3 text-sm font-medium text-slate-800">{lead['Customer Name']}</td>
@@ -1023,6 +1041,28 @@ export default function FinancialDashboard() {
                         <td className="py-3 px-3 text-sm text-right font-semibold text-emerald-600">
                           {lead['Profit $'] ? formatCurrency(parseCurrency(lead['Profit $'])) : '-'}
                         </td>
+                        <td className="py-3 px-3 text-center">
+                          <button
+                            onClick={() => {
+                              setEditingLead(lead);
+                              setQuoteAmount(lead['Quote Amount'] || '');
+                              setFinalAmount(lead['Amount Paid'] || '');
+                              setLaborCost(lead['Labor Cost'] || '');
+                              setMaterialCost(lead['Material Cost'] || '');
+                              setSubcontractorCost(lead['Subcontractor Cost'] || '');
+                              setTotalCost(lead['Total Cost'] || '');
+                              setProfitAmount(lead['Profit $'] || '');
+                              setPartnerCommission(lead['Partner Commission'] || '');
+                              setAmitCommission(lead['Amit Commission'] || '');
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-[#14b8a6] hover:bg-slate-100 rounded-lg transition"
+                            title="Edit financials"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}
@@ -1052,42 +1092,98 @@ export default function FinancialDashboard() {
               <div className="bg-slate-50 p-3 rounded-lg text-sm">
                 <p><span className="font-medium">Service:</span> {editingLead['Service Requested']}</p>
                 <p><span className="font-medium">Status:</span> {editingLead['Status']}</p>
-                <p><span className="font-medium">Lead Source:</span> {editingLead['Lead Source'] || 'Unknown'}</p>
                 <p><span className="font-medium">Technician:</span> {editingLead['Assigned To'] || 'Unassigned'}</p>
               </div>
 
-              {/* Current Financial Summary */}
-              <div className="bg-emerald-50 p-3 rounded-lg text-sm border border-emerald-200">
-                <p className="font-semibold text-emerald-800 mb-2">Current Values (from Sheet)</p>
-                <div className="grid grid-cols-2 gap-2 text-emerald-700">
-                  <p>Quote: <span className="font-medium">{editingLead['Quote Amount'] || '-'}</span></p>
-                  <p>Paid: <span className="font-medium">{editingLead['Amount Paid'] || '-'}</span></p>
-                  <p>Total Cost: <span className="font-medium">{editingLead['Total Cost'] || '-'}</span></p>
-                  <p>Profit: <span className="font-medium">{editingLead['Profit $'] || '-'}</span></p>
+              {/* Revenue Section */}
+              <div className="border-t border-slate-200 pt-4">
+                <h4 className="text-sm font-semibold text-slate-700 mb-3">Revenue</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-700 text-xs font-medium mb-1">Quote Amount ($)</label>
+                    <input
+                      type="text"
+                      value={quoteAmount}
+                      onChange={(e) => setQuoteAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] focus:outline-none transition text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 text-xs font-medium mb-1">Amount Paid ($)</label>
+                    <input
+                      type="text"
+                      value={finalAmount}
+                      onChange={(e) => setFinalAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 border border-green-300 rounded-lg focus:border-green-500 focus:ring-1 focus:ring-green-500 focus:outline-none transition text-sm bg-green-50"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-slate-700 text-sm font-medium mb-1.5">Quote Amount ($)</label>
-                <input
-                  type="text"
-                  value={quoteAmount}
-                  onChange={(e) => setQuoteAmount(e.target.value)}
-                  placeholder="e.g., 250"
-                  className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] focus:outline-none transition text-sm"
-                />
+              {/* Expenses Section */}
+              <div className="border-t border-slate-200 pt-4">
+                <h4 className="text-sm font-semibold text-slate-700 mb-3">Expenses</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-slate-700 text-xs font-medium mb-1">Labor ($)</label>
+                    <input
+                      type="text"
+                      value={laborCost}
+                      onChange={(e) => setLaborCost(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 border border-red-200 rounded-lg focus:border-red-400 focus:ring-1 focus:ring-red-400 focus:outline-none transition text-sm bg-red-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 text-xs font-medium mb-1">Material ($)</label>
+                    <input
+                      type="text"
+                      value={materialCost}
+                      onChange={(e) => setMaterialCost(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 border border-red-200 rounded-lg focus:border-red-400 focus:ring-1 focus:ring-red-400 focus:outline-none transition text-sm bg-red-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 text-xs font-medium mb-1">Subcontractor ($)</label>
+                    <input
+                      type="text"
+                      value={subcontractorCost}
+                      onChange={(e) => setSubcontractorCost(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 border border-red-200 rounded-lg focus:border-red-400 focus:ring-1 focus:ring-red-400 focus:outline-none transition text-sm bg-red-50"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-slate-700 text-sm font-medium mb-1.5">Amount Paid ($)</label>
-                <input
-                  type="text"
-                  value={finalAmount}
-                  onChange={(e) => setFinalAmount(e.target.value)}
-                  placeholder="e.g., 275"
-                  className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] focus:outline-none transition text-sm"
-                />
-                <p className="text-xs text-slate-500 mt-1">Amount customer actually paid</p>
+              {/* Totals Section */}
+              <div className="border-t border-slate-200 pt-4">
+                <h4 className="text-sm font-semibold text-slate-700 mb-3">Totals</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-700 text-xs font-medium mb-1">Total Cost ($)</label>
+                    <input
+                      type="text"
+                      value={totalCost}
+                      onChange={(e) => setTotalCost(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] focus:outline-none transition text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 text-xs font-medium mb-1">Gross Profit ($)</label>
+                    <input
+                      type="text"
+                      value={profitAmount}
+                      onChange={(e) => setProfitAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 border border-emerald-300 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition text-sm bg-emerald-50"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Partner Commission Split - Only show for partner/lead gen deals */}
@@ -1097,56 +1193,37 @@ export default function FinancialDashboard() {
                     <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
-                    Custom Commission Split
+                    Commission Split
                   </h4>
-                  <p className="text-xs text-slate-500 mb-3">
-                    For partner deals, enter the exact dollar amounts for commission split.
-                    Leave blank to use default 50/50 split.
-                  </p>
-
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-slate-700 text-sm font-medium mb-1.5">Amit's Commission ($)</label>
+                      <label className="block text-slate-700 text-xs font-medium mb-1">Amit's Commission ($)</label>
                       <input
                         type="text"
                         value={amitCommission}
                         onChange={(e) => setAmitCommission(e.target.value)}
-                        placeholder="e.g., 150"
-                        className="w-full px-4 py-2.5 border border-teal-300 rounded-lg focus:border-teal-500 focus:ring-1 focus:ring-teal-500 focus:outline-none transition text-sm bg-teal-50"
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 border border-teal-300 rounded-lg focus:border-teal-500 focus:ring-1 focus:ring-teal-500 focus:outline-none transition text-sm bg-teal-50"
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-700 text-sm font-medium mb-1.5">Partner's Commission ($)</label>
+                      <label className="block text-slate-700 text-xs font-medium mb-1">Partner's Commission ($)</label>
                       <input
                         type="text"
                         value={partnerCommission}
                         onChange={(e) => setPartnerCommission(e.target.value)}
-                        placeholder="e.g., 125"
-                        className="w-full px-4 py-2.5 border border-amber-300 rounded-lg focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none transition text-sm bg-amber-50"
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 border border-amber-300 rounded-lg focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none transition text-sm bg-amber-50"
                       />
                     </div>
                   </div>
-
-                  {/* Auto-calculate helper */}
-                  {finalAmount && (
-                    <div className="mt-2 p-2 bg-slate-100 rounded text-xs text-slate-600">
-                      <p>Amount Paid: <span className="font-semibold">{formatCurrency(parseCurrency(finalAmount))}</span></p>
-                      <p>Default 50/50: <span className="font-semibold">{formatCurrency(parseCurrency(finalAmount) * 0.5)}</span> each</p>
-                    </div>
-                  )}
                 </div>
               )}
 
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => {
-                    setEditingLead(null);
-                    setQuoteAmount('');
-                    setFinalAmount('');
-                    setPartnerCommission('');
-                    setAmitCommission('');
-                  }}
+                  onClick={resetEditForm}
                   className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition text-sm"
                 >
                   Cancel
