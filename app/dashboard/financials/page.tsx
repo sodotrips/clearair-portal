@@ -1106,6 +1106,14 @@ export default function FinancialDashboard() {
               <tbody>
                 {filteredLeads
                   .filter(l => l['Status']?.toUpperCase() === 'CLOSED')
+                  .sort((a, b) => {
+                    const dateA = parseDate(a['Appointment Date']);
+                    const dateB = parseDate(b['Appointment Date']);
+                    if (!dateA && !dateB) return 0;
+                    if (!dateA) return 1;
+                    if (!dateB) return -1;
+                    return dateA.getTime() - dateB.getTime(); // Oldest to latest
+                  })
                   .slice(0, rowsToShow)
                   .map((lead, idx) => {
                     // Calculate expenses from columns CE, CF, CG
