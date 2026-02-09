@@ -210,6 +210,7 @@ export default function FinancialDashboard() {
 
   // Card 2: Total Gross Profit (sum of Profit $ for closed jobs)
   const totalGrossProfit = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Profit $']), 0);
+  const totalRevenue = totalGrossProfit; // Alias for commission calculations
 
   // Card 3: Total Sales Tax (Amount Paid - PreTax amount, where PreTax = Amount Paid / 1.0825)
   const totalSalesTax = closedLeads.reduce((sum, l) => {
