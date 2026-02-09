@@ -1088,6 +1088,7 @@ export default function FinancialDashboard() {
                 <tr className="border-b border-slate-200">
                   <th className="text-left py-3 px-3 text-sm font-semibold text-slate-600">Lead ID</th>
                   <th className="text-left py-3 px-3 text-sm font-semibold text-slate-600">Customer</th>
+                  <th className="text-center py-3 px-3 text-sm font-semibold text-slate-600">Appt Date</th>
                   <th className="text-left py-3 px-3 text-sm font-semibold text-slate-600">Status</th>
                   <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Quote $</th>
                   <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Paid $</th>
@@ -1117,6 +1118,9 @@ export default function FinancialDashboard() {
                       >
                         <td className="py-3 px-3 text-sm text-slate-600">{lead['Lead ID']}</td>
                         <td className="py-3 px-3 text-sm font-medium text-slate-800">{lead['Customer Name']}</td>
+                        <td className="py-3 px-3 text-sm text-center text-slate-600">
+                          {lead['Appointment Date'] || '-'}
+                        </td>
                         <td className="py-3 px-3">
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                             lead['Status']?.toUpperCase() === 'CLOSED' ? 'bg-green-100 text-green-700' :
