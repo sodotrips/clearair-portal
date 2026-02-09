@@ -142,7 +142,7 @@ export default function FinancialDashboard() {
   const revenueByService: Record<string, number> = {};
   closedLeads.forEach(lead => {
     const service = lead['Service Requested'] || 'Unknown';
-    const amount = parseCurrency(lead['Final Amount'] || lead['Quote Amount']);
+    const amount = parseCurrency(lead['Amount Paid'] || lead['Quote Amount']);
     revenueByService[service] = (revenueByService[service] || 0) + amount;
   });
 
@@ -165,7 +165,7 @@ export default function FinancialDashboard() {
   const revenueByTech: Record<string, { revenue: number; jobs: number }> = {};
   closedLeads.forEach(lead => {
     const tech = lead['Assigned To'] || 'Unassigned';
-    const amount = parseCurrency(lead['Final Amount'] || lead['Quote Amount']);
+    const amount = parseCurrency(lead['Amount Paid'] || lead['Quote Amount']);
     if (!revenueByTech[tech]) {
       revenueByTech[tech] = { revenue: 0, jobs: 0 };
     }
@@ -187,7 +187,7 @@ export default function FinancialDashboard() {
   const revenueByCity: Record<string, number> = {};
   closedLeads.forEach(lead => {
     const city = lead['City'] || 'Unknown';
-    const amount = parseCurrency(lead['Final Amount'] || lead['Quote Amount']);
+    const amount = parseCurrency(lead['Amount Paid'] || lead['Quote Amount']);
     revenueByCity[city] = (revenueByCity[city] || 0) + amount;
   });
 
@@ -223,7 +223,7 @@ export default function FinancialDashboard() {
       if (leadDate) {
         const key = leadDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
         if (months[key] !== undefined) {
-          months[key] += parseCurrency(lead['Final Amount'] || lead['Quote Amount']);
+          months[key] += parseCurrency(lead['Amount Paid'] || lead['Quote Amount']);
         }
       }
     });
@@ -294,7 +294,7 @@ export default function FinancialDashboard() {
     let partnerRevenue = 0;
 
     closedLeads.forEach(lead => {
-      const revenue = parseCurrency(lead['Final Amount'] || lead['Quote Amount']);
+      const revenue = parseCurrency(lead['Amount Paid'] || lead['Quote Amount']);
       const leadSource = lead['Lead Source'] || '';
 
       // Check for manual partner split (stored in lead)
@@ -357,7 +357,7 @@ export default function FinancialDashboard() {
     try {
       const updates: Record<string, string> = {
         'Quote Amount': quoteAmount,
-        'Final Amount': finalAmount,
+        'Amount Paid': finalAmount,
       };
 
       // Only include commission fields if they have values (for partner deals)
@@ -607,7 +607,7 @@ export default function FinancialDashboard() {
 
               if (lead['Status']?.toUpperCase() === 'CLOSED') {
                 providerMetrics[provider].closed++;
-                const revenue = parseCurrency(lead['Final Amount'] || lead['Quote Amount']);
+                const revenue = parseCurrency(lead['Amount Paid'] || lead['Quote Amount']);
                 providerMetrics[provider].revenue += revenue;
 
                 // Check if it's a lead gen company for commission calculation
@@ -947,19 +947,21 @@ export default function FinancialDashboard() {
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-[#0a2540]">Job Financial Details</h3>
-            <p className="text-xs text-slate-500">Click a row to edit quote/final amounts</p>
+            <p className="text-xs text-slate-500">Click a row to edit financial details</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-200">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Lead ID</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Customer</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Service</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Status</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Technician</th>
-                  <th className="text-right py-3 px-4 text-sm font-semibold text-slate-600">Quote Amount</th>
-                  <th className="text-right py-3 px-4 text-sm font-semibold text-slate-600">Final Amount</th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-slate-600">Lead ID</th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-slate-600">Customer</th>
+                  <th className="text-left py-3 px-3 text-sm font-semibold text-slate-600">Status</th>
+                  <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Quote $</th>
+                  <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Paid $</th>
+                  <th className="text-center py-3 px-3 text-sm font-semibold text-slate-600">Payment Date</th>
+                  <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Expenses</th>
+                  <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Total Cost</th>
+                  <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Gross Profit</th>
                 </tr>
               </thead>
               <tbody>
@@ -969,40 +971,57 @@ export default function FinancialDashboard() {
                     return status === 'CLOSED' || status === 'PAID';
                   })
                   .slice(0, 20)
-                  .map((lead, idx) => (
-                    <tr
-                      key={idx}
-                      className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition"
-                      onClick={() => {
-                        setEditingLead(lead);
-                        setQuoteAmount(lead['Quote Amount'] || '');
-                        setFinalAmount(lead['Final Amount'] || '');
-                        setPartnerCommission(lead['Partner Commission'] || '');
-                        setAmitCommission(lead['Amit Commission'] || '');
-                      }}
-                    >
-                      <td className="py-3 px-4 text-sm text-slate-600">{lead['Lead ID']}</td>
-                      <td className="py-3 px-4 text-sm font-medium text-slate-800">{lead['Customer Name']}</td>
-                      <td className="py-3 px-4 text-sm text-slate-600">{lead['Service Requested']}</td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          lead['Status']?.toUpperCase() === 'CLOSED' ? 'bg-green-100 text-green-700' :
-                          lead['Status']?.toUpperCase() === 'SCHEDULED' ? 'bg-teal-100 text-teal-700' :
-                          lead['Status']?.toUpperCase() === 'QUOTED' ? 'bg-amber-100 text-amber-700' :
-                          'bg-slate-100 text-slate-600'
-                        }`}>
-                          {lead['Status']}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-slate-600">{lead['Assigned To'] || '-'}</td>
-                      <td className="py-3 px-4 text-sm text-right font-medium text-blue-600">
-                        {lead['Quote Amount'] ? formatCurrency(parseCurrency(lead['Quote Amount'])) : '-'}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-right font-medium text-green-600">
-                        {lead['Final Amount'] ? formatCurrency(parseCurrency(lead['Final Amount'])) : '-'}
-                      </td>
-                    </tr>
-                  ))}
+                  .map((lead, idx) => {
+                    // Calculate expenses (sum of Labor, Material, Subcontractor costs)
+                    const laborCost = parseCurrency(lead['Labor Cost']);
+                    const materialCost = parseCurrency(lead['Material Cost']);
+                    const subcontractorCost = parseCurrency(lead['Subcontractor Cost']);
+                    const expenses = laborCost + materialCost + subcontractorCost;
+
+                    return (
+                      <tr
+                        key={idx}
+                        className="border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition"
+                        onClick={() => {
+                          setEditingLead(lead);
+                          setQuoteAmount(lead['Quote Amount'] || '');
+                          setFinalAmount(lead['Amount Paid'] || '');
+                          setPartnerCommission(lead['Partner Commission'] || '');
+                          setAmitCommission(lead['Amit Commission'] || '');
+                        }}
+                      >
+                        <td className="py-3 px-3 text-sm text-slate-600">{lead['Lead ID']}</td>
+                        <td className="py-3 px-3 text-sm font-medium text-slate-800">{lead['Customer Name']}</td>
+                        <td className="py-3 px-3">
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            lead['Status']?.toUpperCase() === 'CLOSED' ? 'bg-green-100 text-green-700' :
+                            lead['Status']?.toUpperCase() === 'PAID' ? 'bg-emerald-100 text-emerald-700' :
+                            'bg-slate-100 text-slate-600'
+                          }`}>
+                            {lead['Status']}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-sm text-right font-medium text-blue-600">
+                          {lead['Quote Amount'] ? formatCurrency(parseCurrency(lead['Quote Amount'])) : '-'}
+                        </td>
+                        <td className="py-3 px-3 text-sm text-right font-medium text-green-600">
+                          {lead['Amount Paid'] ? formatCurrency(parseCurrency(lead['Amount Paid'])) : '-'}
+                        </td>
+                        <td className="py-3 px-3 text-sm text-center text-slate-600">
+                          {lead['Payment Date'] || '-'}
+                        </td>
+                        <td className="py-3 px-3 text-sm text-right text-red-500">
+                          {expenses > 0 ? formatCurrency(expenses) : '-'}
+                        </td>
+                        <td className="py-3 px-3 text-sm text-right text-slate-600">
+                          {lead['Total Cost'] ? formatCurrency(parseCurrency(lead['Total Cost'])) : '-'}
+                        </td>
+                        <td className="py-3 px-3 text-sm text-right font-semibold text-emerald-600">
+                          {lead['Profit $'] ? formatCurrency(parseCurrency(lead['Profit $'])) : '-'}
+                        </td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>
@@ -1033,6 +1052,17 @@ export default function FinancialDashboard() {
                 <p><span className="font-medium">Technician:</span> {editingLead['Assigned To'] || 'Unassigned'}</p>
               </div>
 
+              {/* Current Financial Summary */}
+              <div className="bg-emerald-50 p-3 rounded-lg text-sm border border-emerald-200">
+                <p className="font-semibold text-emerald-800 mb-2">Current Values (from Sheet)</p>
+                <div className="grid grid-cols-2 gap-2 text-emerald-700">
+                  <p>Quote: <span className="font-medium">{editingLead['Quote Amount'] || '-'}</span></p>
+                  <p>Paid: <span className="font-medium">{editingLead['Amount Paid'] || '-'}</span></p>
+                  <p>Total Cost: <span className="font-medium">{editingLead['Total Cost'] || '-'}</span></p>
+                  <p>Profit: <span className="font-medium">{editingLead['Profit $'] || '-'}</span></p>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-slate-700 text-sm font-medium mb-1.5">Quote Amount ($)</label>
                 <input
@@ -1045,7 +1075,7 @@ export default function FinancialDashboard() {
               </div>
 
               <div>
-                <label className="block text-slate-700 text-sm font-medium mb-1.5">Final Amount ($)</label>
+                <label className="block text-slate-700 text-sm font-medium mb-1.5">Amount Paid ($)</label>
                 <input
                   type="text"
                   value={finalAmount}
@@ -1053,7 +1083,7 @@ export default function FinancialDashboard() {
                   placeholder="e.g., 275"
                   className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] focus:outline-none transition text-sm"
                 />
-                <p className="text-xs text-slate-500 mt-1">Enter final invoiced amount after job completion</p>
+                <p className="text-xs text-slate-500 mt-1">Amount customer actually paid</p>
               </div>
 
               {/* Partner Commission Split - Only show for partner/lead gen deals */}
@@ -1096,7 +1126,7 @@ export default function FinancialDashboard() {
                   {/* Auto-calculate helper */}
                   {finalAmount && (
                     <div className="mt-2 p-2 bg-slate-100 rounded text-xs text-slate-600">
-                      <p>Final Amount: <span className="font-semibold">{formatCurrency(parseCurrency(finalAmount))}</span></p>
+                      <p>Amount Paid: <span className="font-semibold">{formatCurrency(parseCurrency(finalAmount))}</span></p>
                       <p>Default 50/50: <span className="font-semibold">{formatCurrency(parseCurrency(finalAmount) * 0.5)}</span> each</p>
                     </div>
                   )}
