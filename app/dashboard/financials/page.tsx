@@ -442,7 +442,7 @@ export default function FinancialDashboard() {
         'Quote Amount': quoteAmount,
         'Amount Paid': finalAmount,
         'Labor Cost': laborCost,
-        'Material Cost': materialCost,
+        'Materials Cost': materialCost,
         'Subcontractor Cost': subcontractorCost,
         'Total Cost': totalCost,
         'Profit $': profitAmount,
@@ -1104,11 +1104,12 @@ export default function FinancialDashboard() {
                   .filter(l => l['Status']?.toUpperCase() === 'CLOSED')
                   .slice(0, rowsToShow)
                   .map((lead, idx) => {
-                    // Calculate expenses (sum of Labor, Material, Subcontractor costs)
+                    // Calculate expenses from columns CE, CF, CG
+                    // Headers: Labor Cost (CE), Materials Cost (CF), Subcontractor Cost (CG)
                     const laborCost = parseCurrency(lead['Labor Cost']);
-                    const materialCost = parseCurrency(lead['Material Cost']);
+                    const materialsCost = parseCurrency(lead['Materials Cost']); // Note: "Materials" plural
                     const subcontractorCost = parseCurrency(lead['Subcontractor Cost']);
-                    const expenses = laborCost + materialCost + subcontractorCost;
+                    const expenses = laborCost + materialsCost + subcontractorCost;
 
                     return (
                       <tr
@@ -1154,7 +1155,7 @@ export default function FinancialDashboard() {
                               setQuoteAmount(lead['Quote Amount'] || '');
                               setFinalAmount(lead['Amount Paid'] || '');
                               setLaborCost(lead['Labor Cost'] || '');
-                              setMaterialCost(lead['Material Cost'] || '');
+                              setMaterialCost(lead['Materials Cost'] || '');
                               setSubcontractorCost(lead['Subcontractor Cost'] || '');
                               setTotalCost(lead['Total Cost'] || '');
                               setProfitAmount(lead['Profit $'] || '');
