@@ -321,7 +321,7 @@ export default function PayoutsPage() {
     csv += 'Payee,Type,Jobs,Total Revenue,Commission %,Commission Amount\n';
     payoutSummaries.forEach(summary => {
       const type = summary.type === 'lead_company' ? 'Lead Gen Company' :
-                   summary.type === 'sophia' ? 'Dispatcher' : 'Technician';
+                   summary.type === 'sophia' ? 'Admin' : 'Owner';
       csv += `"${summary.name}",${type},${summary.leads.length},${formatCurrency(summary.totalRevenue)},${summary.commissionPercent}%,${formatCurrency(summary.commissionAmount)}\n`;
     });
 
@@ -518,7 +518,7 @@ export default function PayoutsPage() {
                         <h3 className="font-semibold text-[#0a2540]">{summary.name}</h3>
                         <p className="text-sm text-slate-500">
                           {summary.type === 'lead_company' ? 'Lead Gen Company' :
-                           summary.type === 'sophia' ? 'Dispatcher Commission' : 'Tech Commission'}
+                           summary.type === 'sophia' ? 'Admin Commission' : 'Owner Commission'}
                         </p>
                       </div>
                     </div>
