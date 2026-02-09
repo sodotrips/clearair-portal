@@ -50,6 +50,7 @@ export default function FinancialDashboard() {
   const [partnerCommission, setPartnerCommission] = useState('');
   const [amitCommission, setAmitCommission] = useState('');
   const [saving, setSaving] = useState(false);
+  const [rowsToShow, setRowsToShow] = useState(50);
 
   useEffect(() => {
     fetchLeads();
@@ -993,6 +994,7 @@ export default function FinancialDashboard() {
               <tbody>
                 {filteredLeads
                   .filter(l => l['Status']?.toUpperCase() === 'CLOSED')
+                  .slice(0, rowsToShow)
                   .map((lead, idx) => {
                     // Calculate expenses (sum of Labor, Material, Subcontractor costs)
                     const laborCost = parseCurrency(lead['Labor Cost']);
@@ -1065,6 +1067,37 @@ export default function FinancialDashboard() {
               </tbody>
             </table>
           </div>
+
+          {/* Row count and Show More */}
+          {(() => {
+            const closedJobs = filteredLeads.filter(l => l['Status']?.toUpperCase() === 'CLOSED');
+            const totalCount = closedJobs.length;
+            const showingCount = Math.min(rowsToShow, totalCount);
+
+            return (
+              <div className="mt-4 flex items-center justify-between text-sm">
+                <span className="text-slate-500">
+                  Showing {showingCount} of {totalCount} jobs
+                </span>
+                {totalCount > rowsToShow && (
+                  <button
+                    onClick={() => setRowsToShow(prev => prev + 50)}
+                    className="px-4 py-2 bg-[#14b8a6] hover:bg-[#0d9488] text-white rounded-lg font-medium transition"
+                  >
+                    Show More
+                  </button>
+                )}
+                {rowsToShow > 50 && (
+                  <button
+                    onClick={() => setRowsToShow(50)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition ml-2"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
 
