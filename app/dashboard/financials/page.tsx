@@ -173,30 +173,10 @@ export default function FinancialDashboard() {
     });
   };
 
-  const setLast30Days = () => {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(start.getDate() - 30);
-    setDateRange({
-      start: start.toISOString().split('T')[0],
-      end: end.toISOString().split('T')[0],
-    });
-  };
-
-  const setLast90Days = () => {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(start.getDate() - 90);
-    setDateRange({
-      start: start.toISOString().split('T')[0],
-      end: end.toISOString().split('T')[0],
-    });
-  };
-
-  const setLast12Months = () => {
-    const end = new Date();
-    const start = new Date();
-    start.setFullYear(start.getFullYear() - 1);
+  const setThisYear = () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 1); // Jan 1 of current year
+    const end = new Date(now.getFullYear(), 11, 31); // Dec 31 of current year
     setDateRange({
       start: start.toISOString().split('T')[0],
       end: end.toISOString().split('T')[0],
@@ -618,14 +598,8 @@ export default function FinancialDashboard() {
               <button onClick={setThisMonth} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
                 This Month
               </button>
-              <button onClick={setLast30Days} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
-                Last 30 Days
-              </button>
-              <button onClick={setLast90Days} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
-                Last 90 Days
-              </button>
-              <button onClick={setLast12Months} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
-                Last 12 Months
+              <button onClick={setThisYear} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
+                This Year
               </button>
               <button onClick={setAllTime} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
                 All Time
