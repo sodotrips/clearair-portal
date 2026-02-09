@@ -38,7 +38,26 @@ export default function FinancialDashboard() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [dateRange, setDateRange] = useState('30');
+
+  // Date range filter - same as Payouts page
+  const getWeekRange = (date: Date = new Date()) => {
+    const start = new Date(date);
+    start.setDate(start.getDate() - start.getDay()); // Start of week (Sunday)
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6); // End of week (Saturday)
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  };
+
+  const [dateRange, setDateRange] = useState(() => {
+    const { start, end } = getWeekRange();
+    return {
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0],
+    };
+  });
+
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [quoteAmount, setQuoteAmount] = useState('');
   const [finalAmount, setFinalAmount] = useState('');
@@ -110,18 +129,92 @@ export default function FinancialDashboard() {
 
   // Filter leads by date range (based on Appointment Date)
   const filterByDateRange = (leads: Lead[]) => {
-    const today = getHoustonDate();
-    const daysAgo = new Date(today);
-    daysAgo.setDate(daysAgo.getDate() - parseInt(dateRange));
+    const startDate = new Date(dateRange.start);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(dateRange.end);
+    endDate.setHours(23, 59, 59, 999);
 
     return leads.filter(lead => {
       const leadDate = parseDate(lead['Appointment Date']);
       if (!leadDate) return false;
-      return leadDate >= daysAgo && leadDate <= today;
+      return leadDate >= startDate && leadDate <= endDate;
     });
   };
 
-  const filteredLeads = dateRange === 'all' ? leads : filterByDateRange(leads);
+  const filteredLeads = filterByDateRange(leads);
+
+  // Date preset functions
+  const setThisWeek = () => {
+    const { start, end } = getWeekRange();
+    setDateRange({
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0],
+    });
+  };
+
+  const setLastWeek = () => {
+    const lastWeek = new Date();
+    lastWeek.setDate(lastWeek.getDate() - 7);
+    const { start, end } = getWeekRange(lastWeek);
+    setDateRange({
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0],
+    });
+  };
+
+  const setThisMonth = () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    setDateRange({
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0],
+    });
+  };
+
+  const setLast30Days = () => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    setDateRange({
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0],
+    });
+  };
+
+  const setLast90Days = () => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 90);
+    setDateRange({
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0],
+    });
+  };
+
+  const setLast12Months = () => {
+    const end = new Date();
+    const start = new Date();
+    start.setFullYear(start.getFullYear() - 1);
+    setDateRange({
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0],
+    });
+  };
+
+  const setAllTime = () => {
+    setDateRange({
+      start: '2020-01-01',
+      end: new Date().toISOString().split('T')[0],
+    });
+  };
+
+  const formatDateRange = () => {
+    const start = new Date(dateRange.start);
+    const end = new Date(dateRange.end);
+    const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+    return `${start.toLocaleDateString('en-US', options)} - ${end.toLocaleDateString('en-US', options)}, ${end.getFullYear()}`;
+  };
 
   // Calculate financial metrics
   const closedLeads = filteredLeads.filter(l => l['Status']?.toUpperCase() === 'CLOSED');
@@ -482,19 +575,6 @@ export default function FinancialDashboard() {
               <p className="text-slate-400 text-sm">Revenue & Performance</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <select
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-              className="bg-[#1a3a5c] text-white border border-slate-600 rounded-lg px-4 py-2 text-sm"
-            >
-              <option value="7">Last 7 days</option>
-              <option value="30">Last 30 days</option>
-              <option value="90">Last 90 days</option>
-              <option value="365">Last 12 months</option>
-              <option value="all">All time</option>
-            </select>
-          </div>
         </div>
       </header>
 
@@ -502,6 +582,56 @@ export default function FinancialDashboard() {
         {error && (
           <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6">{error}</div>
         )}
+
+        {/* Date Range Filter - Same as Payouts page */}
+        <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-slate-600">From:</label>
+              <input
+                type="date"
+                value={dateRange.start}
+                onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-slate-600">To:</label>
+              <input
+                type="date"
+                value={dateRange.end}
+                onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={setThisWeek} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
+                This Week
+              </button>
+              <button onClick={setLastWeek} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
+                Last Week
+              </button>
+              <button onClick={setThisMonth} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
+                This Month
+              </button>
+              <button onClick={setLast30Days} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
+                Last 30 Days
+              </button>
+              <button onClick={setLast90Days} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
+                Last 90 Days
+              </button>
+              <button onClick={setLast12Months} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
+                Last 12 Months
+              </button>
+              <button onClick={setAllTime} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
+                All Time
+              </button>
+            </div>
+          </div>
+          <div className="mt-2 text-sm text-slate-500">
+            Showing data for: <span className="font-medium text-slate-700">{formatDateRange()}</span>
+          </div>
+        </div>
 
         {/* Financial KPI Cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
