@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
 function normalizeDate(dateStr: string): string | null {
   if (!dateStr) return null;
 
-  let date: Date;
+  let date: Date | null = null;
 
   // Try various formats
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
@@ -147,8 +147,9 @@ function normalizeDate(dateStr: string): string | null {
   } else {
     // Try natural language like "tomorrow", "next Monday"
     date = parseNaturalDate(dateStr);
-    if (!date) return null;
   }
+
+  if (!date) return null;
 
   // Return in MM/DD/YYYY format
   const month = String(date.getMonth() + 1).padStart(2, '0');
