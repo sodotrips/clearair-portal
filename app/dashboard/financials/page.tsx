@@ -15,6 +15,7 @@ import {
   Legend,
   Filler,
 } from 'chart.js';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { Doughnut, Bar, Line } from 'react-chartjs-2';
 
 ChartJS.register(
@@ -27,7 +28,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  ChartDataLabels
 );
 
 interface Lead {
@@ -203,7 +205,10 @@ export default function FinancialDashboard() {
 
   // Calculate financial metrics
   const closedLeads = filteredLeads.filter(l => l['Status']?.toUpperCase() === 'CLOSED');
-  const quotedOnlyLeads = filteredLeads.filter(l => l['Status']?.toUpperCase() === 'QUOTED');
+  const quotedOrScheduledLeads = filteredLeads.filter(l => {
+    const status = l['Status']?.toUpperCase();
+    return status === 'QUOTED' || status === 'SCHEDULED';
+  });
 
   // Card 1: Total Gross Sales (sum of Amount Paid for closed jobs)
   const totalGrossSales = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Amount Paid']), 0);
@@ -220,8 +225,14 @@ export default function FinancialDashboard() {
     return sum + tax;
   }, 0);
 
-  // Card 4: Pending Quotes (sum of Quote Amount for QUOTED status only)
-  const pendingQuotes = quotedOnlyLeads.reduce((sum, l) => sum + parseCurrency(l['Quote Amount']), 0);
+  // Card 4: Pending Quotes (sum of Quote Amount for QUOTED and SCHEDULED status)
+  const pendingQuotes = quotedOrScheduledLeads.reduce((sum, l) => sum + parseCurrency(l['Quote Amount']), 0);
+
+  // Card 5: Closing Rate (Closed jobs / Total jobs in filtered period)
+  const totalJobsInPeriod = closedLeads.length + quotedOrScheduledLeads.length;
+  const closingRate = totalJobsInPeriod > 0
+    ? Math.round((closedLeads.length / totalJobsInPeriod) * 100)
+    : 0;
 
   // Revenue by service type
   const revenueByService: Record<string, number> = {};
@@ -231,8 +242,12 @@ export default function FinancialDashboard() {
     revenueByService[service] = (revenueByService[service] || 0) + amount;
   });
 
+  const serviceRevenueLabels = Object.entries(revenueByService).map(([service, amount]) =>
+    `${service} - $${amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+  );
+
   const serviceRevenueData = {
-    labels: Object.keys(revenueByService),
+    labels: serviceRevenueLabels,
     datasets: [{
       data: Object.values(revenueByService),
       backgroundColor: [
@@ -243,26 +258,25 @@ export default function FinancialDashboard() {
         '#ef4444',
       ],
       borderWidth: 0,
+      datalabels: {
+        display: false,
+      },
     }]
   };
 
-  // Revenue by technician
-  const revenueByTech: Record<string, { revenue: number; jobs: number }> = {};
+  // Revenue by Lead Source
+  const revenueByLeadSource: Record<string, number> = {};
   closedLeads.forEach(lead => {
-    const tech = lead['Assigned To'] || 'Unassigned';
-    const amount = parseCurrency(lead['Amount Paid'] || lead['Quote Amount']);
-    if (!revenueByTech[tech]) {
-      revenueByTech[tech] = { revenue: 0, jobs: 0 };
-    }
-    revenueByTech[tech].revenue += amount;
-    revenueByTech[tech].jobs++;
+    const source = lead['Lead Source'] || 'Unknown';
+    const amount = parseCurrency(lead['Amount Paid']);
+    revenueByLeadSource[source] = (revenueByLeadSource[source] || 0) + amount;
   });
 
-  const techRevenueData = {
-    labels: Object.keys(revenueByTech),
+  const leadSourceRevenueData = {
+    labels: Object.keys(revenueByLeadSource),
     datasets: [{
-      label: 'Revenue',
-      data: Object.values(revenueByTech).map(t => t.revenue),
+      label: 'Paid $',
+      data: Object.values(revenueByLeadSource),
       backgroundColor: '#14b8a6',
       borderRadius: 6,
     }]
@@ -290,28 +304,34 @@ export default function FinancialDashboard() {
     }]
   };
 
-  // Monthly revenue trend
+  // Monthly revenue trend from January 2026 to December 2026
   const getMonthlyRevenue = () => {
-    const months: Record<string, number> = {};
-    const today = getHoustonDate();
+    const months: { year: number; month: number; label: string; revenue: number }[] = [];
 
-    // Initialize last 6 months
-    for (let i = 5; i >= 0; i--) {
-      const date = new Date(today);
-      date.setMonth(date.getMonth() - i);
-      const key = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-      months[key] = 0;
+    // Generate all 12 months of 2026 (Jan - Dec)
+    for (let month = 0; month < 12; month++) {
+      const date = new Date(2026, month, 1);
+      const label = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      months.push({
+        year: 2026,
+        month: month,
+        label,
+        revenue: 0
+      });
     }
 
-    closedLeads.forEach(lead => {
-      const leadDate = parseDate(lead['Appointment Date'] || lead['Timestamp Received']);
-      if (leadDate) {
-        const key = leadDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-        if (months[key] !== undefined) {
-          months[key] += parseCurrency(lead['Amount Paid'] || lead['Quote Amount']);
+    // Sum revenue (Amount Paid) for each month - use ALL closed leads, not filtered by date range
+    leads
+      .filter(l => l['Status']?.toUpperCase() === 'CLOSED')
+      .forEach(lead => {
+        const leadDate = parseDate(lead['Appointment Date'] || lead['Timestamp Received']);
+        if (leadDate && leadDate.getFullYear() === 2026) {
+          const monthData = months.find(m => m.month === leadDate.getMonth());
+          if (monthData) {
+            monthData.revenue += parseCurrency(lead['Amount Paid']);
+          }
         }
-      }
-    });
+      });
 
     return months;
   };
@@ -319,10 +339,10 @@ export default function FinancialDashboard() {
   const monthlyRevenue = getMonthlyRevenue();
 
   const monthlyRevenueData = {
-    labels: Object.keys(monthlyRevenue),
+    labels: monthlyRevenue.map(m => m.label),
     datasets: [{
-      label: 'Monthly Revenue',
-      data: Object.values(monthlyRevenue),
+      label: 'Monthly Gross Sales',
+      data: monthlyRevenue.map(m => m.revenue),
       borderColor: '#14b8a6',
       backgroundColor: 'rgba(20, 184, 166, 0.1)',
       fill: true,
@@ -331,6 +351,21 @@ export default function FinancialDashboard() {
       pointBorderColor: '#fff',
       pointBorderWidth: 2,
       pointRadius: 6,
+      datalabels: {
+        display: true,
+        color: '#0a2540',
+        anchor: 'end' as const,
+        align: 'top' as const,
+        offset: 4,
+        font: {
+          weight: 'bold' as const,
+          size: 11,
+        },
+        formatter: (value: number) => {
+          if (value === 0) return '';
+          return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        },
+      },
     }]
   };
 
@@ -515,6 +550,9 @@ export default function FinancialDashboard() {
           padding: 20,
           usePointStyle: true,
         }
+      },
+      datalabels: {
+        display: false, // Default off for other charts
       }
     }
   };
@@ -616,7 +654,7 @@ export default function FinancialDashboard() {
         </div>
 
         {/* Financial KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-white rounded-xl shadow-sm p-5">
             <p className="text-slate-500 text-sm font-medium">Total Gross Sales</p>
             <p className="text-2xl font-bold text-blue-600 mt-1">{formatCurrency(totalGrossSales)}</p>
@@ -635,7 +673,12 @@ export default function FinancialDashboard() {
           <div className="bg-white rounded-xl shadow-sm p-5">
             <p className="text-slate-500 text-sm font-medium">Pending Quotes</p>
             <p className="text-2xl font-bold text-purple-600 mt-1">{formatCurrency(pendingQuotes)}</p>
-            <p className="text-xs text-slate-400 mt-1">{quotedOnlyLeads.length} quotes pending</p>
+            <p className="text-xs text-slate-400 mt-1">{quotedOrScheduledLeads.length} jobs pending</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm p-5">
+            <p className="text-slate-500 text-sm font-medium">Closing Rate</p>
+            <p className="text-2xl font-bold text-[#14b8a6] mt-1">{closingRate}%</p>
+            <p className="text-xs text-slate-400 mt-1">{closedLeads.length} of {totalJobsInPeriod} jobs</p>
           </div>
         </div>
 
@@ -643,7 +686,7 @@ export default function FinancialDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           {/* Monthly Revenue Trend */}
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-[#0a2540] mb-4">Revenue Trend</h3>
+            <h3 className="text-lg font-semibold text-[#0a2540] mb-4">Monthly Gross Sales</h3>
             <div className="h-64">
               <Line data={monthlyRevenueData} options={currencyBarOptions} />
             </div>
@@ -679,15 +722,15 @@ export default function FinancialDashboard() {
 
         {/* Charts Row 2 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          {/* Revenue by Technician */}
+          {/* Revenue by Lead Source */}
           <div className="bg-white rounded-xl shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-[#0a2540] mb-4">Revenue by Technician</h3>
+            <h3 className="text-lg font-semibold text-[#0a2540] mb-4">Revenue by Lead Source</h3>
             <div className="h-64">
-              {Object.keys(revenueByTech).length > 0 ? (
-                <Bar data={techRevenueData} options={currencyBarOptions} />
+              {Object.keys(revenueByLeadSource).length > 0 ? (
+                <Bar data={leadSourceRevenueData} options={currencyBarOptions} />
               ) : (
                 <div className="h-full flex items-center justify-center text-slate-400">
-                  No technician data available
+                  No lead source data available
                 </div>
               )}
             </div>
@@ -699,8 +742,25 @@ export default function FinancialDashboard() {
             <div className="h-64">
               {sortedCityRevenue.length > 0 ? (
                 <Bar data={cityRevenueData} options={{
-                  ...currencyBarOptions,
+                  ...chartOptions,
                   indexAxis: 'y' as const,
+                  scales: {
+                    x: {
+                      beginAtZero: true,
+                      ticks: {
+                        callback: function(value: number | string) {
+                          return '$' + Number(value).toLocaleString();
+                        }
+                      }
+                    },
+                    y: {
+                      ticks: {
+                        font: {
+                          size: 11
+                        }
+                      }
+                    }
+                  }
                 }} />
               ) : (
                 <div className="h-full flex items-center justify-center text-slate-400">
@@ -711,368 +771,110 @@ export default function FinancialDashboard() {
           </div>
         </div>
 
-        {/* Lead Provider Performance */}
+        {/* Balance Sheet */}
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-[#0a2540]">Lead Provider Performance</h3>
-            <p className="text-xs text-slate-500">Based on "Referral Source" column</p>
+          <div className="flex justify-between items-center mb-5">
+            <h3 className="text-lg font-semibold text-[#0a2540]">Balance Sheet</h3>
+            <span className="text-sm text-slate-500">{formatDateRange()}</span>
           </div>
 
           {(() => {
-            // Calculate provider metrics
-            const providerMetrics: Record<string, {
-              leads: number;
-              closed: number;
-              revenue: number;
-              commissionOwed: number;
-            }> = {};
+            // Calculate totals for balance sheet
+            const totalExpenses = closedLeads.reduce((sum, l) => {
+              const labor = parseCurrency(l['Labor Cost']);
+              const materials = parseCurrency(l['Materials Cost']);
+              const subcontractor = parseCurrency(l['Subcontractor Cost']);
+              const sophiaComm = parseCurrency(l['Sophia Commission $']);
+              const leadCompanyComm = parseCurrency(l['Lead Company Commission $']);
+              return sum + labor + materials + subcontractor + sophiaComm + leadCompanyComm;
+            }, 0);
 
-            filteredLeads.forEach(lead => {
-              const provider = lead['Referral Source'] || lead['Lead Provider'] || '';
-              if (!provider || provider === '-') return;
-
-              if (!providerMetrics[provider]) {
-                providerMetrics[provider] = { leads: 0, closed: 0, revenue: 0, commissionOwed: 0 };
-              }
-
-              providerMetrics[provider].leads++;
-
-              if (lead['Status']?.toUpperCase() === 'CLOSED') {
-                providerMetrics[provider].closed++;
-                const revenue = parseCurrency(lead['Amount Paid'] || lead['Quote Amount']);
-                providerMetrics[provider].revenue += revenue;
-
-                // Check if it's a lead gen company for commission calculation
-                const leadSource = lead['Lead Source']?.toLowerCase() || '';
-                if (isLeadGenCompany(leadSource) || isAmitPartner(leadSource)) {
-                  // Use custom commission if set, otherwise 50%
-                  const partnerComm = parseCurrency(lead['Partner Commission']);
-                  providerMetrics[provider].commissionOwed += partnerComm > 0 ? partnerComm : revenue * 0.50;
-                }
-              }
-            });
-
-            const sortedProviders = Object.entries(providerMetrics)
-              .sort((a, b) => b[1].revenue - a[1].revenue);
-
-            const totalProviderRevenue = sortedProviders.reduce((sum, [, data]) => sum + data.revenue, 0);
-
-            if (sortedProviders.length === 0) {
-              return (
-                <div className="text-center py-8 text-slate-400">
-                  <p>No lead provider data available</p>
-                  <p className="text-xs mt-1">Add provider names to "Referral Source" column in your sheet</p>
-                </div>
-              );
-            }
+            const totalLaborCost = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Labor Cost']), 0);
+            const totalMaterialsCost = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Materials Cost']), 0);
+            const totalSubcontractorCost = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Subcontractor Cost']), 0);
+            const totalSophiaCommission = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Sophia Commission $']), 0);
+            const totalLeadCompanyCommission = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Lead Company Commission $']), 0);
+            const totalAmitCommission = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Amit Commission $']), 0);
+            const preTaxRevenue = totalGrossSales / 1.0825;
+            // Net Income = Amit Commission $ (what Amit makes after all expenses)
+            const netIncome = totalAmitCommission;
 
             return (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-slate-200">
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Provider</th>
-                        <th className="text-right py-3 px-4 text-sm font-semibold text-slate-600">Leads</th>
-                        <th className="text-right py-3 px-4 text-sm font-semibold text-slate-600">Closed</th>
-                        <th className="text-right py-3 px-4 text-sm font-semibold text-slate-600">Close Rate</th>
-                        <th className="text-right py-3 px-4 text-sm font-semibold text-slate-600">Revenue</th>
-                        <th className="text-right py-3 px-4 text-sm font-semibold text-slate-600">Avg Job</th>
-                        <th className="text-right py-3 px-4 text-sm font-semibold text-slate-600">Commission Owed</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">% of Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortedProviders.map(([provider, data]) => {
-                        const closeRate = data.leads > 0 ? Math.round((data.closed / data.leads) * 100) : 0;
-                        const avgJob = data.closed > 0 ? data.revenue / data.closed : 0;
-                        const pctOfTotal = totalProviderRevenue > 0 ? (data.revenue / totalProviderRevenue) * 100 : 0;
-
-                        return (
-                          <tr key={provider} className="border-b border-slate-100 hover:bg-slate-50">
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center text-xs font-bold">
-                                  {provider.charAt(0).toUpperCase()}
-                                </div>
-                                <span className="text-sm font-medium text-slate-800">{provider}</span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 text-sm text-right text-slate-600">{data.leads}</td>
-                            <td className="py-3 px-4 text-sm text-right text-slate-600">{data.closed}</td>
-                            <td className="py-3 px-4 text-sm text-right">
-                              <span className={`font-medium ${closeRate >= 60 ? 'text-green-600' : closeRate >= 40 ? 'text-amber-600' : 'text-red-500'}`}>
-                                {closeRate}%
-                              </span>
-                            </td>
-                            <td className="py-3 px-4 text-sm text-right font-semibold text-green-600">
-                              {formatCurrency(data.revenue)}
-                            </td>
-                            <td className="py-3 px-4 text-sm text-right text-slate-600">
-                              {formatCurrency(avgJob)}
-                            </td>
-                            <td className="py-3 px-4 text-sm text-right font-semibold text-amber-600">
-                              {formatCurrency(data.commissionOwed)}
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <div className="w-16 bg-slate-100 rounded-full h-2">
-                                  <div
-                                    className="h-2 rounded-full bg-[#14b8a6]"
-                                    style={{ width: `${Math.min(pctOfTotal, 100)}%` }}
-                                  ></div>
-                                </div>
-                                <span className="text-xs text-slate-500">{pctOfTotal.toFixed(0)}%</span>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr className="bg-slate-50 font-semibold">
-                        <td className="py-3 px-4 text-sm text-slate-800">Total</td>
-                        <td className="py-3 px-4 text-sm text-right text-slate-800">
-                          {sortedProviders.reduce((sum, [, d]) => sum + d.leads, 0)}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-right text-slate-800">
-                          {sortedProviders.reduce((sum, [, d]) => sum + d.closed, 0)}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-right text-slate-800">-</td>
-                        <td className="py-3 px-4 text-sm text-right text-green-600">
-                          {formatCurrency(totalProviderRevenue)}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-right text-slate-800">-</td>
-                        <td className="py-3 px-4 text-sm text-right text-amber-600">
-                          {formatCurrency(sortedProviders.reduce((sum, [, d]) => sum + d.commissionOwed, 0))}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-slate-800">100%</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-
-                {/* Top Provider Highlight */}
-                {sortedProviders.length > 0 && sortedProviders[0][1].revenue > 0 && (
-                  <div className="mt-4 p-4 bg-gradient-to-r from-amber-50 to-amber-100 rounded-lg border border-amber-200">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-amber-500 text-white rounded-full flex items-center justify-center text-lg font-bold">
-                        #1
-                      </div>
-                      <div>
-                        <p className="text-sm text-amber-700">Top Performing Provider</p>
-                        <p className="text-lg font-bold text-amber-900">{sortedProviders[0][0]}</p>
-                        <p className="text-xs text-amber-600">
-                          {formatCurrency(sortedProviders[0][1].revenue)} revenue from {sortedProviders[0][1].closed} jobs
-                        </p>
-                      </div>
+              <div className="space-y-4">
+                {/* Revenue Section */}
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <div className="bg-blue-50 px-4 py-2 border-b border-slate-200">
+                    <h4 className="text-sm font-bold text-blue-800 uppercase tracking-wide">Revenue</h4>
+                  </div>
+                  <div className="divide-y divide-slate-100">
+                    <div className="flex justify-between items-center py-3 px-4 bg-white hover:bg-slate-50">
+                      <span className="text-sm text-slate-700">Gross Sales</span>
+                      <span className="text-sm font-semibold text-slate-900">{formatCurrency(totalGrossSales)}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-3 px-4 bg-white hover:bg-slate-50">
+                      <span className="text-sm text-red-600">Less: Sales Tax (8.25%)</span>
+                      <span className="text-sm font-semibold text-red-600">({formatCurrency(totalSalesTax)})</span>
+                    </div>
+                    <div className="flex justify-between items-center py-3 px-4 bg-blue-50">
+                      <span className="text-sm font-bold text-blue-800">Net Revenue</span>
+                      <span className="text-base font-bold text-blue-800">{formatCurrency(preTaxRevenue)}</span>
                     </div>
                   </div>
-                )}
-              </>
+                </div>
+
+                {/* Expenses Section */}
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <div className="bg-red-50 px-4 py-2 border-b border-slate-200">
+                    <h4 className="text-sm font-bold text-red-800 uppercase tracking-wide">Expenses</h4>
+                  </div>
+                  <div className="divide-y divide-slate-100">
+                    <div className="flex justify-between items-center py-3 px-4 bg-white hover:bg-slate-50">
+                      <span className="text-sm text-slate-700">Labor Cost</span>
+                      <span className="text-sm font-semibold text-slate-900">{formatCurrency(totalLaborCost)}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-3 px-4 bg-white hover:bg-slate-50">
+                      <span className="text-sm text-slate-700">Materials Cost</span>
+                      <span className="text-sm font-semibold text-slate-900">{formatCurrency(totalMaterialsCost)}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-3 px-4 bg-white hover:bg-slate-50">
+                      <span className="text-sm text-slate-700">Subcontractor Cost</span>
+                      <span className="text-sm font-semibold text-slate-900">{formatCurrency(totalSubcontractorCost)}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-3 px-4 bg-white hover:bg-slate-50">
+                      <span className="text-sm text-slate-700">Sophia Commission</span>
+                      <span className="text-sm font-semibold text-slate-900">{formatCurrency(totalSophiaCommission)}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-3 px-4 bg-white hover:bg-slate-50">
+                      <span className="text-sm text-slate-700">Lead Company Commission</span>
+                      <span className="text-sm font-semibold text-slate-900">{formatCurrency(totalLeadCompanyCommission)}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-3 px-4 bg-red-50">
+                      <span className="text-sm font-bold text-red-800">Total Expenses</span>
+                      <span className="text-base font-bold text-red-800">({formatCurrency(totalExpenses)})</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Net Income */}
+                <div className={`border-2 rounded-lg overflow-hidden ${netIncome >= 0 ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'}`}>
+                  <div className="flex justify-between items-center p-4">
+                    <div>
+                      <span className={`text-xs font-bold uppercase tracking-wide ${netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>Net Income</span>
+                      <div className={`text-2xl font-bold mt-1 ${netIncome >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                        {formatCurrency(netIncome)}
+                      </div>
+                    </div>
+                    <div className={`text-right px-4 py-2 rounded-lg ${netIncome >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+                      <span className="text-xs text-slate-600 block">Profit Margin</span>
+                      <span className={`text-xl font-bold ${netIncome >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                        {preTaxRevenue > 0 ? ((netIncome / preTaxRevenue) * 100).toFixed(1) : 0}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             );
           })()}
-        </div>
-
-        {/* Commission Breakdown */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-[#0a2540]">Commission Breakdown</h3>
-            <div className="text-right">
-              <p className="text-sm text-slate-500">Total Commissions</p>
-              <p className="text-xl font-bold text-[#14b8a6]">{formatCurrency(commissions.total)}</p>
-            </div>
-          </div>
-
-          {/* Commission Model Summary */}
-          <div className="mb-4 p-3 bg-slate-50 rounded-lg text-xs text-slate-600">
-            <p className="font-semibold text-slate-700 mb-1">Commission Model:</p>
-            <ul className="space-y-0.5">
-              <li>• <span className="font-medium">Ads/Organic:</span> Sophia 25% | Amit 75%</li>
-              <li>• <span className="font-medium">Lead Gen (Angi, etc.):</span> Amit 50% | Lead Gen Co. 50%</li>
-              <li>• <span className="font-medium">Amit's Partners:</span> Custom split (default 50/50)</li>
-            </ul>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Sophia's Commission */}
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5 border border-purple-200">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-                  S
-                </div>
-                <div>
-                  <h4 className="font-semibold text-purple-900">Sophia's Commission</h4>
-                  <p className="text-xs text-purple-600">25% of Ads/Organic leads</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-purple-700">Ads/Organic Jobs</span>
-                  <span className="font-semibold text-purple-900">{commissions.breakdown.adsOrganic.jobs}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-purple-700">Revenue</span>
-                  <span className="font-semibold text-purple-900">{formatCurrency(commissions.breakdown.adsOrganic.revenue)}</span>
-                </div>
-                <div className="border-t border-purple-200 pt-2 mt-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-purple-700">Commission (25%)</span>
-                    <span className="text-xl font-bold text-purple-600">{formatCurrency(commissions.sophia.commission)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Amit's Commission */}
-            <div className="bg-gradient-to-br from-teal-50 to-teal-100 rounded-xl p-5 border border-teal-200">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-teal-500 rounded-full flex items-center justify-center text-white font-bold">
-                  A
-                </div>
-                <div>
-                  <h4 className="font-semibold text-teal-900">Amit's Commission</h4>
-                  <p className="text-xs text-teal-600">All lead sources</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-teal-700">Ads/Organic (75%)</span>
-                  <span className="font-semibold text-teal-900">{formatCurrency(commissions.breakdown.adsOrganic.revenue * 0.75)}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-teal-700">Lead Gen (50%)</span>
-                  <span className="font-semibold text-teal-900">{formatCurrency(commissions.breakdown.leadGen.revenue * 0.50)}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-teal-700">Partner Deals</span>
-                  <span className="font-semibold text-teal-900">{formatCurrency(commissions.breakdown.amitPartner.revenue * 0.50)}</span>
-                </div>
-                <div className="flex justify-between items-center pt-1">
-                  <span className="text-sm text-teal-700">Total Jobs</span>
-                  <span className="font-semibold text-teal-900">{commissions.amit.jobs}</span>
-                </div>
-                <div className="border-t border-teal-200 pt-2 mt-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-teal-700">Total Commission</span>
-                    <span className="text-xl font-bold text-teal-600">{formatCurrency(commissions.amit.commission)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Partner/External Commission */}
-            <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-5 border border-amber-200">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center text-white font-bold">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-amber-900">Partner Commission</h4>
-                  <p className="text-xs text-amber-600">Lead Gen & Amit's Partners</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-amber-700">Lead Gen Co. (50%)</span>
-                  <span className="font-semibold text-amber-900">{formatCurrency(commissions.breakdown.leadGen.revenue * 0.50)}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-amber-700">Amit's Partners</span>
-                  <span className="font-semibold text-amber-900">{formatCurrency(commissions.breakdown.amitPartner.revenue * 0.50)}</span>
-                </div>
-                <div className="flex justify-between items-center pt-1">
-                  <span className="text-sm text-amber-700">Total Jobs</span>
-                  <span className="font-semibold text-amber-900">{commissions.partner.jobs}</span>
-                </div>
-                <div className="border-t border-amber-200 pt-2 mt-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-amber-700">Total Owed</span>
-                    <span className="text-xl font-bold text-amber-600">{formatCurrency(commissions.partner.commission)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Lead Source Breakdown Table */}
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left py-2 px-3 font-semibold text-slate-600">Lead Source Type</th>
-                  <th className="text-right py-2 px-3 font-semibold text-slate-600">Jobs</th>
-                  <th className="text-right py-2 px-3 font-semibold text-slate-600">Revenue</th>
-                  <th className="text-right py-2 px-3 font-semibold text-slate-600">Sophia</th>
-                  <th className="text-right py-2 px-3 font-semibold text-slate-600">Amit</th>
-                  <th className="text-right py-2 px-3 font-semibold text-slate-600">Partner</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-slate-100">
-                  <td className="py-2 px-3 text-slate-700">Ads / Organic</td>
-                  <td className="py-2 px-3 text-right">{commissions.breakdown.adsOrganic.jobs}</td>
-                  <td className="py-2 px-3 text-right">{formatCurrency(commissions.breakdown.adsOrganic.revenue)}</td>
-                  <td className="py-2 px-3 text-right text-purple-600 font-medium">25%</td>
-                  <td className="py-2 px-3 text-right text-teal-600 font-medium">75%</td>
-                  <td className="py-2 px-3 text-right text-slate-400">-</td>
-                </tr>
-                <tr className="border-b border-slate-100">
-                  <td className="py-2 px-3 text-slate-700">Lead Gen Company</td>
-                  <td className="py-2 px-3 text-right">{commissions.breakdown.leadGen.jobs}</td>
-                  <td className="py-2 px-3 text-right">{formatCurrency(commissions.breakdown.leadGen.revenue)}</td>
-                  <td className="py-2 px-3 text-right text-slate-400">-</td>
-                  <td className="py-2 px-3 text-right text-teal-600 font-medium">50%</td>
-                  <td className="py-2 px-3 text-right text-amber-600 font-medium">50%</td>
-                </tr>
-                <tr className="border-b border-slate-100">
-                  <td className="py-2 px-3 text-slate-700">Amit's Partners</td>
-                  <td className="py-2 px-3 text-right">{commissions.breakdown.amitPartner.jobs}</td>
-                  <td className="py-2 px-3 text-right">{formatCurrency(commissions.breakdown.amitPartner.revenue)}</td>
-                  <td className="py-2 px-3 text-right text-slate-400">-</td>
-                  <td className="py-2 px-3 text-right text-teal-600 font-medium">Custom*</td>
-                  <td className="py-2 px-3 text-right text-amber-600 font-medium">Custom*</td>
-                </tr>
-              </tbody>
-              <tfoot>
-                <tr className="bg-slate-50 font-semibold">
-                  <td className="py-2 px-3 text-slate-800">Total</td>
-                  <td className="py-2 px-3 text-right">{closedLeads.length}</td>
-                  <td className="py-2 px-3 text-right">{formatCurrency(totalRevenue)}</td>
-                  <td className="py-2 px-3 text-right text-purple-600">{formatCurrency(commissions.sophia.commission)}</td>
-                  <td className="py-2 px-3 text-right text-teal-600">{formatCurrency(commissions.amit.commission)}</td>
-                  <td className="py-2 px-3 text-right text-amber-600">{formatCurrency(commissions.partner.commission)}</td>
-                </tr>
-              </tfoot>
-            </table>
-            <p className="text-xs text-slate-500 mt-2">*Partner splits can be customized per job in Job Financial Details below</p>
-          </div>
-
-          {/* Net Summary */}
-          <div className="mt-4 p-4 bg-slate-50 rounded-lg">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div>
-                <p className="text-xs text-slate-500">Total Revenue</p>
-                <p className="font-bold text-slate-800">{formatCurrency(totalRevenue)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Total Commissions</p>
-                <p className="font-bold text-[#14b8a6]">{formatCurrency(commissions.total)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Net to Business</p>
-                <p className="font-bold text-green-600">{formatCurrency(totalRevenue - commissions.total)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Commission %</p>
-                <p className="font-bold text-slate-800">
-                  {totalRevenue > 0 ? ((commissions.total / totalRevenue) * 100).toFixed(1) : 0}%
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Job Financial Details Table */}

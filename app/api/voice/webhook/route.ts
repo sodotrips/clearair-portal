@@ -69,16 +69,22 @@ function parseAppointmentDate(dateStr: string): string {
 function normalizeTimeWindow(timeStr: string): string {
   if (!timeStr) return '';
 
-  const lower = timeStr.toLowerCase();
+  const lower = timeStr.toLowerCase().replace(/\s/g, '');
 
-  if (lower.includes('morning') || lower.includes('8') || lower.includes('am')) {
-    return 'Morning (8-12)';
+  // 8am-11am (Morning)
+  if (lower.includes('8am-11am') || lower.includes('8-11') || lower.includes('8am') ||
+      (lower.includes('morning') && !lower.includes('11'))) {
+    return '8am-11am';
   }
-  if (lower.includes('afternoon') || lower.includes('12') || lower.includes('1') || lower.includes('pm')) {
-    return 'Afternoon (12-5)';
+  // 11am-2pm (Midday)
+  if (lower.includes('11am-2pm') || lower.includes('11-2') || lower.includes('11am') ||
+      lower.includes('midday') || lower.includes('noon')) {
+    return '11am-2pm';
   }
-  if (lower.includes('evening') || lower.includes('5') || lower.includes('after')) {
-    return 'Evening';
+  // 2pm-5pm (Afternoon)
+  if (lower.includes('2pm-5pm') || lower.includes('2-5') || lower.includes('2pm') ||
+      lower.includes('afternoon')) {
+    return '2pm-5pm';
   }
 
   return timeStr;

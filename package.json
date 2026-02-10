@@ -12,6 +12,7 @@
     "@types/leaflet": "^1.9.21",
     "bcryptjs": "^3.0.3",
     "chart.js": "^4.5.1",
+    "chartjs-plugin-datalabels": "^2.2.0",
     "googleapis": "^170.0.0",
     "leaflet": "^1.9.4",
     "next": "16.1.1",

@@ -13,10 +13,9 @@ const COLUMNS = {
 
 // Valid time windows
 const TIME_WINDOWS = [
-  'Morning (8-12)',
-  'Afternoon (12-5)',
-  'Afternoon (1-5)',
-  'Evening',
+  '8am-11am',
+  '11am-2pm',
+  '2pm-5pm',
   'Flexible',
 ];
 
@@ -193,16 +192,22 @@ function parseNaturalDate(str: string): Date | null {
 
 // Normalize time window for comparison
 function normalizeTimeWindow(timeWindow: string): string {
-  const lower = (timeWindow || '').toLowerCase();
+  const lower = (timeWindow || '').toLowerCase().replace(/\s/g, '');
 
-  if (lower.includes('morning') || lower.includes('8-12') || lower.includes('8am')) {
-    return 'morning';
+  // 8am-11am (Morning)
+  if (lower.includes('8am-11am') || lower.includes('8-11') || lower.includes('8am') ||
+      (lower.includes('morning') && !lower.includes('11'))) {
+    return '8am-11am';
   }
-  if (lower.includes('afternoon') || lower.includes('12-5') || lower.includes('1-5') || lower.includes('pm')) {
-    return 'afternoon';
+  // 11am-2pm (Midday)
+  if (lower.includes('11am-2pm') || lower.includes('11-2') || lower.includes('11am') ||
+      lower.includes('midday') || lower.includes('noon')) {
+    return '11am-2pm';
   }
-  if (lower.includes('evening') || lower.includes('5-8') || lower.includes('after 5')) {
-    return 'evening';
+  // 2pm-5pm (Afternoon)
+  if (lower.includes('2pm-5pm') || lower.includes('2-5') || lower.includes('2pm') ||
+      lower.includes('afternoon')) {
+    return '2pm-5pm';
   }
 
   return 'flexible';
@@ -215,7 +220,7 @@ async function findAlternativeSlots(
   requestedTimeWindow: string
 ): Promise<string[]> {
   const alternatives: string[] = [];
-  const timeWindows = ['Morning (8-12)', 'Afternoon (12-5)'];
+  const timeWindows = ['8am-11am', '11am-2pm', '2pm-5pm'];
 
   // Check other time windows on same day
   for (const tw of timeWindows) {
