@@ -12,11 +12,8 @@ const client = accountSid && authToken ? twilio(accountSid, authToken) : null;
 export { client, twilioPhone, messagingServiceSid };
 
 // Build the sender params for client.messages.create()
-// Uses Messaging Service SID if available, falls back to phone number
-export function getSenderParams(): { messagingServiceSid: string } | { from: string } {
-  if (messagingServiceSid) {
-    return { messagingServiceSid };
-  }
+// Uses phone number directly (messaging service was causing issues)
+export function getSenderParams(): { from: string } {
   return { from: twilioPhone || '' };
 }
 
