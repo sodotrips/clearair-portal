@@ -191,14 +191,16 @@ export async function POST(request: NextRequest) {
 
     console.log(`Voice webhook: Lead ${leadId} saved to Google Sheets`);
 
-    // Send SMS notification to owner
-    const smsCheck = shouldSendSMS(OWNER_PHONE);
-    if (client && smsCheck.allowed) {
-      const appointmentInfo = appointmentDate
-        ? `📅 ${appointmentDate}${timeWindow ? ` (${timeWindow})` : ''}`
-        : '⏳ No appointment set - needs callback';
+    // Send SMS notification to owner (wrapped in try-catch so lead still saves if SMS fails)
+    let smsStatus = 'not attempted';
+    try {
+      const smsCheck = shouldSendSMS(OWNER_PHONE);
+      if (client && smsCheck.allowed) {
+        const appointmentInfo = appointmentDate
+          ? `📅 ${appointmentDate}${timeWindow ? ` (${timeWindow})` : ''}`
+          : '⏳ No appointment set - needs callback';
 
-      const smsBody = `📞 NEW LEAD (AI)
+        const smsBody = `📞 NEW LEAD (AI)
 
 Name: ${lead.customerName}
 Phone: ${normalizedPhone}
@@ -208,21 +210,28 @@ ${appointmentInfo}${lead.gateCode ? `\nGate: ${lead.gateCode}` : ''}
 
 Lead ID: ${leadId}`;
 
-      await client.messages.create({
-        body: smsBody,
-        ...getSenderParams(),
-        to: formatPhoneForTwilio(OWNER_PHONE),
-      });
+        await client.messages.create({
+          body: smsBody,
+          ...getSenderParams(),
+          to: formatPhoneForTwilio(OWNER_PHONE),
+        });
 
-      console.log(`Voice webhook: SMS notification sent to ${OWNER_PHONE}`);
-    } else {
-      console.log(`Voice webhook: SMS skipped - ${smsCheck.reason || 'client not configured'}`);
+        console.log(`Voice webhook: SMS notification sent to ${OWNER_PHONE}`);
+        smsStatus = 'sent';
+      } else {
+        console.log(`Voice webhook: SMS skipped - ${smsCheck.reason || 'client not configured'}`);
+        smsStatus = 'skipped';
+      }
+    } catch (smsError) {
+      console.error('Voice webhook: SMS failed but lead was saved:', smsError);
+      smsStatus = 'failed';
     }
 
     return NextResponse.json({
       success: true,
       leadId,
-      message: 'Lead saved and notification sent'
+      smsStatus,
+      message: 'Lead saved to Google Sheets'
     });
 
   } catch (error) {
