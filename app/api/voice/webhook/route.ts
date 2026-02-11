@@ -126,20 +126,28 @@ function extractVapiData(payload: any): {
     payload.summary ||
     '';
 
-  // Get structured data from analysis - check multiple possible locations including "leadInfo"
+  // Get structured data from analysis - check ALL possible Vapi locations
   const structuredData =
+    // Check under artifact (common Vapi location)
+    data.artifact?.structuredData?.leadInfo ||
+    data.artifact?.structuredData ||
+    payload.artifact?.structuredData?.leadInfo ||
+    payload.artifact?.structuredData ||
+    // Check under analysis
     data.analysis?.structuredData?.leadInfo ||
     data.analysis?.structuredData ||
     data.analysis?.leadInfo ||
-    data.analysis ||
-    data.structuredData?.leadInfo ||
-    data.structuredData ||
     payload.analysis?.structuredData?.leadInfo ||
     payload.analysis?.structuredData ||
     payload.analysis?.leadInfo ||
-    payload.analysis ||
+    // Check direct structuredData
+    data.structuredData?.leadInfo ||
+    data.structuredData ||
     payload.structuredData?.leadInfo ||
     payload.structuredData ||
+    // Fallback to analysis object itself (might contain fields directly)
+    (data.analysis && typeof data.analysis === 'object' && !Array.isArray(data.analysis) && data.analysis.customerName ? data.analysis : null) ||
+    (payload.analysis && typeof payload.analysis === 'object' && !Array.isArray(payload.analysis) && payload.analysis.customerName ? payload.analysis : null) ||
     {};
 
   // Get call ID
@@ -357,22 +365,30 @@ export async function POST(request: NextRequest) {
 
     console.log(`Voice webhook: Lead ${leadId} saved to Google Sheets`);
 
-    // Save full transcript to separate TRANSCRIPTS tab
-    if (transcript) {
-      try {
-        await sheets.spreadsheets.values.append({
-          spreadsheetId: SPREADSHEET_ID,
-          range: 'TRANSCRIPTS!A:C',
-          valueInputOption: 'USER_ENTERED',
-          requestBody: {
-            values: [[leadId, transcript, houstonTime]],
-          },
-        });
-        console.log(`Voice webhook: Transcript saved for ${leadId}`);
-      } catch (transcriptError) {
-        console.error('Failed to save transcript:', transcriptError);
-        // Don't fail the whole request if transcript save fails
-      }
+    // Save full transcript to separate TRANSCRIPTS tab (with debug info)
+    try {
+      // Create debug info showing where structured data was found
+      const debugInfo = JSON.stringify({
+        hasArtifact: !!payload.message?.artifact || !!payload.artifact,
+        hasAnalysis: !!payload.message?.analysis || !!payload.analysis,
+        hasStructuredData: !!payload.message?.structuredData || !!payload.structuredData,
+        artifactKeys: Object.keys(payload.message?.artifact || payload.artifact || {}),
+        analysisKeys: Object.keys(payload.message?.analysis || payload.analysis || {}),
+        structuredDataFound: structuredData,
+      });
+
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: SPREADSHEET_ID,
+        range: 'TRANSCRIPTS!A:D',
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [[leadId, transcript || '(no transcript)', houstonTime, debugInfo]],
+        },
+      });
+      console.log(`Voice webhook: Transcript saved for ${leadId}`);
+    } catch (transcriptError) {
+      console.error('Failed to save transcript:', transcriptError);
+      // Don't fail the whole request if transcript save fails
     }
 
     // Send SMS notification
