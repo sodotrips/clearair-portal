@@ -329,7 +329,7 @@ export async function POST(request: NextRequest) {
     row[16] = lead.service;
     row[17] = '';
     row[18] = '';
-    row[19] = 'Customer called in AI Receptionist';
+    row[19] = 'Customer called in AI Receptionist, see Transcripts for more details.';
     row[43] = appointmentDate;
     row[45] = timeWindow;
     row[50] = lead.accessInstructions;
