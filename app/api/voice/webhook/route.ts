@@ -126,29 +126,40 @@ function extractVapiData(payload: any): {
     payload.summary ||
     '';
 
-  // Get structured data from analysis - check ALL possible Vapi locations
-  const structuredData =
-    // Check under artifact (common Vapi location)
-    data.artifact?.structuredData?.leadInfo ||
-    data.artifact?.structuredData ||
-    payload.artifact?.structuredData?.leadInfo ||
-    payload.artifact?.structuredData ||
-    // Check under analysis
-    data.analysis?.structuredData?.leadInfo ||
-    data.analysis?.structuredData ||
-    data.analysis?.leadInfo ||
-    payload.analysis?.structuredData?.leadInfo ||
-    payload.analysis?.structuredData ||
-    payload.analysis?.leadInfo ||
-    // Check direct structuredData
-    data.structuredData?.leadInfo ||
-    data.structuredData ||
-    payload.structuredData?.leadInfo ||
-    payload.structuredData ||
-    // Fallback to analysis object itself (might contain fields directly)
-    (data.analysis && typeof data.analysis === 'object' && !Array.isArray(data.analysis) && data.analysis.customerName ? data.analysis : null) ||
-    (payload.analysis && typeof payload.analysis === 'object' && !Array.isArray(payload.analysis) && payload.analysis.customerName ? payload.analysis : null) ||
-    {};
+  // Get structured data - Vapi uses "structuredOutputs" (plural) under artifact
+  const artifact = data.artifact || payload.artifact || {};
+
+  // structuredOutputs can be an object with named outputs like { leadInfo: {...} }
+  // or it might be an array
+  let structuredData: any = {};
+
+  if (artifact.structuredOutputs) {
+    const outputs = artifact.structuredOutputs;
+    if (outputs.leadInfo) {
+      // Named output: { leadInfo: { customerName: ..., phone: ... } }
+      structuredData = outputs.leadInfo;
+    } else if (Array.isArray(outputs) && outputs.length > 0) {
+      // Array format: take first item
+      structuredData = outputs[0];
+    } else if (typeof outputs === 'object' && !Array.isArray(outputs)) {
+      // Direct object with fields
+      structuredData = outputs;
+    }
+  }
+
+  // Fallback to other locations if structuredOutputs didn't work
+  if (!structuredData || Object.keys(structuredData).length === 0) {
+    structuredData =
+      data.analysis?.structuredData?.leadInfo ||
+      data.analysis?.structuredData ||
+      payload.analysis?.structuredData?.leadInfo ||
+      payload.analysis?.structuredData ||
+      data.structuredData?.leadInfo ||
+      data.structuredData ||
+      payload.structuredData?.leadInfo ||
+      payload.structuredData ||
+      {};
+  }
 
   // Get call ID
   const callId =
@@ -368,13 +379,13 @@ export async function POST(request: NextRequest) {
     // Save full transcript to separate TRANSCRIPTS tab (with debug info)
     try {
       // Create debug info showing where structured data was found
+      const artifactObj = payload.message?.artifact || payload.artifact || {};
       const debugInfo = JSON.stringify({
-        hasArtifact: !!payload.message?.artifact || !!payload.artifact,
-        hasAnalysis: !!payload.message?.analysis || !!payload.analysis,
-        hasStructuredData: !!payload.message?.structuredData || !!payload.structuredData,
-        artifactKeys: Object.keys(payload.message?.artifact || payload.artifact || {}),
-        analysisKeys: Object.keys(payload.message?.analysis || payload.analysis || {}),
-        structuredDataFound: structuredData,
+        hasStructuredOutputs: !!artifactObj.structuredOutputs,
+        structuredOutputsType: Array.isArray(artifactObj.structuredOutputs) ? 'array' : typeof artifactObj.structuredOutputs,
+        structuredOutputsKeys: Object.keys(artifactObj.structuredOutputs || {}),
+        structuredOutputsRaw: artifactObj.structuredOutputs,
+        structuredDataExtracted: structuredData,
       });
 
       await sheets.spreadsheets.values.append({
