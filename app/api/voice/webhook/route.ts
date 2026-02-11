@@ -262,11 +262,14 @@ export async function POST(request: NextRequest) {
       notes: transcript?.substring(0, 500) || summary || '',
     };
 
-    // Normalize phone number
-    const normalizedPhone = lead.phone.replace(/^\+1/, '').replace(/\D/g, '');
+    // Normalize phone number and format as (xxx) xxx-xxxx
+    const phoneDigits = lead.phone.replace(/^\+1/, '').replace(/\D/g, '');
+    const formattedPhone = phoneDigits.length === 10
+      ? `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`
+      : phoneDigits;
 
     // If no customer name but we have a phone number and transcript, still save it
-    if (!lead.customerName && !normalizedPhone) {
+    if (!lead.customerName && !phoneDigits) {
       console.log('Voice webhook: No customer name or phone, skipping');
       return NextResponse.json({
         success: true,
@@ -277,8 +280,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Use "Unknown Caller" if no name but we have phone
-    if (!lead.customerName && normalizedPhone) {
-      lead.customerName = `Caller ${normalizedPhone.slice(-4)}`;
+    if (!lead.customerName && phoneDigits) {
+      lead.customerName = `Caller ${phoneDigits.slice(-4)}`;
     }
 
     // Parse and normalize appointment date/time
@@ -315,18 +318,18 @@ export async function POST(request: NextRequest) {
     row[2] = 'MEDIUM';
     row[3] = createdDate;
     row[4] = lead.customerName;
-    row[5] = normalizedPhone;
+    row[5] = formattedPhone;
     row[6] = '';
     row[7] = lead.address;
     row[8] = lead.city;
     row[9] = lead.zip;
-    row[10] = lead.propertyType;
-    row[11] = 'Phone - AI Receptionist';
-    row[12] = 'Vapi Voice AI';
+    row[10] = '';
+    row[11] = 'Organic';
+    row[12] = '';
     row[16] = lead.service;
-    row[17] = lead.numUnits;
-    row[18] = lead.numVents;
-    row[19] = lead.notes;
+    row[17] = '';
+    row[18] = '';
+    row[19] = 'Customer called in AI Receptionist';
     row[43] = appointmentDate;
     row[45] = timeWindow;
     row[50] = lead.accessInstructions;
@@ -376,7 +379,7 @@ export async function POST(request: NextRequest) {
         const smsBody = `📞 NEW LEAD (AI)
 
 Name: ${lead.customerName}
-Phone: ${normalizedPhone}
+Phone: ${formattedPhone}
 Address: ${lead.address}${lead.city ? ', ' + lead.city : ''}${lead.zip ? ' ' + lead.zip : ''}
 Service: ${lead.service}
 ${appointmentInfo}${lead.gateCode ? `\nGate: ${lead.gateCode}` : ''}
