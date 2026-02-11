@@ -51,7 +51,7 @@ function parseAppointmentDate(dateStr: string): string {
         targetDate = new Date(today);
         const currentDay = targetDate.getDay();
         let daysUntil = (i - currentDay + 7) % 7;
-        if (daysUntil === 0) daysUntil = 7; // Next week if today
+        if (daysUntil === 0) daysUntil = 7;
         targetDate.setDate(targetDate.getDate() + daysUntil);
         break;
       }
@@ -62,7 +62,7 @@ function parseAppointmentDate(dateStr: string): string {
     return `${(targetDate.getMonth() + 1).toString().padStart(2, '0')}/${targetDate.getDate().toString().padStart(2, '0')}/${targetDate.getFullYear()}`;
   }
 
-  return dateStr; // Return as-is if can't parse
+  return dateStr;
 }
 
 // Normalize time window to standard format
@@ -71,17 +71,14 @@ function normalizeTimeWindow(timeStr: string): string {
 
   const lower = timeStr.toLowerCase().replace(/\s/g, '');
 
-  // 8am-11am (Morning)
   if (lower.includes('8am-11am') || lower.includes('8-11') || lower.includes('8am') ||
       (lower.includes('morning') && !lower.includes('11'))) {
     return '8am-11am';
   }
-  // 11am-2pm (Midday)
   if (lower.includes('11am-2pm') || lower.includes('11-2') || lower.includes('11am') ||
       lower.includes('midday') || lower.includes('noon')) {
     return '11am-2pm';
   }
-  // 2pm-5pm (Afternoon)
   if (lower.includes('2pm-5pm') || lower.includes('2-5') || lower.includes('2pm') ||
       lower.includes('afternoon')) {
     return '2pm-5pm';
@@ -90,40 +87,174 @@ function normalizeTimeWindow(timeStr: string): string {
   return timeStr;
 }
 
+// Extract data from various Vapi payload formats
+function extractVapiData(payload: any): {
+  customerPhone: string;
+  transcript: string;
+  summary: string;
+  structuredData: any;
+  callId: string;
+} {
+  // Vapi can send data in different formats:
+  // 1. Direct: { call, transcript, analysis, ... }
+  // 2. Wrapped: { message: { call, transcript, analysis, ... } }
+
+  const data = payload.message || payload;
+
+  // Get phone number from various possible locations
+  const customerPhone =
+    data.call?.customer?.number ||
+    data.customer?.number ||
+    payload.call?.customer?.number ||
+    payload.from ||
+    '';
+
+  // Get transcript
+  const transcript =
+    data.transcript ||
+    data.artifact?.transcript ||
+    payload.transcript ||
+    '';
+
+  // Get summary
+  const summary =
+    data.summary ||
+    data.artifact?.summary ||
+    payload.summary ||
+    '';
+
+  // Get structured data from analysis
+  const structuredData =
+    data.analysis?.structuredData ||
+    data.analysis ||
+    data.structuredData ||
+    payload.analysis?.structuredData ||
+    payload.analysis ||
+    payload.structuredData ||
+    {};
+
+  // Get call ID
+  const callId =
+    data.call?.id ||
+    payload.call?.id ||
+    data.callId ||
+    payload.callId ||
+    '';
+
+  return { customerPhone, transcript, summary, structuredData, callId };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const payload = await request.json();
 
-    // Extract data from Vapi end-of-call webhook
-    const { call, transcript, structuredData, analysis } = payload;
+    // Log the full payload for debugging
+    console.log('=== VAPI WEBHOOK RECEIVED ===');
+    console.log('Payload keys:', Object.keys(payload));
+    console.log('Full payload:', JSON.stringify(payload, null, 2).substring(0, 2000));
 
-    // Build lead object from Vapi's extracted data
+    // Extract data from Vapi payload
+    const { customerPhone, transcript, summary, structuredData, callId } = extractVapiData(payload);
+
+    console.log('Extracted data:', { customerPhone, hasTranscript: !!transcript, structuredData });
+
+    // Build lead object - try multiple field name variations
     const lead = {
-      customerName: structuredData?.customerName || structuredData?.name || '',
-      phone: structuredData?.phone || call?.customer?.number || '',
-      address: structuredData?.address || structuredData?.streetAddress || '',
-      city: structuredData?.city || '',
-      zip: structuredData?.zip || structuredData?.zipCode || '',
-      propertyType: structuredData?.propertyType || '',
-      service: structuredData?.serviceRequested || structuredData?.service || 'Air Duct Cleaning',
-      numUnits: structuredData?.numUnits || structuredData?.acUnits || '',
-      numVents: structuredData?.numVents || structuredData?.vents || '',
-      appointmentDate: structuredData?.appointmentDate || structuredData?.preferredDate || '',
-      timeWindow: structuredData?.timeWindow || structuredData?.preferredTime || structuredData?.appointmentTime || '',
-      gateCode: structuredData?.gateCode || structuredData?.accessCode || '',
-      accessInstructions: structuredData?.accessInstructions || '',
-      pets: structuredData?.pets || '',
-      notes: transcript?.substring(0, 500) || '',
+      customerName:
+        structuredData?.customerName ||
+        structuredData?.name ||
+        structuredData?.customer_name ||
+        structuredData?.fullName ||
+        structuredData?.full_name ||
+        '',
+      phone:
+        structuredData?.phone ||
+        structuredData?.phoneNumber ||
+        structuredData?.phone_number ||
+        customerPhone ||
+        '',
+      address:
+        structuredData?.address ||
+        structuredData?.streetAddress ||
+        structuredData?.street_address ||
+        '',
+      city:
+        structuredData?.city ||
+        '',
+      zip:
+        structuredData?.zip ||
+        structuredData?.zipCode ||
+        structuredData?.zip_code ||
+        structuredData?.postalCode ||
+        '',
+      propertyType:
+        structuredData?.propertyType ||
+        structuredData?.property_type ||
+        '',
+      service:
+        structuredData?.serviceRequested ||
+        structuredData?.service ||
+        structuredData?.service_requested ||
+        structuredData?.serviceType ||
+        'Air Duct Cleaning',
+      numUnits:
+        structuredData?.numUnits ||
+        structuredData?.acUnits ||
+        structuredData?.num_units ||
+        structuredData?.units ||
+        '',
+      numVents:
+        structuredData?.numVents ||
+        structuredData?.vents ||
+        structuredData?.num_vents ||
+        '',
+      appointmentDate:
+        structuredData?.appointmentDate ||
+        structuredData?.preferredDate ||
+        structuredData?.appointment_date ||
+        structuredData?.date ||
+        '',
+      timeWindow:
+        structuredData?.timeWindow ||
+        structuredData?.preferredTime ||
+        structuredData?.appointmentTime ||
+        structuredData?.time_window ||
+        structuredData?.time ||
+        '',
+      gateCode:
+        structuredData?.gateCode ||
+        structuredData?.accessCode ||
+        structuredData?.gate_code ||
+        '',
+      accessInstructions:
+        structuredData?.accessInstructions ||
+        structuredData?.access_instructions ||
+        structuredData?.specialInstructions ||
+        '',
+      pets:
+        structuredData?.pets ||
+        '',
+      notes: transcript?.substring(0, 500) || summary || '',
     };
-
-    // Skip if no customer name (likely a hang-up or wrong number)
-    if (!lead.customerName) {
-      console.log('Voice webhook: No customer name, skipping lead creation');
-      return NextResponse.json({ success: true, skipped: true, reason: 'No customer name' });
-    }
 
     // Normalize phone number
     const normalizedPhone = lead.phone.replace(/^\+1/, '').replace(/\D/g, '');
+
+    // If no customer name but we have a phone number and transcript, still save it
+    if (!lead.customerName && !normalizedPhone) {
+      console.log('Voice webhook: No customer name or phone, skipping');
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        reason: 'No customer name or phone number',
+        debug: { payloadKeys: Object.keys(payload), structuredDataKeys: Object.keys(structuredData) }
+      });
+    }
+
+    // Use "Unknown Caller" if no name but we have phone
+    if (!lead.customerName && normalizedPhone) {
+      lead.customerName = `Caller ${normalizedPhone.slice(-4)}`;
+    }
 
     // Parse and normalize appointment date/time
     const appointmentDate = parseAppointmentDate(lead.appointmentDate);
@@ -142,43 +273,42 @@ export async function POST(request: NextRequest) {
       hour12: true
     });
 
-    // Determine status based on whether appointment was scheduled
+    // Determine status
     const status = appointmentDate ? 'SCHEDULED' : 'NEW';
 
     // Save to Google Sheet
     const auth = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // Generate proper sequential Lead ID
     const leadId = await generateLeadId(sheets);
 
-    // Build full row with correct column positions (125 columns: A to DU)
+    // Build full row
     const row = new Array(125).fill('');
 
-    row[0] = leadId;                              // A: Lead ID
-    row[1] = status;                              // B: Status
-    row[2] = 'MEDIUM';                            // C: Priority Level
-    row[3] = createdDate;                         // D: Lead Created Date
-    row[4] = lead.customerName;                   // E: Customer Name
-    row[5] = normalizedPhone;                     // F: Phone Number
-    row[6] = '';                                  // G: Email
-    row[7] = lead.address;                        // H: Address
-    row[8] = lead.city;                           // I: City
-    row[9] = lead.zip;                            // J: Zip Code
-    row[10] = lead.propertyType;                  // K: Property Type
-    row[11] = 'Phone - AI Receptionist';          // L: Lead Source
-    row[12] = 'Vapi Voice AI';                    // M: Lead Source Detail
-    row[16] = lead.service;                       // Q: Service Requested
-    row[17] = lead.numUnits;                      // R: # of Units
-    row[18] = lead.numVents;                      // S: # of Vents
-    row[19] = lead.notes;                         // T: Customer Issue/Notes
-    row[43] = appointmentDate;                    // AR: Appointment Date
-    row[45] = timeWindow;                         // AT: Time Window
-    row[50] = lead.accessInstructions;            // AY: Access Instructions
-    row[51] = lead.gateCode;                      // AZ: Gate Code/Special Access
-    row[53] = lead.pets;                          // BB: Pets
-    row[117] = houstonTime;                       // DN: Last Modified
-    row[118] = 'AI Receptionist';                 // DO: Last Modified By
+    row[0] = leadId;
+    row[1] = status;
+    row[2] = 'MEDIUM';
+    row[3] = createdDate;
+    row[4] = lead.customerName;
+    row[5] = normalizedPhone;
+    row[6] = '';
+    row[7] = lead.address;
+    row[8] = lead.city;
+    row[9] = lead.zip;
+    row[10] = lead.propertyType;
+    row[11] = 'Phone - AI Receptionist';
+    row[12] = 'Vapi Voice AI';
+    row[16] = lead.service;
+    row[17] = lead.numUnits;
+    row[18] = lead.numVents;
+    row[19] = lead.notes;
+    row[43] = appointmentDate;
+    row[45] = timeWindow;
+    row[50] = lead.accessInstructions;
+    row[51] = lead.gateCode;
+    row[53] = lead.pets;
+    row[117] = houstonTime;
+    row[118] = 'AI Receptionist';
 
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
@@ -191,7 +321,7 @@ export async function POST(request: NextRequest) {
 
     console.log(`Voice webhook: Lead ${leadId} saved to Google Sheets`);
 
-    // Send SMS notification to owner (wrapped in try-catch so lead still saves if SMS fails)
+    // Send SMS notification
     let smsStatus = 'not attempted';
     try {
       const smsCheck = shouldSendSMS(OWNER_PHONE);
@@ -216,14 +346,13 @@ Lead ID: ${leadId}`;
           to: formatPhoneForTwilio(OWNER_PHONE),
         });
 
-        console.log(`Voice webhook: SMS notification sent to ${OWNER_PHONE}`);
+        console.log(`Voice webhook: SMS sent to ${OWNER_PHONE}`);
         smsStatus = 'sent';
       } else {
-        console.log(`Voice webhook: SMS skipped - ${smsCheck.reason || 'client not configured'}`);
-        smsStatus = 'skipped';
+        smsStatus = `skipped: ${smsCheck.reason || 'client not configured'}`;
       }
     } catch (smsError: any) {
-      console.error('Voice webhook: SMS failed but lead was saved:', smsError);
+      console.error('Voice webhook: SMS failed:', smsError);
       smsStatus = `failed: ${smsError?.message || String(smsError)}`;
     }
 
