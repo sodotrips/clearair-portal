@@ -11,11 +11,11 @@ const COLUMNS = {
   TIME_WINDOW: 45,     // AT - Time Window
 };
 
-// Valid time windows
+// Valid time windows (matching Google Sheet format)
 const TIME_WINDOWS = [
-  '8am-11am',
-  '11am-2pm',
-  '2pm-5pm',
+  '08:00AM - 11:00AM',
+  '11:00AM - 2:00PM',
+  '2:00PM - 5:00PM',
   'Flexible',
 ];
 
@@ -194,20 +194,20 @@ function parseNaturalDate(str: string): Date | null {
 function normalizeTimeWindow(timeWindow: string): string {
   const lower = (timeWindow || '').toLowerCase().replace(/\s/g, '');
 
-  // 8am-11am (Morning)
+  // 08:00AM - 11:00AM (Morning)
   if (lower.includes('8am-11am') || lower.includes('8-11') || lower.includes('8am') ||
-      (lower.includes('morning') && !lower.includes('11'))) {
-    return '8am-11am';
+      lower.includes('08:00') || (lower.includes('morning') && !lower.includes('11'))) {
+    return '08:00AM - 11:00AM';
   }
-  // 11am-2pm (Midday)
+  // 11:00AM - 2:00PM (Midday)
   if (lower.includes('11am-2pm') || lower.includes('11-2') || lower.includes('11am') ||
-      lower.includes('midday') || lower.includes('noon')) {
-    return '11am-2pm';
+      lower.includes('11:00') || lower.includes('midday') || lower.includes('noon')) {
+    return '11:00AM - 2:00PM';
   }
-  // 2pm-5pm (Afternoon)
+  // 2:00PM - 5:00PM (Afternoon)
   if (lower.includes('2pm-5pm') || lower.includes('2-5') || lower.includes('2pm') ||
-      lower.includes('afternoon')) {
-    return '2pm-5pm';
+      lower.includes('2:00') || lower.includes('afternoon')) {
+    return '2:00PM - 5:00PM';
   }
 
   return 'flexible';
@@ -220,7 +220,7 @@ async function findAlternativeSlots(
   requestedTimeWindow: string
 ): Promise<string[]> {
   const alternatives: string[] = [];
-  const timeWindows = ['8am-11am', '11am-2pm', '2pm-5pm'];
+  const timeWindows = ['08:00AM - 11:00AM', '11:00AM - 2:00PM', '2:00PM - 5:00PM'];
 
   // Check other time windows on same day
   for (const tw of timeWindows) {

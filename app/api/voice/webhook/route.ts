@@ -65,23 +65,26 @@ function parseAppointmentDate(dateStr: string): string {
   return dateStr;
 }
 
-// Normalize time window to standard format
+// Normalize time window to standard format matching Google Sheet
 function normalizeTimeWindow(timeStr: string): string {
   if (!timeStr) return '';
 
   const lower = timeStr.toLowerCase().replace(/\s/g, '');
 
+  // Morning: 08:00AM - 11:00AM
   if (lower.includes('8am-11am') || lower.includes('8-11') || lower.includes('8am') ||
-      (lower.includes('morning') && !lower.includes('11'))) {
-    return '8am-11am';
+      lower.includes('08:00') || (lower.includes('morning') && !lower.includes('11'))) {
+    return '08:00AM - 11:00AM';
   }
+  // Midday: 11:00AM - 2:00PM
   if (lower.includes('11am-2pm') || lower.includes('11-2') || lower.includes('11am') ||
-      lower.includes('midday') || lower.includes('noon')) {
-    return '11am-2pm';
+      lower.includes('11:00') || lower.includes('midday') || lower.includes('noon')) {
+    return '11:00AM - 2:00PM';
   }
+  // Afternoon: 2:00PM - 5:00PM
   if (lower.includes('2pm-5pm') || lower.includes('2-5') || lower.includes('2pm') ||
-      lower.includes('afternoon')) {
-    return '2pm-5pm';
+      lower.includes('2:00') || lower.includes('afternoon')) {
+    return '2:00PM - 5:00PM';
   }
 
   return timeStr;
