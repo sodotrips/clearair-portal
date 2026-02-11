@@ -346,6 +346,24 @@ export async function POST(request: NextRequest) {
 
     console.log(`Voice webhook: Lead ${leadId} saved to Google Sheets`);
 
+    // Save full transcript to separate TRANSCRIPTS tab
+    if (transcript) {
+      try {
+        await sheets.spreadsheets.values.append({
+          spreadsheetId: SPREADSHEET_ID,
+          range: 'TRANSCRIPTS!A:C',
+          valueInputOption: 'USER_ENTERED',
+          requestBody: {
+            values: [[leadId, transcript, houstonTime]],
+          },
+        });
+        console.log(`Voice webhook: Transcript saved for ${leadId}`);
+      } catch (transcriptError) {
+        console.error('Failed to save transcript:', transcriptError);
+        // Don't fail the whole request if transcript save fails
+      }
+    }
+
     // Send SMS notification
     let smsStatus = 'not attempted';
     try {
