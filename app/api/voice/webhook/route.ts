@@ -127,23 +127,25 @@ function extractVapiData(payload: any): {
     '';
 
   // Get structured data - Vapi uses "structuredOutputs" (plural) under artifact
+  // Format: { [UUID]: { name: "leadInfo", result: { customerName, phone, ... } } }
   const artifact = data.artifact || payload.artifact || {};
 
-  // structuredOutputs can be an object with named outputs like { leadInfo: {...} }
-  // or it might be an array
   let structuredData: any = {};
 
-  if (artifact.structuredOutputs) {
+  if (artifact.structuredOutputs && typeof artifact.structuredOutputs === 'object') {
     const outputs = artifact.structuredOutputs;
-    if (outputs.leadInfo) {
-      // Named output: { leadInfo: { customerName: ..., phone: ... } }
-      structuredData = outputs.leadInfo;
-    } else if (Array.isArray(outputs) && outputs.length > 0) {
-      // Array format: take first item
-      structuredData = outputs[0];
-    } else if (typeof outputs === 'object' && !Array.isArray(outputs)) {
-      // Direct object with fields
-      structuredData = outputs;
+
+    // Get the first key (UUID) and extract the result
+    const keys = Object.keys(outputs);
+    if (keys.length > 0) {
+      const firstOutput = outputs[keys[0]];
+      // The actual data is in the "result" property
+      if (firstOutput?.result) {
+        structuredData = firstOutput.result;
+      } else if (firstOutput?.name === 'leadInfo' && firstOutput) {
+        // Fallback if result is at a different level
+        structuredData = firstOutput;
+      }
     }
   }
 
