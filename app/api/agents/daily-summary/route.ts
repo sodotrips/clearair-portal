@@ -298,8 +298,8 @@ export async function POST(request: NextRequest) {
     // Format message
     const message = formatSummaryMessage(summary);
 
-    // Send SMS
-    if (!client || !twilioPhone) {
+    // Send SMS (needs client AND either phone or messaging service)
+    if (!client || (!twilioPhone && !messagingServiceSid)) {
       return NextResponse.json({
         success: false,
         error: 'Twilio not configured',

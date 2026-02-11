@@ -4,6 +4,7 @@ import { getAuthClient, SPREADSHEET_ID, SHEET_NAME, DATA_RANGE, columnIndexToLet
 import {
   client,
   twilioPhone,
+  messagingServiceSid,
   formatPhoneForTwilio,
   getHoustonDateTime,
   formatDateForSMS,
@@ -16,11 +17,11 @@ const CONFIRMATION_HEADER = 'Appointment Confirmed';
 
 export async function POST(request: NextRequest) {
   try {
-    // Check for Twilio configuration
-    if (!client || !twilioPhone) {
+    // Check for Twilio configuration (needs client AND either phone or messaging service)
+    if (!client || (!twilioPhone && !messagingServiceSid)) {
       return NextResponse.json({
         success: false,
-        error: 'Twilio not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER.'
+        error: 'Twilio not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and either TWILIO_PHONE_NUMBER or TWILIO_MESSAGING_SERVICE_SID.'
       }, { status: 500 });
     }
 
