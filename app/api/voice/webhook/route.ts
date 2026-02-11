@@ -126,13 +126,19 @@ function extractVapiData(payload: any): {
     payload.summary ||
     '';
 
-  // Get structured data from analysis
+  // Get structured data from analysis - check multiple possible locations including "leadInfo"
   const structuredData =
+    data.analysis?.structuredData?.leadInfo ||
     data.analysis?.structuredData ||
+    data.analysis?.leadInfo ||
     data.analysis ||
+    data.structuredData?.leadInfo ||
     data.structuredData ||
+    payload.analysis?.structuredData?.leadInfo ||
     payload.analysis?.structuredData ||
+    payload.analysis?.leadInfo ||
     payload.analysis ||
+    payload.structuredData?.leadInfo ||
     payload.structuredData ||
     {};
 
@@ -182,6 +188,8 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Extracted data:', { customerPhone, hasTranscript: !!transcript, structuredData });
+    console.log('Full structuredData:', JSON.stringify(structuredData, null, 2));
+    console.log('Payload analysis:', JSON.stringify(payload.message?.analysis || payload.analysis, null, 2));
 
     // Build lead object - try multiple field name variations
     const lead = {
