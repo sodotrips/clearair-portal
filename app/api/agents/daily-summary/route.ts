@@ -7,6 +7,7 @@ import {
   messagingServiceSid,
   formatPhoneForTwilio,
   getHoustonDateTime,
+  getSenderParams,
 } from '@/lib/twilio';
 
 const SPREADSHEET_ID = '1sWJpsvt8aNnmwTssfQ3GWvxa8-RVUy2M7eLHM5YSN3k';
@@ -312,7 +313,7 @@ export async function POST(request: NextRequest) {
 
     const smsResult = await client.messages.create({
       body: message,
-      from: messagingServiceSid || twilioPhone,
+      ...getSenderParams(),
       to: formattedPhone,
     });
 

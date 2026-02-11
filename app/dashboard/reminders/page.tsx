@@ -14,6 +14,7 @@ export default function RemindersPage() {
   const [sending, setSending] = useState<string | null>(null);
   const [sendingAll, setSendingAll] = useState<'tech' | 'customer' | null>(null);
   const [results, setResults] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<'confirmations' | 'reminders' | 'tech'>('confirmations');
 
   // Houston timezone helper
   const getHoustonDate = (daysOffset: number = 0) => {
@@ -164,6 +165,44 @@ export default function RemindersPage() {
     }
   };
 
+  const sendBookingConfirmation = async (leadId: string) => {
+    setSending(leadId);
+    setResults(null);
+
+    try {
+      const response = await fetch('/api/sms/send-booking-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId }),
+      });
+      const data = await response.json();
+      setResults(data);
+      if (data.success) {
+        alert(`Confirmation sent to ${data.customer}`);
+      } else {
+        alert('Error: ' + data.error);
+      }
+    } catch (err) {
+      alert('Failed to send confirmation');
+    } finally {
+      setSending(null);
+    }
+  };
+
+  // Get newly scheduled leads (today) that may need booking confirmation
+  const todayStr = getHoustonDate(0);
+  const newBookings = leads.filter(l => {
+    const status = l['Status']?.toUpperCase();
+    const isScheduled = status === 'SCHEDULED' || status === 'IN PROGRESS';
+    const hasAppointment = l['Appointment Date'] && l['Time Window'];
+    const hasPhone = l['Phone Number'] && l['Phone Number'] !== '-';
+    // Show leads scheduled within last 7 days
+    return isScheduled && hasAppointment && hasPhone;
+  }).sort((a, b) => {
+    // Sort by timestamp received (newest first)
+    return (b['Timestamp Received'] || '').localeCompare(a['Timestamp Received'] || '');
+  }).slice(0, 20); // Show last 20
+
   const isToday = selectedDate === getHoustonDate(0);
   const isTomorrow = selectedDate === getHoustonDate(1);
 
@@ -194,8 +233,124 @@ export default function RemindersPage() {
           <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6">{error}</div>
         )}
 
-        {/* Date Selector & Actions */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+        {/* Tabs */}
+        <div className="bg-white rounded-xl shadow-sm mb-6">
+          <div className="flex border-b">
+            <button
+              onClick={() => setActiveTab('confirmations')}
+              className={`flex-1 py-4 text-center font-medium transition ${
+                activeTab === 'confirmations'
+                  ? 'text-[#14b8a6] border-b-2 border-[#14b8a6] bg-teal-50'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              📩 Booking Confirmations
+            </button>
+            <button
+              onClick={() => setActiveTab('reminders')}
+              className={`flex-1 py-4 text-center font-medium transition ${
+                activeTab === 'reminders'
+                  ? 'text-[#14b8a6] border-b-2 border-[#14b8a6] bg-teal-50'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              ⏰ Day-Before Reminders
+            </button>
+            <button
+              onClick={() => setActiveTab('tech')}
+              className={`flex-1 py-4 text-center font-medium transition ${
+                activeTab === 'tech'
+                  ? 'text-[#14b8a6] border-b-2 border-[#14b8a6] bg-teal-50'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              🔧 Tech Morning Briefing
+            </button>
+          </div>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'confirmations' && (
+          <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+            <h2 className="text-lg font-semibold text-slate-800 mb-4">Send Booking Confirmation</h2>
+            <p className="text-slate-500 text-sm mb-6">
+              Send a "Thanks for scheduling!" text to customers after booking their appointment.
+            </p>
+
+            {newBookings.length === 0 ? (
+              <div className="text-center py-8 text-slate-500">
+                <span className="text-3xl mb-2 block">📅</span>
+                No scheduled appointments found
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-slate-50 border-b">
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Customer</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Phone</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Service</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Appt Date</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Time</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-slate-600">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {newBookings.map((lead, idx) => (
+                      <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="py-3 px-4">
+                          <div>
+                            <p className="font-medium text-slate-800">{lead['Customer Name']}</p>
+                            <p className="text-xs text-slate-500">{lead['Lead ID']}</p>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <a href={`tel:${lead['Phone Number']}`} className="text-sm text-[#14b8a6] hover:underline">
+                            {formatPhone(lead['Phone Number'])}
+                          </a>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-slate-600">{lead['Service Requested']}</td>
+                        <td className="py-3 px-4 text-sm text-slate-600">{lead['Appointment Date']}</td>
+                        <td className="py-3 px-4 text-sm text-slate-600">{lead['Time Window']}</td>
+                        <td className="py-3 px-4 text-right">
+                          <button
+                            onClick={() => sendBookingConfirmation(lead['Lead ID'])}
+                            disabled={sending === lead['Lead ID']}
+                            className="px-4 py-2 bg-[#14b8a6] hover:bg-[#0d9488] text-white text-sm rounded-lg transition disabled:opacity-50"
+                          >
+                            {sending === lead['Lead ID'] ? 'Sending...' : 'Send Confirmation'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Sample Message */}
+            <div className="mt-6 p-4 bg-slate-50 rounded-lg">
+              <h4 className="text-sm font-semibold text-slate-700 mb-2">Sample Message:</h4>
+              <p className="text-sm text-slate-600 font-mono whitespace-pre-wrap">
+{`Hi John! Thanks for scheduling with ClearAir Solutions.
+
+Your Air Duct Cleaning appointment:
+📅 Wed, Feb 12
+⏰ 08:00AM - 11:00AM
+📍 1234 Oak St, Katy
+
+Our technician will call you 30-40 minutes before arrival.
+
+Questions? Call (281) 904-4674`}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'reminders' && (
+          <>
+            {/* Date Selector & Actions */}
+            <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Select Date</label>
@@ -415,28 +570,144 @@ export default function RemindersPage() {
           </div>
         )}
 
-        {/* Setup Instructions */}
-        <div className="mt-8 bg-amber-50 border border-amber-200 rounded-xl p-6">
-          <h3 className="font-semibold text-amber-800 mb-3 flex items-center gap-2">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Twilio Setup Required
-          </h3>
-          <p className="text-amber-700 text-sm mb-4">
-            To enable SMS reminders, you need to configure Twilio. Add these to your environment variables:
-          </p>
-          <div className="bg-white rounded-lg p-4 font-mono text-xs text-slate-700 space-y-1">
-            <p>TWILIO_ACCOUNT_SID=your_account_sid</p>
-            <p>TWILIO_AUTH_TOKEN=your_auth_token</p>
-            <p>TWILIO_PHONE_NUMBER=+1832XXXXXXX</p>
-            <p>AMIT_PHONE=8325551234</p>
-            <p>BUSINESS_PHONE=(832) 555-1234</p>
+            {/* Sample Message */}
+            <div className="bg-white rounded-xl shadow-sm p-6 mt-6">
+              <h4 className="text-sm font-semibold text-slate-700 mb-2">Sample Message:</h4>
+              <p className="text-sm text-slate-600 font-mono whitespace-pre-wrap bg-slate-50 p-4 rounded-lg">
+{`Hi John! This is ClearAir.
+
+Reminder: Your Air Duct Cleaning appointment is tomorrow (Wed, Feb 12) between 08:00AM - 11:00AM.
+
+Our technician will call you 30-40 minutes before his arrival.
+
+Reply C to confirm or call (281) 904-4674 to reschedule.`}
+              </p>
+            </div>
+
+          </>
+        )}
+
+        {activeTab === 'tech' && (
+          <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-800">Tech Morning Briefing</h2>
+                <p className="text-slate-500 text-sm">
+                  Send job summaries to technicians for the selected date.
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Select Date</label>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="px-4 py-2 border border-slate-300 rounded-lg focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] focus:outline-none"
+                  />
+                </div>
+                <button
+                  onClick={() => sendTechReminder()}
+                  disabled={sendingAll === 'tech' || scheduledJobs.length === 0}
+                  className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition disabled:opacity-50 flex items-center gap-2 mt-6"
+                >
+                  {sendingAll === 'tech' ? 'Sending...' : 'Send to All Techs'}
+                </button>
+              </div>
+            </div>
+
+            {scheduledJobs.length === 0 ? (
+              <div className="text-center py-8 text-slate-500">
+                <span className="text-3xl mb-2 block">🔧</span>
+                No jobs scheduled for {formatDate(selectedDate)}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {Object.entries(jobsByTech).map(([tech, jobs]) => (
+                  <div key={tech} className="border rounded-lg overflow-hidden">
+                    <div className="bg-purple-50 px-4 py-3 flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                          {tech.charAt(0)}
+                        </div>
+                        <span className="font-semibold text-slate-800">{tech}</span>
+                        <span className="text-sm text-slate-500">({jobs.length} job{jobs.length > 1 ? 's' : ''})</span>
+                      </div>
+                      <button
+                        onClick={() => sendTechReminder(tech)}
+                        disabled={sending === tech}
+                        className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg transition disabled:opacity-50"
+                      >
+                        {sending === tech ? 'Sending...' : 'Send to ' + tech}
+                      </button>
+                    </div>
+                    <div className="p-4 space-y-2">
+                      {jobs.map((job, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-sm py-2 border-b border-slate-100 last:border-0">
+                          <div>
+                            <span className="font-medium text-slate-800">{job['Customer Name']}</span>
+                            <span className="text-slate-400 mx-2">•</span>
+                            <span className="text-slate-600">{job['Address']}, {job['City']}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-slate-600">{job['Time Window']}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Sample Message */}
+            <div className="mt-6 p-4 bg-slate-50 rounded-lg">
+              <h4 className="text-sm font-semibold text-slate-700 mb-2">Sample Tech Message:</h4>
+              <p className="text-sm text-slate-600 font-mono whitespace-pre-wrap">
+{`📋 Jobs for Wed, Feb 12
+
+1. John Smith
+   📍 1234 Oak St, Katy 77450
+   🔧 Air Duct Cleaning
+   ⏰ 08:00AM - 11:00AM
+   📞 (832) 555-1234
+   🔑 Gate: 1234
+
+2. Jane Doe
+   📍 5678 Elm Ave, Sugar Land
+   🔧 Dryer Vent Cleaning
+   ⏰ 2:00PM - 5:00PM
+   📞 (713) 555-5678`}
+              </p>
+            </div>
           </div>
-          <p className="text-amber-700 text-sm mt-4">
-            The "AU" column in your Google Sheet tracks confirmations (YES/NO/PENDING).
-          </p>
-        </div>
+        )}
+
+        {/* Results Display */}
+        {results && (
+          <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+            <h4 className="font-semibold text-slate-700 mb-2">Results</h4>
+            {results.results?.map((r: any, idx: number) => (
+              <div key={idx} className="text-sm flex items-center gap-2 py-1">
+                {r.success ? (
+                  <span className="text-green-600">✓</span>
+                ) : (
+                  <span className="text-red-600">✗</span>
+                )}
+                <span className="text-slate-700">{r.tech || r.customer || r.leadId}</span>
+                <span className="text-slate-500">{r.message || r.error}</span>
+              </div>
+            )) || (
+              <div className="text-sm">
+                {results.success ? (
+                  <span className="text-green-600">✓ {results.message}</span>
+                ) : (
+                  <span className="text-red-600">✗ {results.error}</span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

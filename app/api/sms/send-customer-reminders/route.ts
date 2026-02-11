@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
       // Build customer SMS
       let sms = `Hi ${customerName}! This is ${companyName}.\n\n`;
       sms += `Reminder: Your ${service} appointment is tomorrow (${apptDate}) between ${timeWindow}.\n\n`;
-      sms += `${techName} will arrive in a ${companyName === 'ClearAir' ? 'ClearAir' : 'service'} van.\n\n`;
+      sms += `Our technician will call you 30-40 minutes before his arrival.\n\n`;
       sms += `Reply C to confirm or call ${businessPhone} to reschedule.`;
 
       // Check if this number should receive SMS
