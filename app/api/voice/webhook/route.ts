@@ -3,7 +3,7 @@ import { google } from 'googleapis';
 import { getAuthClient, SPREADSHEET_ID, SHEET_NAME } from '@/lib/google-sheets';
 import { client, formatPhoneForTwilio, getSenderParams, shouldSendSMS } from '@/lib/twilio';
 
-const OWNER_PHONE = '2818140061'; // Owner's personal cell for notifications
+const OWNER_PHONE = '2819044674'; // Owner's phone for notifications
 
 // Generate sequential Lead ID
 async function generateLeadId(sheets: any): Promise<string> {
