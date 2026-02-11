@@ -222,9 +222,9 @@ Lead ID: ${leadId}`;
         console.log(`Voice webhook: SMS skipped - ${smsCheck.reason || 'client not configured'}`);
         smsStatus = 'skipped';
       }
-    } catch (smsError) {
+    } catch (smsError: any) {
       console.error('Voice webhook: SMS failed but lead was saved:', smsError);
-      smsStatus = 'failed';
+      smsStatus = `failed: ${smsError?.message || String(smsError)}`;
     }
 
     return NextResponse.json({
