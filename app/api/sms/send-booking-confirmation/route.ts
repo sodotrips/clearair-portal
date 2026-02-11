@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { getAuthClient, SPREADSHEET_ID, SHEET_NAME, DATA_RANGE } from '@/lib/google-sheets';
+
+// Column W = "Booking Confirm Sent"
+const BOOKING_CONFIRM_COL = 'W';
 import {
   client,
   twilioPhone,
@@ -126,6 +129,17 @@ export async function POST(request: NextRequest) {
       body: sms,
       ...getSenderParams(),
       to: formatPhoneForTwilio(phone),
+    });
+
+    // Mark column W as sent with timestamp
+    const timestamp = new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' });
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!${BOOKING_CONFIRM_COL}${lead.rowIndex}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [[timestamp]],
+      },
     });
 
     return NextResponse.json({

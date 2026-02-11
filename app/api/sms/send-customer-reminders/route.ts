@@ -12,8 +12,9 @@ import {
   getSenderParams,
 } from '@/lib/twilio';
 
-// Header name for the appointment confirmation column (column AU)
-const CONFIRMATION_HEADER = 'Appointment Confirmed';
+// Column X = "Reminder Sent" - tracks when day-before reminder was sent
+const REMINDER_SENT_COL = 'X';
+const REMINDER_SENT_HEADER = 'Reminder Sent';
 
 export async function POST(request: NextRequest) {
   try {
@@ -52,10 +53,10 @@ export async function POST(request: NextRequest) {
       return lead;
     });
 
-    // Find the column index for confirmation status
-    const confirmedColIndex = headers.indexOf(CONFIRMATION_HEADER);
-    if (confirmedColIndex === -1) {
-      console.warn(`"${CONFIRMATION_HEADER}" column not found in sheet headers`);
+    // Find the column index for reminder sent status (column X)
+    const reminderSentColIndex = headers.indexOf(REMINDER_SENT_HEADER);
+    if (reminderSentColIndex === -1) {
+      console.warn(`"${REMINDER_SENT_HEADER}" column not found in sheet headers`);
     }
 
     // Calculate tomorrow's date in Houston timezone
@@ -92,9 +93,9 @@ export async function POST(request: NextRequest) {
       const isOnDate = isDateMatch(lead['Appointment Date']);
       const hasPhone = lead['Phone Number'] && lead['Phone Number'] !== '-';
 
-      // Duplicate-send protection: skip if reminder already sent (confirmation already set)
-      const confirmationStatus = (lead[CONFIRMATION_HEADER] || '').trim().toUpperCase();
-      const alreadyReminded = confirmationStatus === 'PENDING' || confirmationStatus === 'YES' || confirmationStatus === 'NO';
+      // Duplicate-send protection: skip if reminder already sent (column X has value)
+      const reminderSent = (lead[REMINDER_SENT_HEADER] || '').trim();
+      const alreadyReminded = reminderSent !== '';
 
       // If specific leadId provided, only process that one (bypass duplicate check for manual sends)
       if (leadId) {
@@ -158,18 +159,16 @@ export async function POST(request: NextRequest) {
           to: formatPhoneForTwilio(phone),
         });
 
-        // Update sheet to mark reminder sent - set confirmation to "PENDING"
-        if (confirmedColIndex !== -1) {
-          const colLetter = columnIndexToLetter(confirmedColIndex);
-          await sheets.spreadsheets.values.update({
-            spreadsheetId: SPREADSHEET_ID,
-            range: `${SHEET_NAME}!${colLetter}${job.rowIndex}`,
-            valueInputOption: 'USER_ENTERED',
-            requestBody: {
-              values: [['PENDING']],
-            },
-          });
-        }
+        // Update column X to mark reminder sent with timestamp
+        const timestamp = new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' });
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: SPREADSHEET_ID,
+          range: `${SHEET_NAME}!${REMINDER_SENT_COL}${job.rowIndex}`,
+          valueInputOption: 'USER_ENTERED',
+          requestBody: {
+            values: [[timestamp]],
+          },
+        });
 
         results.push({
           leadId: job['Lead ID'],

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import { getAuthClient, SPREADSHEET_ID, SHEET_NAME, DATA_RANGE, columnIndexToLetter } from '@/lib/google-sheets';
+import { getAuthClient, SPREADSHEET_ID, SHEET_NAME, DATA_RANGE } from '@/lib/google-sheets';
 
-// Header name for the appointment confirmation column (column AU)
-const CONFIRMATION_HEADER = 'Appointment Confirmed';
+// Column AU = "Appointment Confirmed" - updated when customer replies C/YES
+const APPT_CONFIRMED_COL = 'AU';
 
 // This webhook receives incoming SMS messages from Twilio
 // When a customer replies "C" to confirm their appointment
@@ -38,16 +38,11 @@ export async function POST(request: NextRequest) {
 
     const headers = rows[0];
     const phoneColIndex = headers.indexOf('Phone Number');
-    const confirmedColIndex = headers.indexOf(CONFIRMATION_HEADER);
     const statusColIndex = headers.indexOf('Status');
 
     if (phoneColIndex === -1) {
       console.error('Phone Number column not found');
       return createTwiMLResponse('System error. Please call us directly.');
-    }
-
-    if (confirmedColIndex === -1) {
-      console.warn(`"${CONFIRMATION_HEADER}" column not found in sheet headers`);
     }
 
     // Find the lead with matching phone number and scheduled status
@@ -76,18 +71,15 @@ export async function POST(request: NextRequest) {
 
     // Check if message is a confirmation
     if (body === 'C' || body === 'CONFIRM' || body === 'YES' || body === 'Y') {
-      // Update the sheet to mark as confirmed
-      if (confirmedColIndex !== -1) {
-        const colLetter = columnIndexToLetter(confirmedColIndex);
-        await sheets.spreadsheets.values.update({
-          spreadsheetId: SPREADSHEET_ID,
-          range: `${SHEET_NAME}!${colLetter}${matchedRow}`,
-          valueInputOption: 'USER_ENTERED',
-          requestBody: {
-            values: [['YES']],
-          },
-        });
-      }
+      // Update column AU to mark as confirmed
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET_NAME}!${APPT_CONFIRMED_COL}${matchedRow}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [['YES']],
+        },
+      });
 
       const customerName = matchedLead['Customer Name']?.split(' ')[0] || '';
       const timeWindow = matchedLead['Time Window'] || 'your scheduled time';
@@ -97,20 +89,17 @@ export async function POST(request: NextRequest) {
       );
     } else if (body === 'CANCEL' || body === 'RESCHEDULE' || body === 'N' || body === 'NO') {
       // Customer wants to cancel or reschedule
-      const businessPhone = process.env.BUSINESS_PHONE || '(832) XXX-XXXX';
+      const businessPhone = process.env.BUSINESS_PHONE || '(281) 904-4674';
 
-      // Update confirmation status
-      if (confirmedColIndex !== -1) {
-        const colLetter = columnIndexToLetter(confirmedColIndex);
-        await sheets.spreadsheets.values.update({
-          spreadsheetId: SPREADSHEET_ID,
-          range: `${SHEET_NAME}!${colLetter}${matchedRow}`,
-          valueInputOption: 'USER_ENTERED',
-          requestBody: {
-            values: [['NO']],
-          },
-        });
-      }
+      // Update column AU to mark as NO
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET_NAME}!${APPT_CONFIRMED_COL}${matchedRow}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [['NO']],
+        },
+      });
 
       return createTwiMLResponse(
         `No problem! Please call us at ${businessPhone} to reschedule your appointment. We're happy to find a better time for you.`
