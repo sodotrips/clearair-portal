@@ -147,17 +147,39 @@ function extractVapiData(payload: any): {
   return { customerPhone, transcript, summary, structuredData, callId };
 }
 
+// Track processed calls to prevent duplicates
+const processedCalls = new Set<string>();
+
 export async function POST(request: NextRequest) {
   try {
     const payload = await request.json();
 
-    // Log the full payload for debugging
+    // Log the payload type
     console.log('=== VAPI WEBHOOK RECEIVED ===');
     console.log('Payload keys:', Object.keys(payload));
-    console.log('Full payload:', JSON.stringify(payload, null, 2).substring(0, 2000));
+
+    // IMPORTANT: Only process "end-of-call-report" messages
+    // Vapi sends multiple event types - we only want the final report
+    const messageType = payload.message?.type || payload.type || '';
+
+    if (messageType && messageType !== 'end-of-call-report') {
+      console.log(`Skipping non-final event: ${messageType}`);
+      return NextResponse.json({ success: true, skipped: true, reason: `Event type: ${messageType}` });
+    }
 
     // Extract data from Vapi payload
     const { customerPhone, transcript, summary, structuredData, callId } = extractVapiData(payload);
+
+    // Prevent duplicate processing of same call
+    if (callId && processedCalls.has(callId)) {
+      console.log(`Skipping duplicate call: ${callId}`);
+      return NextResponse.json({ success: true, skipped: true, reason: 'Duplicate call' });
+    }
+    if (callId) {
+      processedCalls.add(callId);
+      // Clean up old entries after 5 minutes
+      setTimeout(() => processedCalls.delete(callId), 5 * 60 * 1000);
+    }
 
     console.log('Extracted data:', { customerPhone, hasTranscript: !!transcript, structuredData });
 
