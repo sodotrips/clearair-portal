@@ -438,19 +438,19 @@ Questions? Call (281) 904-4674`}
           <div className="bg-white rounded-xl shadow-sm p-5">
             <p className="text-slate-500 text-sm">Confirmed (YES)</p>
             <p className="text-2xl font-bold text-green-600">
-              {scheduledJobs.filter(j => j['Appointment Confirmed']?.toUpperCase() === 'YES').length}
+              {scheduledJobs.filter(j => j['Appointment Confirmed?']?.toUpperCase() === 'YES').length}
             </p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5">
             <p className="text-slate-500 text-sm">Pending</p>
             <p className="text-2xl font-bold text-amber-600">
-              {scheduledJobs.filter(j => j['Appointment Confirmed']?.toUpperCase() === 'PENDING').length}
+              {scheduledJobs.filter(j => j['Appointment Confirmed?']?.toUpperCase() === 'PENDING').length}
             </p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5">
             <p className="text-slate-500 text-sm">Not Confirmed (NO)</p>
             <p className="text-2xl font-bold text-red-500">
-              {scheduledJobs.filter(j => j['Appointment Confirmed']?.toUpperCase() === 'NO').length}
+              {scheduledJobs.filter(j => j['Appointment Confirmed?']?.toUpperCase() === 'NO').length}
             </p>
           </div>
         </div>
@@ -543,10 +543,10 @@ Questions? Call (281) 904-4674`}
                               </span>
                             </td>
                             <td className="py-3 px-4 text-center">
-                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getConfirmationStyle(job['Appointment Confirmed'])}`}>
-                                {job['Appointment Confirmed']?.toUpperCase() === 'YES' ? 'YES' :
-                                 job['Appointment Confirmed']?.toUpperCase() === 'NO' ? 'NO' :
-                                 job['Appointment Confirmed']?.toUpperCase() === 'PENDING' ? 'PENDING' :
+                              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getConfirmationStyle(job['Appointment Confirmed?'])}`}>
+                                {job['Appointment Confirmed?']?.toUpperCase() === 'YES' ? 'YES' :
+                                 job['Appointment Confirmed?']?.toUpperCase() === 'NO' ? 'NO' :
+                                 job['Appointment Confirmed?']?.toUpperCase() === 'PENDING' ? 'PENDING' :
                                  'Not Sent'}
                               </span>
                             </td>
