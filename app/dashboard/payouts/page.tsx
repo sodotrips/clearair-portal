@@ -16,8 +16,6 @@ interface PayoutSummary {
   totalRevenue: number;
   commissionPercent: number;
   commissionAmount: number;
-  paidDate: string | null; // Date when this payout was marked as paid
-  allPaid: boolean; // Whether all leads in this group are paid
 }
 
 export default function PayoutsPage() {
@@ -26,7 +24,6 @@ export default function PayoutsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [markingPaid, setMarkingPaid] = useState<string | null>(null); // Track which payee is being marked
 
   // Date range filter - default to current week
   const getWeekRange = (date: Date = new Date()) => {
@@ -150,11 +147,6 @@ export default function PayoutsPage() {
         totalCommission += (grossProfit * commissionPercent / 100);
       });
 
-      // Check if all leads in this group are marked as paid
-      const paidLeads = companyLeads.filter(lead => lead['Lead Co Paid Date']?.trim());
-      const allPaid = paidLeads.length === companyLeads.length && companyLeads.length > 0;
-      const paidDate = allPaid && paidLeads.length > 0 ? paidLeads[0]['Lead Co Paid Date'] : null;
-
       summaries.push({
         name: companyName,
         type: 'lead_company',
@@ -162,8 +154,6 @@ export default function PayoutsPage() {
         totalRevenue: totalGrossProfit,
         commissionPercent: companyLeads.length > 0 ? parseNumber(companyLeads[0]['Lead Company Commission %']) : 0,
         commissionAmount: totalCommission,
-        paidDate,
-        allPaid,
       });
     });
 
@@ -183,11 +173,6 @@ export default function PayoutsPage() {
     });
 
     if (sophiaLeads.length > 0) {
-      // Check if all leads are marked as paid for Sophia
-      const paidLeads = sophiaLeads.filter(lead => lead['Sophia Paid Date']?.trim());
-      const allPaid = paidLeads.length === sophiaLeads.length;
-      const paidDate = allPaid && paidLeads.length > 0 ? paidLeads[0]['Sophia Paid Date'] : null;
-
       summaries.push({
         name: 'Sophia',
         type: 'sophia',
@@ -195,8 +180,6 @@ export default function PayoutsPage() {
         totalRevenue: sophiaTotalGrossProfit,
         commissionPercent: sophiaLeads.length > 0 ? parseNumber(sophiaLeads[0]['Sophia Commission %']) : 0,
         commissionAmount: sophiaCommission,
-        paidDate,
-        allPaid,
       });
     }
 
@@ -216,11 +199,6 @@ export default function PayoutsPage() {
     });
 
     if (amitLeads.length > 0) {
-      // Check if all leads are marked as paid for Amit
-      const paidLeads = amitLeads.filter(lead => lead['Amit Paid Date']?.trim());
-      const allPaid = paidLeads.length === amitLeads.length;
-      const paidDate = allPaid && paidLeads.length > 0 ? paidLeads[0]['Amit Paid Date'] : null;
-
       summaries.push({
         name: 'Amit',
         type: 'amit',
@@ -228,8 +206,6 @@ export default function PayoutsPage() {
         totalRevenue: amitTotalGrossProfit,
         commissionPercent: amitLeads.length > 0 ? parseNumber(amitLeads[0]['Amit Commission %']) : 0,
         commissionAmount: amitCommission,
-        paidDate,
-        allPaid,
       });
     }
 
@@ -242,12 +218,6 @@ export default function PayoutsPage() {
   const totalPayouts = payoutSummaries
     .filter(s => s.type !== 'amit')
     .reduce((sum, s) => sum + s.commissionAmount, 0);
-
-  // Calculate paid vs unpaid amounts (excluding Amit)
-  const paidPayouts = payoutSummaries
-    .filter(s => s.type !== 'amit' && s.allPaid)
-    .reduce((sum, s) => sum + s.commissionAmount, 0);
-  const unpaidPayouts = totalPayouts - paidPayouts;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -295,40 +265,13 @@ export default function PayoutsPage() {
     });
   };
 
-  const setLast30Days = () => {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(start.getDate() - 30);
+  const setThisYear = () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 1);
+    const end = new Date(now.getFullYear(), 11, 31);
     setDateRange({
       start: start.toISOString().split('T')[0],
       end: end.toISOString().split('T')[0],
-    });
-  };
-
-  const setLast90Days = () => {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(start.getDate() - 90);
-    setDateRange({
-      start: start.toISOString().split('T')[0],
-      end: end.toISOString().split('T')[0],
-    });
-  };
-
-  const setLast12Months = () => {
-    const end = new Date();
-    const start = new Date();
-    start.setFullYear(start.getFullYear() - 1);
-    setDateRange({
-      start: start.toISOString().split('T')[0],
-      end: end.toISOString().split('T')[0],
-    });
-  };
-
-  const setAllTime = () => {
-    setDateRange({
-      start: '2020-01-01',
-      end: new Date().toISOString().split('T')[0],
     });
   };
 
@@ -382,41 +325,6 @@ export default function PayoutsPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  // Mark payout as paid
-  const markAsPaid = async (summary: PayoutSummary) => {
-    if (summary.allPaid) return;
-
-    const confirmMsg = `Mark ${summary.name}'s payout of ${formatCurrency(summary.commissionAmount)} as PAID?\n\nThis will update ${summary.leads.length} lead(s).`;
-    if (!confirm(confirmMsg)) return;
-
-    setMarkingPaid(summary.name);
-
-    try {
-      const leadIds = summary.leads.map(lead => lead['Lead ID']);
-      const response = await fetch('/api/payouts/mark-paid', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          payeeType: summary.type,
-          leadIds,
-        }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        // Refresh leads to show updated status
-        await fetchLeads();
-        alert(`Marked as paid! ${data.leadsUpdated} lead(s) updated.`);
-      } else {
-        alert(`Error: ${data.error}`);
-      }
-    } catch (err) {
-      alert('Failed to mark as paid');
-    } finally {
-      setMarkingPaid(null);
-    }
   };
 
   // Check admin access
@@ -511,17 +419,8 @@ export default function PayoutsPage() {
               <button onClick={setThisMonth} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
                 This Month
               </button>
-              <button onClick={setLast30Days} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
-                Last 30 Days
-              </button>
-              <button onClick={setLast90Days} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
-                Last 90 Days
-              </button>
-              <button onClick={setLast12Months} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
-                Last 12 Months
-              </button>
-              <button onClick={setAllTime} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
-                All Time
+              <button onClick={setThisYear} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">
+                This Year
               </button>
             </div>
             <button
@@ -552,11 +451,8 @@ export default function PayoutsPage() {
             <p className="text-2xl font-bold text-green-600">{formatCurrency(totalGrossProfit)}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-4">
-            <p className="text-slate-500 text-sm">Payouts Due</p>
-            <p className="text-2xl font-bold text-red-600">{formatCurrency(unpaidPayouts)}</p>
-            {paidPayouts > 0 && (
-              <p className="text-xs text-green-600 mt-1">✓ {formatCurrency(paidPayouts)} paid</p>
-            )}
+            <p className="text-slate-500 text-sm">Total Payouts Due</p>
+            <p className="text-2xl font-bold text-red-600">{formatCurrency(totalPayouts)}</p>
           </div>
         </div>
 
@@ -573,15 +469,14 @@ export default function PayoutsPage() {
           ) : (
             <div className="divide-y divide-slate-100">
               {payoutSummaries.map((summary, idx) => (
-                <div key={idx} className={`p-4 ${summary.allPaid ? 'bg-green-50' : ''}`}>
+                <div key={idx} className="p-4">
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
-                        summary.allPaid ? 'bg-green-500' :
                         summary.type === 'lead_company' ? 'bg-amber-500' :
                         summary.type === 'sophia' ? 'bg-purple-500' : 'bg-blue-500'
                       }`}>
-                        {summary.allPaid ? '✓' : summary.name.charAt(0)}
+                        {summary.name.charAt(0)}
                       </div>
                       <div>
                         <h3 className="font-semibold text-[#0a2540]">{summary.name}</h3>
@@ -589,41 +484,11 @@ export default function PayoutsPage() {
                           {summary.type === 'lead_company' ? 'Lead Gen Company' :
                            summary.type === 'sophia' ? 'Admin Commission' : 'Owner Commission'}
                         </p>
-                        {summary.allPaid && summary.paidDate && (
-                          <p className="text-xs text-green-600 font-medium mt-1">
-                            ✓ Paid on {summary.paidDate}
-                          </p>
-                        )}
                       </div>
                     </div>
-                    <div className="text-right flex flex-col items-end gap-2">
-                      <div>
-                        <p className={`text-2xl font-bold ${summary.allPaid ? 'text-green-600' : 'text-red-600'}`}>
-                          {formatCurrency(summary.commissionAmount)}
-                        </p>
-                        <p className="text-sm text-slate-500">{summary.leads.length} jobs</p>
-                      </div>
-                      {!summary.allPaid && (
-                        <button
-                          onClick={() => markAsPaid(summary)}
-                          disabled={markingPaid === summary.name}
-                          className="px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:bg-slate-300 text-white text-sm font-medium rounded-lg transition flex items-center gap-1"
-                        >
-                          {markingPaid === summary.name ? (
-                            <>
-                              <span className="animate-spin w-3 h-3 border-2 border-white border-t-transparent rounded-full"></span>
-                              Marking...
-                            </>
-                          ) : (
-                            <>
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                              Mark as Paid
-                            </>
-                          )}
-                        </button>
-                      )}
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-red-600">{formatCurrency(summary.commissionAmount)}</p>
+                      <p className="text-sm text-slate-500">{summary.leads.length} jobs</p>
                     </div>
                   </div>
 
@@ -644,7 +509,6 @@ export default function PayoutsPage() {
                             <th className="pb-2">Payment Date</th>
                             <th className="pb-2 text-right">Gross Profit</th>
                             <th className="pb-2 text-right">Commission</th>
-                            <th className="pb-2 text-center">Payout Status</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -657,16 +521,8 @@ export default function PayoutsPage() {
                               : parseNumber(lead['Amit Commission %']);
                             const commission = grossProfit * commissionPercent / 100;
 
-                            // Get paid date based on payee type
-                            const paidDate = summary.type === 'lead_company'
-                              ? lead['Lead Co Paid Date']
-                              : summary.type === 'sophia'
-                              ? lead['Sophia Paid Date']
-                              : lead['Amit Paid Date'];
-                            const isPaid = !!paidDate?.trim();
-
                             return (
-                              <tr key={i} className={`border-t border-slate-200 ${isPaid ? 'bg-green-50' : ''}`}>
+                              <tr key={i} className="border-t border-slate-200">
                                 <td className="py-2 text-slate-600">{lead['Lead ID']}</td>
                                 <td className="py-2 text-slate-600">{lead['Lead Job ID']}</td>
                                 <td className="py-2 text-slate-600">{lead['Lead Source Detail']}</td>
@@ -674,19 +530,8 @@ export default function PayoutsPage() {
                                 <td className="py-2 text-slate-600">{lead['Service Requested']}</td>
                                 <td className="py-2 text-slate-600">{lead['Payment Date']}</td>
                                 <td className="py-2 text-right">{formatCurrency(grossProfit)}</td>
-                                <td className={`py-2 text-right ${isPaid ? 'text-green-600' : 'text-red-600'}`}>
+                                <td className="py-2 text-right text-red-600">
                                   {formatCurrency(commission)} ({commissionPercent}%)
-                                </td>
-                                <td className="py-2 text-center">
-                                  {isPaid ? (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                                      ✓ Paid
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
-                                      Pending
-                                    </span>
-                                  )}
                                 </td>
                               </tr>
                             );

@@ -15,6 +15,7 @@ import {
   Legend,
   Filler,
 } from 'chart.js';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { Doughnut, Bar, Line } from 'react-chartjs-2';
 
 // Register Chart.js components
@@ -28,7 +29,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  ChartDataLabels
 );
 
 interface Lead {
@@ -132,26 +134,31 @@ export default function AnalyticsDashboard() {
     scheduled: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'SCHEDULED').length,
     quoted: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'QUOTED').length,
     closed: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'CLOSED').length,
+    completed: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'COMPLETED').length,
     canceled: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'CANCELED').length,
-    inProgress: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'IN PROGRESS').length,
+    lost: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'LOST').length,
   };
 
+  // Closed + Completed = total successful jobs
+  const totalClosed = stats.closed + stats.completed;
+
   const conversionRate = stats.total > 0
-    ? Math.round((stats.closed / stats.total) * 100)
+    ? Math.round((totalClosed / stats.total) * 100)
     : 0;
 
   // Status distribution for donut chart
   const statusData = {
-    labels: ['New', 'Scheduled', 'In Progress', 'Quoted', 'Closed', 'Canceled'],
+    labels: ['New', 'Scheduled', 'Quoted', 'Closed', 'Completed', 'Canceled', 'Lost'],
     datasets: [{
-      data: [stats.new, stats.scheduled, stats.inProgress, stats.quoted, stats.closed, stats.canceled],
+      data: [stats.new, stats.scheduled, stats.quoted, stats.closed, stats.completed, stats.canceled, stats.lost],
       backgroundColor: [
-        '#3b82f6', // blue
-        '#14b8a6', // teal
-        '#a855f7', // purple
-        '#f59e0b', // amber for quoted
-        '#22c55e', // green
-        '#94a3b8', // slate
+        '#3b82f6', // blue - New
+        '#14b8a6', // teal - Scheduled
+        '#f59e0b', // amber - Quoted
+        '#22c55e', // green - Closed
+        '#10b981', // emerald - Completed
+        '#94a3b8', // slate - Canceled
+        '#ef4444', // red - Lost
       ],
       borderWidth: 0,
     }]
@@ -172,6 +179,91 @@ export default function AnalyticsDashboard() {
       backgroundColor: '#14b8a6',
       borderRadius: 6,
     }]
+  };
+
+  // Lead Source Detail - All Statuses
+  const sourceDetailStats: Record<string, {
+    total: number;
+    new: number;
+    scheduled: number;
+    quoted: number;
+    closed: number;
+    completed: number;
+    canceled: number;
+    lost: number;
+  }> = {};
+
+  filteredLeads.forEach(lead => {
+    const sourceDetail = lead['Lead Source Detail']?.trim() || 'Organic';
+    const status = lead['Status']?.toUpperCase();
+
+    if (!sourceDetailStats[sourceDetail]) {
+      sourceDetailStats[sourceDetail] = {
+        total: 0, new: 0, scheduled: 0, quoted: 0,
+        closed: 0, completed: 0, canceled: 0, lost: 0
+      };
+    }
+    sourceDetailStats[sourceDetail].total++;
+
+    if (status === 'NEW') sourceDetailStats[sourceDetail].new++;
+    else if (status === 'SCHEDULED') sourceDetailStats[sourceDetail].scheduled++;
+    else if (status === 'QUOTED') sourceDetailStats[sourceDetail].quoted++;
+    else if (status === 'CLOSED') sourceDetailStats[sourceDetail].closed++;
+    else if (status === 'COMPLETED') sourceDetailStats[sourceDetail].completed++;
+    else if (status === 'CANCELED') sourceDetailStats[sourceDetail].canceled++;
+    else if (status === 'LOST') sourceDetailStats[sourceDetail].lost++;
+  });
+
+  // Sort by total leads descending
+  const sortedSourceDetails = Object.entries(sourceDetailStats)
+    .sort((a, b) => b[1].total - a[1].total);
+
+  const sourceDetailData = {
+    labels: sortedSourceDetails.map(([source]) => source),
+    datasets: [
+      {
+        label: 'New',
+        data: sortedSourceDetails.map(([, s]) => s.new),
+        backgroundColor: '#3b82f6',
+        borderRadius: 6,
+      },
+      {
+        label: 'Scheduled',
+        data: sortedSourceDetails.map(([, s]) => s.scheduled),
+        backgroundColor: '#14b8a6',
+        borderRadius: 6,
+      },
+      {
+        label: 'Quoted',
+        data: sortedSourceDetails.map(([, s]) => s.quoted),
+        backgroundColor: '#f59e0b',
+        borderRadius: 6,
+      },
+      {
+        label: 'Closed',
+        data: sortedSourceDetails.map(([, s]) => s.closed),
+        backgroundColor: '#22c55e',
+        borderRadius: 6,
+      },
+      {
+        label: 'Completed',
+        data: sortedSourceDetails.map(([, s]) => s.completed),
+        backgroundColor: '#10b981',
+        borderRadius: 6,
+      },
+      {
+        label: 'Canceled',
+        data: sortedSourceDetails.map(([, s]) => s.canceled),
+        backgroundColor: '#94a3b8',
+        borderRadius: 6,
+      },
+      {
+        label: 'Lost',
+        data: sortedSourceDetails.map(([, s]) => s.lost),
+        backgroundColor: '#ef4444',
+        borderRadius: 6,
+      },
+    ]
   };
 
   // Service type distribution
@@ -364,6 +456,9 @@ export default function AnalyticsDashboard() {
           padding: 20,
           usePointStyle: true,
         }
+      },
+      datalabels: {
+        display: false, // Disable by default
       }
     }
   };
@@ -439,11 +534,11 @@ export default function AnalyticsDashboard() {
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5">
             <p className="text-slate-500 text-sm font-medium">Pending</p>
-            <p className="text-3xl font-bold text-amber-500 mt-1">{stats.new + stats.scheduled + stats.quoted + stats.inProgress}</p>
+            <p className="text-3xl font-bold text-amber-500 mt-1">{stats.new + stats.scheduled + stats.quoted}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5">
             <p className="text-slate-500 text-sm font-medium">Closed</p>
-            <p className="text-3xl font-bold text-green-600 mt-1">{stats.closed}</p>
+            <p className="text-3xl font-bold text-green-600 mt-1">{totalClosed}</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5">
             <p className="text-slate-500 text-sm font-medium">Conversion Rate</p>
@@ -470,6 +565,54 @@ export default function AnalyticsDashboard() {
             <div className="h-64">
               <Line data={timeData} options={barOptions} />
             </div>
+          </div>
+        </div>
+
+        {/* Lead Source Detail - Full Width */}
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+          <h3 className="text-lg font-semibold text-[#0a2540] mb-4">Conversion by Lead Source</h3>
+          <div className="h-72">
+            <Bar data={sourceDetailData} options={{
+              ...barOptions,
+              scales: {
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true },
+              },
+              plugins: {
+                ...barOptions.plugins,
+                datalabels: {
+                  display: (context: any) => {
+                    // Only show label on the last (top) dataset
+                    return context.datasetIndex === sourceDetailData.datasets.length - 1;
+                  },
+                  anchor: 'end',
+                  align: 'end',
+                  formatter: (_value: any, context: any) => {
+                    // Calculate total for this bar
+                    const total = sortedSourceDetails[context.dataIndex]?.[1]?.total || 0;
+                    return total;
+                  },
+                  color: '#0a2540',
+                  font: {
+                    weight: 'bold',
+                    size: 12,
+                  },
+                },
+              },
+            }} />
+          </div>
+          <div className="mt-4 flex flex-wrap gap-4 text-sm">
+            {sortedSourceDetails.map(([source, data]) => {
+              const closedTotal = data.closed + data.completed;
+              const convRate = data.total > 0 ? Math.round((closedTotal / data.total) * 100) : 0;
+              return (
+                <div key={source} className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg">
+                  <span className="font-medium text-slate-700">{source}:</span>
+                  <span className="text-green-600 font-semibold">{closedTotal}/{data.total}</span>
+                  <span className="text-slate-500">({convRate}% closed)</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -540,10 +683,11 @@ export default function AnalyticsDashboard() {
                 {[
                   { status: 'New', count: stats.new, color: 'bg-blue-500' },
                   { status: 'Scheduled', count: stats.scheduled, color: 'bg-teal-500' },
-                  { status: 'In Progress', count: stats.inProgress, color: 'bg-purple-500' },
                   { status: 'Quoted', count: stats.quoted, color: 'bg-amber-500' },
                   { status: 'Closed', count: stats.closed, color: 'bg-green-500' },
+                  { status: 'Completed', count: stats.completed, color: 'bg-emerald-500' },
                   { status: 'Canceled', count: stats.canceled, color: 'bg-slate-400' },
+                  { status: 'Lost', count: stats.lost, color: 'bg-red-500' },
                 ].map(row => (
                   <tr key={row.status} className="border-b border-slate-100">
                     <td className="py-3 px-4">
