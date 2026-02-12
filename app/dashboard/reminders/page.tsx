@@ -574,7 +574,7 @@ Questions? Call (281) 904-4674`}
             <div className="bg-white rounded-xl shadow-sm p-6 mt-6">
               <h4 className="text-sm font-semibold text-slate-700 mb-2">Sample Message:</h4>
               <p className="text-sm text-slate-600 font-mono whitespace-pre-wrap bg-slate-50 p-4 rounded-lg">
-{`Hi John! This is ClearAir.
+{`Hi John! This is ClearAir Solutions.
 
 Reminder: Your Air Duct Cleaning appointment is tomorrow (Wed, Feb 12) between 08:00AM - 11:00AM.
 

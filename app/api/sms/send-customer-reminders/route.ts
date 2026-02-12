@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
       const referralSource = job['Referral Source'] || '';
 
       // Determine company name based on lead source
-      let companyName = 'ClearAir';
+      let companyName = 'ClearAir Solutions';
       if ((leadSource === 'lead company' || leadSource.includes('lead gen')) && referralSource) {
         companyName = referralSource;
       } else if (leadSource === 'partner' && referralSource) {
