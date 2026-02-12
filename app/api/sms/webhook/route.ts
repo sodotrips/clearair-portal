@@ -54,8 +54,15 @@ export async function POST(request: NextRequest) {
       const leadPhone = (row[phoneColIndex] || '').replace(/\D/g, '');
       const status = (row[statusColIndex] || '').toUpperCase();
 
+      // Flexible phone matching - check if either ends with the other (handles partial numbers)
+      // Also handles cases where only last 4-7 digits are stored
+      const phoneMatches =
+        leadPhone === normalizedPhone ||
+        normalizedPhone.endsWith(leadPhone) ||
+        leadPhone.endsWith(normalizedPhone);
+
       // Match phone and check if scheduled
-      if (leadPhone === normalizedPhone && (status === 'SCHEDULED' || status === 'IN PROGRESS')) {
+      if (phoneMatches && (status === 'SCHEDULED' || status === 'IN PROGRESS')) {
         matchedRow = i + 1; // Sheet rows are 1-indexed, and we skip header
         matchedLead = {};
         headers.forEach((header: string, idx: number) => {
