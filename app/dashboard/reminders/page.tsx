@@ -254,59 +254,47 @@ export default function RemindersPage() {
         )}
 
         {/* Tabs */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-3 gap-3 mb-6">
           <button
             onClick={() => setActiveTab('confirmations')}
-            className={`relative p-5 rounded-xl font-medium transition-all transform hover:scale-[1.02] ${
+            className={`relative px-4 py-2.5 rounded-lg font-medium transition-all transform hover:scale-[1.02] ${
               activeTab === 'confirmations'
-                ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-200 ring-4 ring-emerald-200'
+                ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-200 ring-2 ring-emerald-200'
                 : 'bg-white text-slate-600 hover:bg-emerald-50 shadow-sm border-2 border-transparent hover:border-emerald-200'
             }`}
           >
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-3xl">📩</span>
-              <span className="text-sm font-bold tracking-wide">BOOKING</span>
-              <span className="text-xs opacity-80">New Confirmations</span>
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-xl">📩</span>
+              <span className="text-sm font-bold">BOOKING</span>
             </div>
-            {activeTab === 'confirmations' && (
-              <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-teal-600 rotate-45"></div>
-            )}
           </button>
 
           <button
             onClick={() => setActiveTab('reminders')}
-            className={`relative p-5 rounded-xl font-medium transition-all transform hover:scale-[1.02] ${
+            className={`relative px-4 py-2.5 rounded-lg font-medium transition-all transform hover:scale-[1.02] ${
               activeTab === 'reminders'
-                ? 'bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-200 ring-4 ring-amber-200'
+                ? 'bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-200 ring-2 ring-amber-200'
                 : 'bg-white text-slate-600 hover:bg-amber-50 shadow-sm border-2 border-transparent hover:border-amber-200'
             }`}
           >
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-3xl">⏰</span>
-              <span className="text-sm font-bold tracking-wide">DAY-BEFORE</span>
-              <span className="text-xs opacity-80">Customer Reminders</span>
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-xl">⏰</span>
+              <span className="text-sm font-bold">DAY-BEFORE</span>
             </div>
-            {activeTab === 'reminders' && (
-              <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-orange-600 rotate-45"></div>
-            )}
           </button>
 
           <button
             onClick={() => setActiveTab('tech')}
-            className={`relative p-5 rounded-xl font-medium transition-all transform hover:scale-[1.02] ${
+            className={`relative px-4 py-2.5 rounded-lg font-medium transition-all transform hover:scale-[1.02] ${
               activeTab === 'tech'
-                ? 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-200 ring-4 ring-purple-200'
+                ? 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-200 ring-2 ring-purple-200'
                 : 'bg-white text-slate-600 hover:bg-purple-50 shadow-sm border-2 border-transparent hover:border-purple-200'
             }`}
           >
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-3xl">🔧</span>
-              <span className="text-sm font-bold tracking-wide">TECH</span>
-              <span className="text-xs opacity-80">Morning Briefing</span>
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-xl">🔧</span>
+              <span className="text-sm font-bold">TECH</span>
             </div>
-            {activeTab === 'tech' && (
-              <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-indigo-600 rotate-45"></div>
-            )}
           </button>
         </div>
 
