@@ -199,7 +199,9 @@ export default function RemindersPage() {
     // Exclude Lead Company leads (not ClearAir customers)
     const leadSource = (l['Lead Source'] || '').toLowerCase();
     const isLeadCompany = leadSource === 'lead company' || leadSource.includes('lead company');
-    return isScheduled && hasAppointment && hasPhone && !isLeadCompany;
+    // Exclude already sent confirmations (column W)
+    const alreadySent = l['Booking Confirm Sent'] && l['Booking Confirm Sent'].trim() !== '';
+    return isScheduled && hasAppointment && hasPhone && !isLeadCompany && !alreadySent;
   }).sort((a, b) => {
     // Sort by timestamp received (newest first)
     return (b['Timestamp Received'] || '').localeCompare(a['Timestamp Received'] || '');
