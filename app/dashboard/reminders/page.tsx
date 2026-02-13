@@ -265,7 +265,7 @@ export default function RemindersPage() {
           >
             <div className="flex items-center justify-center gap-2">
               <span className="text-xl">📩</span>
-              <span className="text-sm font-bold">BOOKING</span>
+              <span className="text-sm font-bold">BOOKING CONFIRMATION</span>
             </div>
           </button>
 
@@ -279,7 +279,7 @@ export default function RemindersPage() {
           >
             <div className="flex items-center justify-center gap-2">
               <span className="text-xl">⏰</span>
-              <span className="text-sm font-bold">DAY-BEFORE</span>
+              <span className="text-sm font-bold">DAY-BEFORE REMINDER</span>
             </div>
           </button>
 
@@ -293,7 +293,7 @@ export default function RemindersPage() {
           >
             <div className="flex items-center justify-center gap-2">
               <span className="text-xl">🔧</span>
-              <span className="text-sm font-bold">TECH</span>
+              <span className="text-sm font-bold">TECH REMINDER</span>
             </div>
           </button>
         </div>
