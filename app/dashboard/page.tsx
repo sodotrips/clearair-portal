@@ -41,6 +41,7 @@ export default function Dashboard() {
   const [agentTestResult, setAgentTestResult] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const userRole = (session?.user as any)?.role;
 
   // Map column headers to actual field names
@@ -105,6 +106,17 @@ export default function Dashboard() {
     fetchLeads();
     fetchWebsiteLeads();
     fetchAgentSettings();
+  }, []);
+
+  // Auto-refresh leads every 30 seconds
+  useEffect(() => {
+    const refreshInterval = setInterval(() => {
+      fetchLeads();
+      fetchWebsiteLeads();
+      setLastRefresh(new Date());
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(refreshInterval);
   }, []);
 
   useEffect(() => {
@@ -789,8 +801,12 @@ export default function Dashboard() {
                     Sign Out
                   </button>
                 </div>
-                <div className="text-slate-400 text-sm mt-1">
-                  {new Date().toLocaleDateString('en-US', { timeZone: 'America/Chicago', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                <div className="text-slate-400 text-sm mt-1 flex items-center gap-3">
+                  <span>{new Date().toLocaleDateString('en-US', { timeZone: 'America/Chicago', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                  <span className="flex items-center gap-1 text-xs text-emerald-400">
+                    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+                    Auto-refresh {lastRefresh.toLocaleTimeString('en-US', { timeZone: 'America/Chicago', hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
               </div>
             </div>
