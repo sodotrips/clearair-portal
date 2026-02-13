@@ -259,8 +259,8 @@ export default function RemindersPage() {
             onClick={() => setActiveTab('confirmations')}
             className={`relative px-4 py-2.5 rounded-lg font-medium transition-all transform hover:scale-[1.02] ${
               activeTab === 'confirmations'
-                ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-200 ring-2 ring-emerald-200'
-                : 'bg-white text-slate-600 hover:bg-emerald-50 shadow-sm border-2 border-transparent hover:border-emerald-200'
+                ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-teal-200 ring-2 ring-teal-200'
+                : 'bg-teal-50 text-teal-700 hover:bg-teal-100 shadow-sm border-2 border-teal-200'
             }`}
           >
             <div className="flex items-center justify-center gap-2">
@@ -273,8 +273,8 @@ export default function RemindersPage() {
             onClick={() => setActiveTab('reminders')}
             className={`relative px-4 py-2.5 rounded-lg font-medium transition-all transform hover:scale-[1.02] ${
               activeTab === 'reminders'
-                ? 'bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-200 ring-2 ring-amber-200'
-                : 'bg-white text-slate-600 hover:bg-amber-50 shadow-sm border-2 border-transparent hover:border-amber-200'
+                ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-teal-200 ring-2 ring-teal-200'
+                : 'bg-teal-50 text-teal-700 hover:bg-teal-100 shadow-sm border-2 border-teal-200'
             }`}
           >
             <div className="flex items-center justify-center gap-2">
@@ -287,8 +287,8 @@ export default function RemindersPage() {
             onClick={() => setActiveTab('tech')}
             className={`relative px-4 py-2.5 rounded-lg font-medium transition-all transform hover:scale-[1.02] ${
               activeTab === 'tech'
-                ? 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-200 ring-2 ring-purple-200'
-                : 'bg-white text-slate-600 hover:bg-purple-50 shadow-sm border-2 border-transparent hover:border-purple-200'
+                ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-teal-200 ring-2 ring-teal-200'
+                : 'bg-teal-50 text-teal-700 hover:bg-teal-100 shadow-sm border-2 border-teal-200'
             }`}
           >
             <div className="flex items-center justify-center gap-2">
