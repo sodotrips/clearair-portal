@@ -292,11 +292,15 @@ export default function RemindersPage() {
                       <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Service</th>
                       <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Appt Date</th>
                       <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Time</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Lead Source</th>
                       <th className="text-right py-3 px-4 text-sm font-semibold text-slate-600">Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {newBookings.map((lead, idx) => (
+                    {newBookings.map((lead, idx) => {
+                      const leadSource = lead['Lead Source'] || '-';
+
+                      return (
                       <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-3 px-4">
                           <div>
@@ -312,6 +316,7 @@ export default function RemindersPage() {
                         <td className="py-3 px-4 text-sm text-slate-600">{lead['Service Requested']}</td>
                         <td className="py-3 px-4 text-sm text-slate-600">{lead['Appointment Date']}</td>
                         <td className="py-3 px-4 text-sm text-slate-600">{lead['Time Window']}</td>
+                        <td className="py-3 px-4 text-sm text-slate-600">{leadSource}</td>
                         <td className="py-3 px-4 text-right">
                           <button
                             onClick={() => sendBookingConfirmation(lead['Lead ID'])}
@@ -322,7 +327,7 @@ export default function RemindersPage() {
                           </button>
                         </td>
                       </tr>
-                    ))}
+                    );})}
                   </tbody>
                 </table>
               </div>
