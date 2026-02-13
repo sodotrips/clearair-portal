@@ -196,8 +196,10 @@ export default function RemindersPage() {
     const isScheduled = status === 'SCHEDULED' || status === 'IN PROGRESS';
     const hasAppointment = l['Appointment Date'] && l['Time Window'];
     const hasPhone = l['Phone Number'] && l['Phone Number'] !== '-';
-    // Show leads scheduled within last 7 days
-    return isScheduled && hasAppointment && hasPhone;
+    // Exclude Lead Company leads (not ClearAir customers)
+    const leadSource = (l['Lead Source'] || '').toLowerCase();
+    const isLeadCompany = leadSource === 'lead company' || leadSource.includes('lead company');
+    return isScheduled && hasAppointment && hasPhone && !isLeadCompany;
   }).sort((a, b) => {
     // Sort by timestamp received (newest first)
     return (b['Timestamp Received'] || '').localeCompare(a['Timestamp Received'] || '');
