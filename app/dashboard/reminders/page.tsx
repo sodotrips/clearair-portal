@@ -201,7 +201,23 @@ export default function RemindersPage() {
     const isLeadCompany = leadSource === 'lead company' || leadSource.includes('lead company');
     // Exclude already sent confirmations (column W)
     const alreadySent = l['Booking Confirm Sent'] && l['Booking Confirm Sent'].trim() !== '';
-    return isScheduled && hasAppointment && hasPhone && !isLeadCompany && !alreadySent;
+    // Exclude past appointment dates
+    const apptDate = l['Appointment Date'] || '';
+    let isPastDate = false;
+    if (apptDate) {
+      // Handle MM/DD/YYYY format
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(apptDate)) {
+        const [month, day, year] = apptDate.split('/').map(Number);
+        const apptDateObj = new Date(year, month - 1, day);
+        const today = new Date(todayStr);
+        isPastDate = apptDateObj < today;
+      }
+      // Handle YYYY-MM-DD format
+      else if (/^\d{4}-\d{2}-\d{2}$/.test(apptDate)) {
+        isPastDate = apptDate < todayStr;
+      }
+    }
+    return isScheduled && hasAppointment && hasPhone && !isLeadCompany && !alreadySent && !isPastDate;
   }).sort((a, b) => {
     // Sort by timestamp received (newest first)
     return (b['Timestamp Received'] || '').localeCompare(a['Timestamp Received'] || '');
