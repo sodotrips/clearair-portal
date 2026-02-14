@@ -361,7 +361,7 @@ export async function POST(request: NextRequest) {
             callDuration ? `${Math.round(callDuration)}s` : '', // I: Duration
             appointmentDate || '(none)',                  // J: Appointment Date
             timeWindow || '(none)',                       // K: Time Window
-            (transcript || '').substring(0, 300),         // L: Transcript Preview
+            transcript || '(no transcript)',              // L: Full Transcript
           ]],
         },
       });
@@ -441,29 +441,6 @@ export async function POST(request: NextRequest) {
       }
     } else {
       console.log(`Voice webhook: Call logged but NOT promoted (missing: ${!lead.customerName ? 'name ' : ''}${!phoneDigits ? 'phone ' : ''}${!appointmentDate ? 'appointment' : ''})`);
-    }
-
-    // Save full transcript to separate TRANSCRIPTS tab (with debug info)
-    try {
-      const artifactObj = payload.message?.artifact || payload.artifact || {};
-      const debugInfo = JSON.stringify({
-        hasStructuredOutputs: !!artifactObj.structuredOutputs,
-        structuredDataExtracted: structuredData,
-        callOutcome,
-        isValidLead,
-      });
-
-      await sheets.spreadsheets.values.append({
-        spreadsheetId: SPREADSHEET_ID,
-        range: 'TRANSCRIPTS!A:E',
-        valueInputOption: 'USER_ENTERED',
-        requestBody: {
-          values: [[callLogId, leadId || '(not promoted)', transcript || '(no transcript)', houstonTime, debugInfo]],
-        },
-      });
-      console.log(`Voice webhook: Transcript saved for ${callLogId}`);
-    } catch (transcriptError) {
-      console.error('Failed to save transcript:', transcriptError);
     }
 
     // Send SMS notification - different message for booked vs inquiry
