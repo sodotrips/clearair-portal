@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { getAuthClient, SPREADSHEET_ID, SHEET_NAME } from '@/lib/google-sheets';
-import { client, formatPhoneForTwilio, getSenderParams, shouldSendSMS } from '@/lib/twilio';
+import { client, formatPhoneForTwilio, getSenderParams } from '@/lib/twilio';
 
-const OWNER_PHONE = '2818140061'; // Owner's phone for notifications
+const OWNER_PHONE = '2819484922'; // Owner's phone for notifications
 const CALL_LOG_SHEET = 'CALL LOG'; // All calls go here for analytics
 
 // Generate sequential Lead ID
@@ -443,11 +443,13 @@ export async function POST(request: NextRequest) {
       console.log(`Voice webhook: Call logged but NOT promoted (missing: ${!lead.customerName ? 'name ' : ''}${!phoneDigits ? 'phone ' : ''}${!appointmentDate ? 'appointment' : ''})`);
     }
 
-    // Send SMS notification - different message for booked vs inquiry
+    // Send SMS notification to owner - always send for AI calls (bypass whitelist check)
+    // The shouldSendSMS function is for filtering customer numbers, not owner notifications
     let smsStatus = 'not attempted';
     try {
-      const smsCheck = shouldSendSMS(OWNER_PHONE);
-      if (client && smsCheck.allowed) {
+      if (!client) {
+        smsStatus = 'skipped: Twilio client not configured';
+      } else {
         let smsBody = '';
 
         if (isValidLead) {
@@ -484,8 +486,6 @@ Review in CALL LOG: ${callLogId}`;
         } else {
           smsStatus = 'skipped: no meaningful data to report';
         }
-      } else {
-        smsStatus = `skipped: ${smsCheck.reason || 'client not configured'}`;
       }
     } catch (smsError: any) {
       console.error('Voice webhook: SMS failed:', smsError);

@@ -695,7 +695,7 @@ export default function Dashboard() {
   };
 
   const allTabs = [
-    { id: 'calllogs', label: '📞 Call Logs', count: callLogs.length },
+    { id: 'calllogs', label: '📞 AI Receptionist', count: callLogs.length },
     { id: 'website', label: 'Website Leads', count: websiteLeads.filter(l => { const s = (l['Status'] || l['status'] || '').toUpperCase(); return s !== 'BAD' && s !== 'PROMOTED'; }).length },
     { id: 'new', label: 'New Leads', count: stats.newLeads },
     { id: 'scheduled', label: 'Scheduled', count: stats.scheduled },
@@ -1158,7 +1158,7 @@ export default function Dashboard() {
                   {filteredLeads.map((lead, index) => {
                     const status = lead['Status']?.toUpperCase() || '';
 
-                    // Call Logs view - with Promote/Dismiss actions
+                    // AI Receptionist view - with Promote/Dismiss actions
                     if (currentView === 'calllogs') {
                       const outcomeStyles: Record<string, string> = {
                         'BOOKED': 'bg-emerald-100 text-emerald-700',
