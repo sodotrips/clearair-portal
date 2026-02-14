@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     row[11] = 'Phone - AI Receptionist';
     row[12] = ''; // Referral Source
     row[16] = service;
-    row[19] = 'AI Receptionist, see Call Logs for transcripts';
+    row[19] = `AI Receptionist (${callLogId}) - see Call Logs for transcript`;
     row[43] = appointmentDate !== '(none)' ? appointmentDate : '';
     row[45] = timeWindow !== '(none)' ? timeWindow : '';
     row[117] = houstonTime;

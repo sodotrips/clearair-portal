@@ -44,6 +44,10 @@ export default function TechPortal() {
   const [editNotes, setEditNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Transcript viewing state
+  const [viewingTranscript, setViewingTranscript] = useState<any>(null);
+  const [loadingTranscript, setLoadingTranscript] = useState(false);
+
   const propertyTypes = ['Single Family', 'Townhouse', 'Apartment', 'Commercial - Office'];
 
   const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
@@ -202,6 +206,30 @@ export default function TechPortal() {
       alert('Failed to connect to server');
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Extract Call Log ID from notes (e.g., "AI Receptionist (CALL-12345678)")
+  function extractCallLogId(notes: string): string | null {
+    const match = notes?.match(/CALL-\d+/);
+    return match ? match[0] : null;
+  }
+
+  // Fetch transcript from Call Log
+  async function fetchTranscript(callLogId: string) {
+    setLoadingTranscript(true);
+    try {
+      const response = await fetch(`/api/call-logs/transcript?id=${callLogId}`);
+      const data = await response.json();
+      if (data.success) {
+        setViewingTranscript(data.callLog);
+      } else {
+        alert('Could not load transcript: ' + (data.error || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('Failed to connect to server');
+    } finally {
+      setLoadingTranscript(false);
     }
   }
 
@@ -794,6 +822,23 @@ export default function TechPortal() {
                           <div className="bg-slate-50 rounded-lg p-3">
                             <p className="text-sm font-semibold text-slate-500 mb-1">NOTES</p>
                             <p className="text-base text-slate-700">{job['Customer Issue/Notes']}</p>
+                            {/* Show View Transcript button for AI Receptionist leads */}
+                            {extractCallLogId(job['Customer Issue/Notes']) && (
+                              <button
+                                onClick={() => fetchTranscript(extractCallLogId(job['Customer Issue/Notes'])!)}
+                                disabled={loadingTranscript}
+                                className="mt-2 px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition disabled:opacity-50"
+                              >
+                                {loadingTranscript ? (
+                                  <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                                ) : (
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                )}
+                                View Call Transcript
+                              </button>
+                            )}
                           </div>
                         )}
 
@@ -1147,6 +1192,78 @@ export default function TechPortal() {
                     Create Lead
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transcript Modal */}
+      {viewingTranscript && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setViewingTranscript(null)}>
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="bg-purple-600 text-white px-5 py-4 flex justify-between items-center">
+              <div>
+                <h2 className="text-lg font-semibold">Call Transcript</h2>
+                <p className="text-purple-200 text-sm">{viewingTranscript.id} • {viewingTranscript.timestamp}</p>
+              </div>
+              <button
+                onClick={() => setViewingTranscript(null)}
+                className="text-purple-200 hover:text-white transition"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Call Info */}
+            <div className="px-5 py-3 bg-slate-50 border-b grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs text-slate-500">Caller</p>
+                <p className="font-medium text-slate-800">{viewingTranscript.customerName || '(unknown)'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Phone</p>
+                <a href={`tel:${viewingTranscript.callerPhone?.replace(/\D/g, '')}`} className="font-medium text-teal-600">
+                  {viewingTranscript.callerPhone || '-'}
+                </a>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Service</p>
+                <p className="font-medium text-slate-800">{viewingTranscript.service || '-'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Outcome</p>
+                <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                  viewingTranscript.outcome === 'BOOKED' ? 'bg-emerald-100 text-emerald-700' :
+                  viewingTranscript.outcome === 'INQUIRY' ? 'bg-blue-100 text-blue-700' :
+                  'bg-slate-100 text-slate-600'
+                }`}>
+                  {viewingTranscript.outcome || '-'}
+                </span>
+              </div>
+            </div>
+
+            {/* Transcript */}
+            <div className="px-5 py-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 220px)' }}>
+              <p className="text-sm font-semibold text-slate-500 mb-2">FULL TRANSCRIPT</p>
+              <div className="bg-slate-50 rounded-lg p-4 text-sm text-slate-700 whitespace-pre-wrap font-mono leading-relaxed">
+                {viewingTranscript.transcript || '(No transcript available)'}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3 bg-slate-50 border-t">
+              <button
+                onClick={() => setViewingTranscript(null)}
+                className="w-full py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-medium transition"
+              >
+                Close
               </button>
             </div>
           </div>
