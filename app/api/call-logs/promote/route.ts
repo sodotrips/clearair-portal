@@ -56,7 +56,6 @@ export async function POST(request: NextRequest) {
     const service = callLogRow[4] || 'Air Duct Cleaning';
     const appointmentDate = callLogRow[9] || '';
     const timeWindow = callLogRow[10] || '';
-    const transcript = callLogRow[11] || '';
 
     // Generate new Lead ID
     const leadId = await generateLeadId(sheets);
@@ -93,7 +92,7 @@ export async function POST(request: NextRequest) {
     row[11] = 'Phone - AI Receptionist';
     row[12] = ''; // Referral Source
     row[16] = service;
-    row[19] = `Promoted from Call Log (${callLogId}). ${transcript.substring(0, 200)}`;
+    row[19] = 'AI Receptionist, see Call Logs for transcripts';
     row[43] = appointmentDate !== '(none)' ? appointmentDate : '';
     row[45] = timeWindow !== '(none)' ? timeWindow : '';
     row[117] = houstonTime;

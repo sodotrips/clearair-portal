@@ -389,6 +389,9 @@ export default function Dashboard() {
 
   // Promote a call log to Active Leads
   async function handlePromoteCallLog(callLog: Lead) {
+    // Optimistic update - remove from UI immediately
+    setCallLogs(prev => prev.filter(c => c['Call Log ID'] !== callLog['Call Log ID']));
+
     try {
       const response = await fetch('/api/call-logs/promote', {
         method: 'POST',
@@ -401,12 +404,15 @@ export default function Dashboard() {
       const data = await response.json();
       if (data.success) {
         alert(`Promoted to ${data.leadId}`);
-        fetchCallLogs();
         fetchLeads();
       } else {
+        // Revert on error
+        fetchCallLogs();
         alert('Error: ' + data.error);
       }
     } catch (err) {
+      // Revert on error
+      fetchCallLogs();
       alert('Failed to promote call log');
     }
   }
@@ -414,6 +420,10 @@ export default function Dashboard() {
   // Dismiss a call log
   async function handleDismissCallLog(callLog: Lead) {
     if (!confirm('Dismiss this call? It will be hidden from the pending list.')) return;
+
+    // Optimistic update - remove from UI immediately
+    setCallLogs(prev => prev.filter(c => c['Call Log ID'] !== callLog['Call Log ID']));
+
     try {
       const response = await fetch('/api/call-logs/dismiss', {
         method: 'POST',
@@ -424,12 +434,14 @@ export default function Dashboard() {
         }),
       });
       const data = await response.json();
-      if (data.success) {
+      if (!data.success) {
+        // Revert on error
         fetchCallLogs();
-      } else {
         alert('Error: ' + data.error);
       }
     } catch (err) {
+      // Revert on error
+      fetchCallLogs();
       alert('Failed to dismiss call log');
     }
   }
