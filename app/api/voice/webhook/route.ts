@@ -329,8 +329,8 @@ export async function POST(request: NextRequest) {
       callOutcome = 'BOOKED';
     } else if (!lead.customerName && !phoneDigits) {
       callOutcome = 'SPAM/HANGUP';
-    } else if (transcript?.toLowerCase().includes('transfer') || transcript?.toLowerCase().includes('speak to someone')) {
-      callOutcome = 'TRANSFER REQUEST';
+    } else if (transcript?.toLowerCase().includes('callback') || transcript?.toLowerCase().includes('call back') || transcript?.toLowerCase().includes('call me back')) {
+      callOutcome = 'CALLBACK REQUESTED';
     }
 
     // Save to Google Sheet
