@@ -22,6 +22,7 @@ export default function Dashboard() {
   const { data: session } = useSession();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [websiteLeads, setWebsiteLeads] = useState<Lead[]>([]);
+  const [callLogs, setCallLogs] = useState<Lead[]>([]);
   const [filteredLeads, setFilteredLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -98,6 +99,7 @@ export default function Dashboard() {
     quoted: [80, 110, 100, 160, 140, 200, 120, 160, 100, 110, 100, 120, 100, 100, 90, 90, 90, 90],
     closed: [50, 110, 100, 160, 140, 200, 120, 160, 100, 110, 100, 120, 100, 100, 90, 90, 90, 90],
     canceled: [140, 110, 100, 160, 140, 200, 120, 160, 100, 110],
+    calllogs: [140, 160, 140, 150, 150, 120, 120, 300],
   };
   const [columnWidths, setColumnWidths] = useState<Record<string, number[]>>(defaultWidths);
   const resizingRef = useRef<{ index: number; startX: number; startWidth: number } | null>(null);
@@ -105,6 +107,7 @@ export default function Dashboard() {
   useEffect(() => {
     fetchLeads();
     fetchWebsiteLeads();
+    fetchCallLogs();
     fetchAgentSettings();
   }, []);
 
@@ -113,6 +116,7 @@ export default function Dashboard() {
     const refreshInterval = setInterval(() => {
       fetchLeads();
       fetchWebsiteLeads();
+      fetchCallLogs();
       setLastRefresh(new Date());
     }, 30000); // 30 seconds
 
@@ -121,7 +125,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     filterLeadsByView();
-  }, [leads, websiteLeads, currentView, searchTerm, sortColumn, sortDirection]);
+  }, [leads, websiteLeads, callLogs, currentView, searchTerm, sortColumn, sortDirection]);
 
   // Handle column sort
   const handleSort = (column: string) => {
@@ -370,6 +374,65 @@ export default function Dashboard() {
     }
   }
 
+  async function fetchCallLogs() {
+    try {
+      const response = await fetch('/api/call-logs');
+      const data = await response.json();
+      if (!data.error) {
+        setCallLogs(data.callLogs || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch call logs');
+    }
+  }
+
+  // Promote a call log to Active Leads
+  async function handlePromoteCallLog(callLog: Lead) {
+    try {
+      const response = await fetch('/api/call-logs/promote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          callLogId: callLog['Call Log ID'],
+          rowIndex: callLog.rowIndex,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert(`Promoted to ${data.leadId}`);
+        fetchCallLogs();
+        fetchLeads();
+      } else {
+        alert('Error: ' + data.error);
+      }
+    } catch (err) {
+      alert('Failed to promote call log');
+    }
+  }
+
+  // Dismiss a call log
+  async function handleDismissCallLog(callLog: Lead) {
+    if (!confirm('Dismiss this call? It will be hidden from the pending list.')) return;
+    try {
+      const response = await fetch('/api/call-logs/dismiss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          callLogId: callLog['Call Log ID'],
+          rowIndex: callLog.rowIndex,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        fetchCallLogs();
+      } else {
+        alert('Error: ' + data.error);
+      }
+    } catch (err) {
+      alert('Failed to dismiss call log');
+    }
+  }
+
   // Promote a website lead to Active Leads
   async function handlePromoteLead(lead: Lead) {
     // Case-insensitive field lookup helper
@@ -553,6 +616,18 @@ export default function Dashboard() {
       return;
     }
 
+    if (currentView === 'calllogs') {
+      filtered = callLogs;
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        filtered = filtered.filter(log =>
+          Object.values(log).some(val => (val || '').toLowerCase().includes(term))
+        );
+      }
+      setFilteredLeads(filtered);
+      return;
+    }
+
     if (currentView === 'new') {
       filtered = leads.filter(l => l['Status']?.toUpperCase() === 'NEW');
     } else if (currentView === 'scheduled') {
@@ -619,6 +694,7 @@ export default function Dashboard() {
   };
 
   const allTabs = [
+    { id: 'calllogs', label: '📞 Call Logs', count: callLogs.length },
     { id: 'website', label: 'Website Leads', count: websiteLeads.filter(l => { const s = (l['Status'] || l['status'] || '').toUpperCase(); return s !== 'BAD' && s !== 'PROMOTED'; }).length },
     { id: 'new', label: 'New Leads', count: stats.newLeads },
     { id: 'scheduled', label: 'Scheduled', count: stats.scheduled },
@@ -639,6 +715,7 @@ export default function Dashboard() {
   ];
 
   const columnsByView: Record<string, string[]> = {
+    calllogs: ['Actions', 'Timestamp', 'Caller Phone', 'Customer Name', 'Service Inquiry', 'Outcome', 'Appt Date', 'Transcript'],
     website: ['Actions', ...websiteLeadCols],
     new: ['Actions', 'Lead ID', 'Status', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Created', 'Technician', 'Appointment', 'Customer Notes'],
     scheduled: ['Actions', 'Lead ID', 'Status', 'Brand', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Technician', 'Appointment', 'Time Window', 'Follow-up'],
@@ -1079,6 +1156,70 @@ export default function Dashboard() {
                 <tbody>
                   {filteredLeads.map((lead, index) => {
                     const status = lead['Status']?.toUpperCase() || '';
+
+                    // Call Logs view - with Promote/Dismiss actions
+                    if (currentView === 'calllogs') {
+                      const outcomeStyles: Record<string, string> = {
+                        'BOOKED': 'bg-emerald-100 text-emerald-700',
+                        'INQUIRY': 'bg-blue-100 text-blue-700',
+                        'CALLBACK REQUESTED': 'bg-amber-100 text-amber-700',
+                        'SPAM/HANGUP': 'bg-red-100 text-red-600',
+                      };
+                      const outcome = lead['Outcome'] || '';
+                      return (
+                        <tr key={index} className="hover:bg-slate-50 transition border-b border-slate-300">
+                          {/* Actions column */}
+                          <td className="px-0 py-1 bg-slate-100 border border-slate-300" style={{ width: 140, minWidth: 140, maxWidth: 140 }}>
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => handlePromoteCallLog(lead)}
+                                className="px-2 py-1 text-xs bg-emerald-500 hover:bg-emerald-600 text-white rounded transition font-medium"
+                              >
+                                ✓ Promote
+                              </button>
+                              <button
+                                onClick={() => handleDismissCallLog(lead)}
+                                className="px-2 py-1 text-xs bg-slate-400 hover:bg-slate-500 text-white rounded transition font-medium"
+                              >
+                                ✗
+                              </button>
+                            </div>
+                          </td>
+                          {/* Timestamp */}
+                          <td className="px-3 py-2 text-xs text-slate-600" style={{ width: 160 }}>
+                            {lead['Timestamp'] || ''}
+                          </td>
+                          {/* Caller Phone */}
+                          <td className="px-3 py-2 text-sm" style={{ width: 140 }}>
+                            <a href={`tel:${(lead['Caller Phone'] || '').replace(/\D/g, '')}`} className="text-teal-600 hover:text-teal-800 font-medium">
+                              {lead['Caller Phone'] || ''}
+                            </a>
+                          </td>
+                          {/* Customer Name */}
+                          <td className="px-3 py-2 text-sm text-slate-800 font-medium" style={{ width: 150 }}>
+                            {lead['Customer Name'] || '(unknown)'}
+                          </td>
+                          {/* Service Inquiry */}
+                          <td className="px-3 py-2 text-sm text-slate-600" style={{ width: 150 }}>
+                            {lead['Service Inquiry'] || ''}
+                          </td>
+                          {/* Outcome */}
+                          <td className="px-3 py-2" style={{ width: 120 }}>
+                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${outcomeStyles[outcome] || 'bg-slate-100 text-slate-600'}`}>
+                              {outcome || '-'}
+                            </span>
+                          </td>
+                          {/* Appt Date */}
+                          <td className="px-3 py-2 text-sm text-slate-600" style={{ width: 120 }}>
+                            {lead['Appt Date'] !== '(none)' ? lead['Appt Date'] : '-'}
+                          </td>
+                          {/* Transcript */}
+                          <td className="px-3 py-2 text-xs text-slate-500 truncate" style={{ width: 300, maxWidth: 300 }}>
+                            {(lead['Full Transcript'] || '').substring(0, 150)}...
+                          </td>
+                        </tr>
+                      );
+                    }
 
                     // Website Leads view - read-only table with Promote action
                     if (currentView === 'website') {
