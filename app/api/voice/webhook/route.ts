@@ -3,7 +3,8 @@ import { google } from 'googleapis';
 import { getAuthClient, SPREADSHEET_ID, SHEET_NAME } from '@/lib/google-sheets';
 import { client, formatPhoneForTwilio, getSenderParams, shouldSendSMS } from '@/lib/twilio';
 
-const OWNER_PHONE = '2819484922'; // Owner's phone for notifications
+const OWNER_PHONE = '2818140061'; // Owner's phone for notifications
+const CALL_LOG_SHEET = 'CALL LOG'; // All calls go here for analytics
 
 // Generate sequential Lead ID
 async function generateLeadId(sheets: any): Promise<string> {
@@ -297,17 +298,6 @@ export async function POST(request: NextRequest) {
       ? `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`
       : phoneDigits;
 
-    // If no customer name but we have a phone number and transcript, still save it
-    if (!lead.customerName && !phoneDigits) {
-      console.log('Voice webhook: No customer name or phone, skipping');
-      return NextResponse.json({
-        success: true,
-        skipped: true,
-        reason: 'No customer name or phone number',
-        debug: { payloadKeys: Object.keys(payload), structuredDataKeys: Object.keys(structuredData) }
-      });
-    }
-
     // Use "Unknown Caller" if no name but we have phone
     if (!lead.customerName && phoneDigits) {
       lead.customerName = `Caller ${phoneDigits.slice(-4)}`;
@@ -330,107 +320,193 @@ export async function POST(request: NextRequest) {
       hour12: true
     });
 
-    // Determine status
-    const status = appointmentDate ? 'SCHEDULED' : 'NEW';
+    // Get call duration if available
+    const callDuration = payload.message?.call?.duration || payload.call?.duration || '';
+
+    // Determine call outcome
+    let callOutcome = 'INQUIRY';
+    if (appointmentDate && lead.customerName && phoneDigits) {
+      callOutcome = 'BOOKED';
+    } else if (!lead.customerName && !phoneDigits) {
+      callOutcome = 'SPAM/HANGUP';
+    } else if (transcript?.toLowerCase().includes('transfer') || transcript?.toLowerCase().includes('speak to someone')) {
+      callOutcome = 'TRANSFER REQUEST';
+    }
 
     // Save to Google Sheet
     const auth = await getAuthClient();
     const sheets = google.sheets({ version: 'v4', auth });
 
-    const leadId = await generateLeadId(sheets);
+    // ============================================
+    // STEP 1: ALWAYS save to CALL LOG (all calls)
+    // ============================================
+    const callLogId = `CALL-${Date.now().toString().slice(-8)}`;
+    const isValidLead = !!(appointmentDate && lead.customerName && phoneDigits);
 
-    // Build full row
-    const row = new Array(125).fill('');
+    try {
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${CALL_LOG_SHEET}!A:L`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [[
+            callLogId,                                    // A: Call Log ID
+            houstonTime,                                  // B: Timestamp
+            formattedPhone || customerPhone || '(unknown)', // C: Caller Phone
+            lead.customerName || '(not captured)',        // D: Customer Name
+            lead.service || '(not specified)',            // E: Service Inquiry
+            callOutcome,                                  // F: Outcome (BOOKED, INQUIRY, SPAM/HANGUP, TRANSFER REQUEST)
+            isValidLead ? 'YES' : 'NO',                   // G: Promoted to Lead?
+            isValidLead ? '' : '',                        // H: Lead ID (filled below if promoted)
+            callDuration ? `${Math.round(callDuration)}s` : '', // I: Duration
+            appointmentDate || '(none)',                  // J: Appointment Date
+            timeWindow || '(none)',                       // K: Time Window
+            (transcript || '').substring(0, 300),         // L: Transcript Preview
+          ]],
+        },
+      });
+      console.log(`Voice webhook: Call logged to CALL LOG - ${callLogId} (${callOutcome})`);
+    } catch (callLogError) {
+      console.error('Failed to save to CALL LOG:', callLogError);
+      // Continue - don't fail if call log save fails
+    }
 
-    row[0] = leadId;
-    row[1] = status;
-    row[2] = 'MEDIUM';
-    row[3] = createdDate;
-    row[4] = lead.customerName;
-    row[5] = formattedPhone;
-    row[6] = '';
-    row[7] = lead.address;
-    row[8] = lead.city;
-    row[9] = lead.zip;
-    row[10] = '';
-    row[11] = 'Organic';
-    row[12] = '';
-    row[16] = lead.service;
-    row[17] = '';
-    row[18] = '';
-    row[19] = 'Customer called in AI Receptionist, see Transcripts for more details.';
-    row[43] = appointmentDate;
-    row[45] = timeWindow;
-    row[50] = lead.accessInstructions;
-    row[51] = lead.gateCode;
-    row[53] = lead.pets;
-    row[117] = houstonTime;
-    row[118] = 'AI Receptionist';
+    // ============================================
+    // STEP 2: Only save to ACTIVE LEADS if valid
+    // (has name + phone + appointment date)
+    // ============================================
+    let leadId = '';
 
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A:DU`,
-      valueInputOption: 'USER_ENTERED',
-      requestBody: {
-        values: [row],
-      },
-    });
+    if (isValidLead) {
+      leadId = await generateLeadId(sheets);
 
-    console.log(`Voice webhook: Lead ${leadId} saved to Google Sheets`);
+      // Build full row for ACTIVE LEADS
+      const row = new Array(125).fill('');
+
+      row[0] = leadId;
+      row[1] = 'SCHEDULED';
+      row[2] = 'MEDIUM';
+      row[3] = createdDate;
+      row[4] = lead.customerName;
+      row[5] = formattedPhone;
+      row[6] = '';
+      row[7] = lead.address;
+      row[8] = lead.city;
+      row[9] = lead.zip;
+      row[10] = '';
+      row[11] = 'Phone - AI Receptionist';
+      row[12] = '';
+      row[16] = lead.service;
+      row[17] = '';
+      row[18] = '';
+      row[19] = `Customer called in via AI Receptionist. Call Log ID: ${callLogId}`;
+      row[43] = appointmentDate;
+      row[45] = timeWindow;
+      row[50] = lead.accessInstructions;
+      row[51] = lead.gateCode;
+      row[53] = lead.pets;
+      row[117] = houstonTime;
+      row[118] = 'AI Receptionist';
+
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: SPREADSHEET_ID,
+        range: `${SHEET_NAME}!A:DU`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [row],
+        },
+      });
+
+      console.log(`Voice webhook: Lead ${leadId} promoted to ACTIVE LEADS`);
+
+      // Update CALL LOG with the Lead ID
+      // Find the row we just added and update column H
+      try {
+        const callLogData = await sheets.spreadsheets.values.get({
+          spreadsheetId: SPREADSHEET_ID,
+          range: `${CALL_LOG_SHEET}!A:A`,
+        });
+        const callLogRows = callLogData.data.values || [];
+        const rowIndex = callLogRows.findIndex((r: string[]) => r[0] === callLogId);
+        if (rowIndex >= 0) {
+          await sheets.spreadsheets.values.update({
+            spreadsheetId: SPREADSHEET_ID,
+            range: `${CALL_LOG_SHEET}!H${rowIndex + 1}`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values: [[leadId]] },
+          });
+        }
+      } catch (updateError) {
+        console.error('Failed to update CALL LOG with Lead ID:', updateError);
+      }
+    } else {
+      console.log(`Voice webhook: Call logged but NOT promoted (missing: ${!lead.customerName ? 'name ' : ''}${!phoneDigits ? 'phone ' : ''}${!appointmentDate ? 'appointment' : ''})`);
+    }
 
     // Save full transcript to separate TRANSCRIPTS tab (with debug info)
     try {
-      // Create debug info showing where structured data was found
       const artifactObj = payload.message?.artifact || payload.artifact || {};
       const debugInfo = JSON.stringify({
         hasStructuredOutputs: !!artifactObj.structuredOutputs,
-        structuredOutputsType: Array.isArray(artifactObj.structuredOutputs) ? 'array' : typeof artifactObj.structuredOutputs,
-        structuredOutputsKeys: Object.keys(artifactObj.structuredOutputs || {}),
-        structuredOutputsRaw: artifactObj.structuredOutputs,
         structuredDataExtracted: structuredData,
+        callOutcome,
+        isValidLead,
       });
 
       await sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID,
-        range: 'TRANSCRIPTS!A:D',
+        range: 'TRANSCRIPTS!A:E',
         valueInputOption: 'USER_ENTERED',
         requestBody: {
-          values: [[leadId, transcript || '(no transcript)', houstonTime, debugInfo]],
+          values: [[callLogId, leadId || '(not promoted)', transcript || '(no transcript)', houstonTime, debugInfo]],
         },
       });
-      console.log(`Voice webhook: Transcript saved for ${leadId}`);
+      console.log(`Voice webhook: Transcript saved for ${callLogId}`);
     } catch (transcriptError) {
       console.error('Failed to save transcript:', transcriptError);
-      // Don't fail the whole request if transcript save fails
     }
 
-    // Send SMS notification
+    // Send SMS notification - different message for booked vs inquiry
     let smsStatus = 'not attempted';
     try {
       const smsCheck = shouldSendSMS(OWNER_PHONE);
       if (client && smsCheck.allowed) {
-        const appointmentInfo = appointmentDate
-          ? `📅 ${appointmentDate}${timeWindow ? ` (${timeWindow})` : ''}`
-          : '⏳ No appointment set - needs callback';
+        let smsBody = '';
 
-        const smsBody = `📞 NEW LEAD (AI)
+        if (isValidLead) {
+          // BOOKED APPOINTMENT - Full details
+          smsBody = `✅ NEW BOOKING (AI)
 
 Name: ${lead.customerName}
 Phone: ${formattedPhone}
 Address: ${lead.address}${lead.city ? ', ' + lead.city : ''}${lead.zip ? ' ' + lead.zip : ''}
 Service: ${lead.service}
-${appointmentInfo}${lead.gateCode ? `\nGate: ${lead.gateCode}` : ''}
+📅 ${appointmentDate}${timeWindow ? ` (${timeWindow})` : ''}${lead.gateCode ? `\nGate: ${lead.gateCode}` : ''}
 
 Lead ID: ${leadId}`;
+        } else if (phoneDigits || lead.customerName) {
+          // INQUIRY ONLY - no appointment, but has some info
+          smsBody = `📞 AI CALL (No Booking)
 
-        await client.messages.create({
-          body: smsBody,
-          ...getSenderParams(),
-          to: formatPhoneForTwilio(OWNER_PHONE),
-        });
+Name: ${lead.customerName || '(unknown)'}
+Phone: ${formattedPhone || '(unknown)'}
+Outcome: ${callOutcome}
 
-        console.log(`Voice webhook: SMS sent to ${OWNER_PHONE}`);
-        smsStatus = 'sent';
+Review in CALL LOG: ${callLogId}`;
+        }
+
+        // Only send SMS if we have content
+        if (smsBody) {
+          await client.messages.create({
+            body: smsBody,
+            ...getSenderParams(),
+            to: formatPhoneForTwilio(OWNER_PHONE),
+          });
+          console.log(`Voice webhook: SMS sent to ${OWNER_PHONE}`);
+          smsStatus = 'sent';
+        } else {
+          smsStatus = 'skipped: no meaningful data to report';
+        }
       } else {
         smsStatus = `skipped: ${smsCheck.reason || 'client not configured'}`;
       }
@@ -441,9 +517,12 @@ Lead ID: ${leadId}`;
 
     return NextResponse.json({
       success: true,
-      leadId,
+      callLogId,
+      leadId: leadId || null,
+      outcome: callOutcome,
+      promotedToLead: isValidLead,
       smsStatus,
-      message: 'Lead saved to Google Sheets'
+      message: isValidLead ? 'Appointment booked - added to ACTIVE LEADS' : 'Call logged - not promoted (missing required fields)'
     });
 
   } catch (error) {
