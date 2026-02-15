@@ -53,6 +53,7 @@ export default function CheckoutModal({ lead, onClose, onSuccess }: CheckoutModa
         updates['Invoice Number'] = invoiceNumber;  // Column CC
         updates['Amount Paid'] = totalPaid;
         updates['Payment Method'] = paymentMethod;
+        updates['Quote Amount'] = totalPaid;  // Column AP - same as Amount Paid
       } else {
         // Job quoted - no payment yet
         updates['Status'] = 'QUOTED';
