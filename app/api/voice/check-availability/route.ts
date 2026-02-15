@@ -4,6 +4,17 @@ import { getAuthClient, SPREADSHEET_ID, SHEET_NAME } from '@/lib/google-sheets';
 
 const MAX_BOOKINGS_PER_SLOT = 2;
 
+// BLOCKED DATES - Owner unavailable (format: MM/DD/YYYY)
+// Update this array when you have vacation or days off
+const BLOCKED_DATES = [
+  '02/18/2026',
+  '02/19/2026',
+  '02/20/2026',
+  '02/21/2026',
+  '02/22/2026',
+  '02/23/2026',
+];
+
 // Column indices (0-based)
 const COLUMNS = {
   STATUS: 1,           // B - Status
@@ -37,6 +48,20 @@ export async function POST(request: NextRequest) {
         error: 'Invalid date format',
         available: false
       }, { status: 400 });
+    }
+
+    // Check if date is blocked (owner unavailable)
+    if (BLOCKED_DATES.includes(normalizedDate)) {
+      // Find next available date after blocked period
+      const nextAvailable = findNextAvailableDate(normalizedDate);
+      return NextResponse.json({
+        available: false,
+        date: normalizedDate,
+        timeWindow: timeWindow || 'Any',
+        reason: 'blocked',
+        message: `We're fully booked on that date. Our next availability is ${nextAvailable}.`,
+        nextAvailableDate: nextAvailable,
+      });
     }
 
     // Fetch all leads from Google Sheets
@@ -271,6 +296,32 @@ async function findAlternativeSlots(
   }
 
   return alternatives.slice(0, 2); // Return max 2 alternatives
+}
+
+// Find next available date after blocked dates
+function findNextAvailableDate(fromDate: string): string {
+  const [month, day, year] = fromDate.split('/').map(Number);
+  let date = new Date(year, month - 1, day);
+
+  // Keep incrementing until we find a non-blocked date
+  for (let i = 0; i < 30; i++) {
+    date.setDate(date.getDate() + 1);
+    const checkDate = `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${date.getFullYear()}`;
+
+    // Skip Sundays (day 0)
+    if (date.getDay() === 0) continue;
+
+    if (!BLOCKED_DATES.includes(checkDate)) {
+      // Return in friendly format
+      return date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric'
+      });
+    }
+  }
+
+  return 'Monday, February 24th'; // Fallback
 }
 
 // Get next day in MM/DD/YYYY format
