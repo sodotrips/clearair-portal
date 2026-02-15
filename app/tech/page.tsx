@@ -624,7 +624,7 @@ export default function TechPortal() {
 
                     {/* Confirmation Status */}
                     {(() => {
-                      const status = job['AU']?.toUpperCase();
+                      const status = job['Appointment Confirmed']?.toUpperCase();
                       if (status === 'YES') {
                         return (
                           <div className="mt-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg inline-flex items-center gap-2 text-sm">
