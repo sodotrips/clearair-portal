@@ -30,14 +30,30 @@ export default function CloseDealModal({ lead, onClose, onSuccess }: CloseDealMo
   // Helper to parse a numeric value from a string (strips $, commas, etc.)
   const parseNum = (val: string) => parseFloat(val.replace(/[^0-9.-]/g, '')) || 0;
 
-  // Editable fields
+  // Payment fields - pre-filled from tech checkout (read-only if already set)
   const [amountPaid, setAmountPaid] = useState(lead['Amount Paid'] || '');
   const [paymentMethod, setPaymentMethod] = useState(lead['Payment Method'] || '');
+  const paymentFromTech = !!(lead['Amount Paid'] && lead['Payment Method']);
   const [paymentDate, setPaymentDate] = useState(lead['Payment Date'] || getTodayHouston());
   const [laborCost, setLaborCost] = useState(lead['Labor Cost'] || '');
   const [materialCost, setMaterialCost] = useState(lead['Material Cost'] || '');
   const [subcontractorCost, setSubcontractorCost] = useState(lead['Subcontractor Cost'] || '');
-  const [totalCost, setTotalCost] = useState(lead['Total Cost'] || '');
+
+  // Auto-calculate Total Cost from Amount Paid (including if pre-filled by tech)
+  const calculateTotalCostFromPaid = (paid: string) => {
+    const paidNum = parseFloat(paid.replace(/[^0-9.-]/g, '')) || 0;
+    if (paidNum > 0) {
+      return (paidNum / 1.0825).toFixed(2); // Remove 8.25% tax
+    }
+    return '';
+  };
+
+  const [totalCost, setTotalCost] = useState(() => {
+    // If Total Cost exists in sheet, use it; otherwise calculate from Amount Paid
+    if (lead['Total Cost']) return lead['Total Cost'];
+    if (lead['Amount Paid']) return calculateTotalCostFromPaid(lead['Amount Paid']);
+    return '';
+  });
 
   // Commission form state
   const [sophiaCommission, setSophiaCommission] = useState(lead['Sophia Commission %'] || '');
@@ -172,7 +188,14 @@ export default function CloseDealModal({ lead, onClose, onSuccess }: CloseDealMo
           <div className="space-y-4">
             {/* Payment Info */}
             <div className="bg-slate-50 rounded-lg p-4 space-y-3">
-              <h3 className="text-sm font-semibold text-slate-700">Payment Information</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-700">Payment Information</h3>
+                {paymentFromTech && (
+                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                    From Tech Checkout
+                  </span>
+                )}
+              </div>
 
               {/* Row 1: Payment Method, Payment Date */}
               <div className="grid grid-cols-2 gap-3">
@@ -181,7 +204,7 @@ export default function CloseDealModal({ lead, onClose, onSuccess }: CloseDealMo
                   <select
                     value={paymentMethod}
                     onChange={(e) => setPaymentMethod(e.target.value)}
-                    className={inputClass}
+                    className={paymentFromTech ? `${inputClass} border-green-300 bg-green-50` : inputClass}
                   >
                     <option value="">Select...</option>
                     <option value="Cash">Cash</option>
@@ -222,7 +245,7 @@ export default function CloseDealModal({ lead, onClose, onSuccess }: CloseDealMo
                       }
                     }}
                     placeholder="$0.00"
-                    className={inputClass}
+                    className={paymentFromTech ? `${inputClass} border-green-300 bg-green-50` : inputClass}
                   />
                 </div>
                 <div>

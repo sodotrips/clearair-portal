@@ -14,6 +14,7 @@ interface ScheduleModalProps {
 
 export default function ScheduleModal({ lead, onClose, onSuccess }: ScheduleModalProps) {
   const [loading, setLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
   const [error, setError] = useState('');
 
   const techs = ['Amit', 'Tech 2', 'Subcontractor'];
@@ -122,6 +123,57 @@ export default function ScheduleModal({ lead, onClose, onSuccess }: ScheduleModa
     }
   };
 
+  // Cancel appointment - reset to NEW, clear date/time, update notes
+  const handleCancelAppointment = async () => {
+    if (!confirm('Cancel this appointment? Status will be set to NEW and appointment details cleared.')) return;
+
+    setCancelLoading(true);
+    setError('');
+
+    try {
+      // Get current notes and append cancellation note
+      const currentNotes = lead['Customer Issue/Notes'] || '';
+      const timestamp = new Date().toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        timeZone: 'America/Chicago'
+      });
+      const cancelNote = `[${timestamp}] Customer cancelled appt, reschedule TBD`;
+      const updatedNotes = currentNotes
+        ? `${currentNotes}\n${cancelNote}`
+        : cancelNote;
+
+      const updates: Record<string, string> = {
+        'Status': 'NEW',
+        'Appointment Date': '',
+        'Time Window': '',
+        'Customer Issue/Notes': updatedNotes,
+      };
+
+      const response = await fetch('/api/leads/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rowIndex: lead.rowIndex,
+          updates,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        onSuccess();
+        onClose();
+      } else {
+        setError(result.error || 'Failed to cancel appointment');
+      }
+    } catch (err) {
+      setError('Failed to connect to server');
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
   const inputClass = "w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] focus:outline-none transition text-sm";
   const labelClass = "block text-slate-700 text-sm font-medium mb-1.5";
 
@@ -202,6 +254,33 @@ export default function ScheduleModal({ lead, onClose, onSuccess }: ScheduleModa
             <p className="text-xs text-slate-500 mt-1">Auto-set to appointment + 3 days (editable)</p>
           </div>
 
+          {/* Cancel Appointment Button - only show if already scheduled */}
+          {lead['Status']?.toUpperCase() === 'SCHEDULED' && lead['Appointment Date'] && (
+            <div className="pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={handleCancelAppointment}
+                disabled={cancelLoading}
+                className="w-full px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg font-medium transition text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {cancelLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin"></div>
+                    Cancelling...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Cancel Appointment (Reschedule TBD)
+                  </>
+                )}
+              </button>
+              <p className="text-xs text-slate-500 mt-1.5 text-center">Sets status to NEW and clears appointment</p>
+            </div>
+          )}
+
           {/* Buttons */}
           <div className="flex gap-3 pt-4">
             <button
@@ -209,11 +288,11 @@ export default function ScheduleModal({ lead, onClose, onSuccess }: ScheduleModa
               onClick={onClose}
               className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition text-sm"
             >
-              Cancel
+              Close
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || cancelLoading}
               className="flex-1 px-4 py-2.5 bg-[#14b8a6] hover:bg-[#0d9488] text-white rounded-lg font-medium transition text-sm disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? (

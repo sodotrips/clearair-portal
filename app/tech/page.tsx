@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 import ScheduleModal from '../components/ScheduleModal';
 import QuoteModal from '../components/QuoteModal';
+import CheckoutModal from '../components/CheckoutModal';
 
 // Dynamically import the map to avoid SSR issues with Leaflet
 const JobMap = dynamic(() => import('../components/JobMap'), {
@@ -28,11 +29,13 @@ export default function TechPortal() {
   const [error, setError] = useState('');
   const [selectedTech, setSelectedTech] = useState(() => session?.user?.name || 'Amit');
   const [checkingIn, setCheckingIn] = useState<string | null>(null);
+  const [cancellingAppt, setCancellingAppt] = useState<string | null>(null);
   const [rescheduleJob, setRescheduleJob] = useState<Lead | null>(null);
   const [addServiceJob, setAddServiceJob] = useState<Lead | null>(null);
   const [addingService, setAddingService] = useState(false);
   const [selectedNewService, setSelectedNewService] = useState('');
   const [quoteJob, setQuoteJob] = useState<Lead | null>(null);
+  const [checkoutJob, setCheckoutJob] = useState<Lead | null>(null);
   const [activeView, setActiveView] = useState<'schedule' | 'history'>('schedule');
 
   // Edit mode state
@@ -154,6 +157,51 @@ export default function TechPortal() {
       alert('Failed to connect to server');
     } finally {
       setCheckingIn(null);
+    }
+  }
+
+  // Cancel appointment - reset to NEW, clear date/time, update notes
+  async function handleCancelAppointment(job: Lead) {
+    if (!confirm(`Customer cancelled appointment?\n\nThis will:\n• Set status to NEW\n• Clear appointment date/time\n• Add note for reschedule`)) return;
+
+    setCancellingAppt(job['Lead ID']);
+    try {
+      // Get current notes and append cancellation note
+      const currentNotes = job['Customer Issue/Notes'] || '';
+      const timestamp = new Date().toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        timeZone: 'America/Chicago'
+      });
+      const cancelNote = `[${timestamp}] Customer cancelled appt, reschedule TBD`;
+      const updatedNotes = currentNotes
+        ? `${currentNotes}\n${cancelNote}`
+        : cancelNote;
+
+      const response = await fetch('/api/leads/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rowIndex: job['rowIndex'],
+          updates: {
+            'Status': 'NEW',
+            'Appointment Date': '',
+            'Time Window': '',
+            'Customer Issue/Notes': updatedNotes,
+          },
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        await fetchLeads();
+      } else {
+        alert(data.error || 'Failed to cancel appointment');
+      }
+    } catch (err) {
+      alert('Failed to connect to server');
+    } finally {
+      setCancellingAppt(null);
     }
   }
 
@@ -641,7 +689,7 @@ export default function TechPortal() {
                   {expandedJob === job['Lead ID'] && (
                     <div className="border-t border-slate-100">
                       {/* Quick Actions */}
-                      <div className="p-4 bg-slate-50 grid grid-cols-3 gap-2">
+                      <div className="p-4 bg-slate-50 grid grid-cols-4 gap-2">
                         <a
                           href={`tel:${job['Phone Number']}`}
                           className="flex items-center justify-center gap-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-medium transition text-sm"
@@ -671,6 +719,20 @@ export default function TechPortal() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                           Edit
+                        </button>
+                        <button
+                          onClick={() => handleCancelAppointment(job)}
+                          disabled={cancellingAppt === job['Lead ID']}
+                          className="flex items-center justify-center gap-1 bg-slate-400 hover:bg-slate-500 text-white py-3 rounded-lg font-medium transition text-sm disabled:opacity-50"
+                        >
+                          {cancellingAppt === job['Lead ID'] ? (
+                            <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                          ) : (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          )}
+                          Cancel
                         </button>
                       </div>
 
@@ -895,29 +957,13 @@ export default function TechPortal() {
                               Job In Progress {job['Check In'] && `(started ${job['Check In']})`}
                             </div>
                             <button
-                              onClick={() => setQuoteJob(job)}
-                              className="w-full py-4 bg-[#14b8a6] hover:bg-[#0d9488] text-white rounded-xl font-semibold text-lg flex items-center justify-center gap-2 transition"
+                              onClick={() => setCheckoutJob(job)}
+                              className="w-full py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold text-lg flex items-center justify-center gap-2 transition"
                             >
                               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
-                              Create Quote & Collect Payment
-                            </button>
-                            <button
-                              onClick={() => handleCheckInOut(job['Lead ID'], 'checkout')}
-                              disabled={checkingIn === job['Lead ID']}
-                              className="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold flex items-center justify-center gap-2 transition disabled:opacity-50"
-                            >
-                              {checkingIn === job['Lead ID'] ? (
-                                <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
-                              ) : (
-                                <>
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                  Check Out (Quote Only)
-                                </>
-                              )}
+                              Check Out - Job Complete
                             </button>
                             <button
                               onClick={() => setAddServiceJob(job)}
@@ -1117,6 +1163,18 @@ export default function TechPortal() {
           onClose={() => setQuoteJob(null)}
           onSuccess={() => {
             setQuoteJob(null);
+            fetchLeads();
+          }}
+        />
+      )}
+
+      {/* Checkout Modal */}
+      {checkoutJob && (
+        <CheckoutModal
+          lead={checkoutJob}
+          onClose={() => setCheckoutJob(null)}
+          onSuccess={() => {
+            setCheckoutJob(null);
             fetchLeads();
           }}
         />
