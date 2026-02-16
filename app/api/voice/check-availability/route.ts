@@ -321,7 +321,7 @@ function findNextAvailableDate(fromDate: string): string {
     }
   }
 
-  return 'Monday, February 24th'; // Fallback
+  return 'Tuesday, February 24th'; // Fallback
 }
 
 // Get next day in MM/DD/YYYY format

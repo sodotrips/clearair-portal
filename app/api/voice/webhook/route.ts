@@ -57,12 +57,43 @@ function parseAppointmentDate(dateStr: string): string {
         break;
       }
     }
+  } else {
+    // Try to parse spelled-out dates like "February 24, 2026" or "February 24th"
+    const months: { [key: string]: number } = {
+      january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
+      july: 6, august: 7, september: 8, october: 9, november: 10, december: 11
+    };
+
+    for (const [monthName, monthIndex] of Object.entries(months)) {
+      if (lower.includes(monthName)) {
+        // Extract day number
+        const dayMatch = dateStr.match(/(\d{1,2})/);
+        if (dayMatch) {
+          const day = parseInt(dayMatch[1], 10);
+          // Extract year if present, otherwise use current/next year
+          const yearMatch = dateStr.match(/(\d{4})/);
+          let year = today.getFullYear();
+          if (yearMatch) {
+            year = parseInt(yearMatch[1], 10);
+          } else {
+            // If no year and the date has passed, use next year
+            const testDate = new Date(year, monthIndex, day);
+            if (testDate < today) {
+              year++;
+            }
+          }
+          targetDate = new Date(year, monthIndex, day);
+        }
+        break;
+      }
+    }
   }
 
   if (targetDate) {
     return `${(targetDate.getMonth() + 1).toString().padStart(2, '0')}/${targetDate.getDate().toString().padStart(2, '0')}/${targetDate.getFullYear()}`;
   }
 
+  // If all else fails, return original (shouldn't happen often)
   return dateStr;
 }
 
