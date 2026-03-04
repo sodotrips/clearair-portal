@@ -904,40 +904,42 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
         {/* Stats Cards - Status Flow */}
-        <div className="flex items-center justify-between gap-2 mt-2 mb-4">
-          {statCards.map((card, index) => (
-            <div key={card.id} className="flex items-center flex-1">
-              <div
-                onClick={() => setCurrentView(card.id)}
-                className={`bg-[#E0EBF7] rounded-lg overflow-hidden cursor-pointer transition-all hover:bg-[#d0dde9] w-full ${
-                  currentView === card.id ? 'ring-2 ring-[#14b8a6] shadow-md' : 'shadow-sm'
-                }`}
-              >
-                <div className={`h-1 ${card.accentColor}`}></div>
-                <div className="px-3 py-2">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-slate-600 text-xs font-medium uppercase tracking-wide">{card.label}</p>
-                      <p className="text-[#0a2540] text-2xl font-bold">{card.count}</p>
-                    </div>
-                    <div className={`w-8 h-8 rounded-md ${card.accentColor} bg-opacity-20 flex items-center justify-center`}>
-                      <span className="text-base">{card.icon}</span>
+        <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+          <div className="flex items-center gap-1 sm:gap-2 mt-2 mb-4 min-w-max sm:min-w-0">
+            {statCards.map((card, index) => (
+              <div key={card.id} className="flex items-center">
+                <div
+                  onClick={() => setCurrentView(card.id)}
+                  className={`bg-[#E0EBF7] rounded-lg overflow-hidden cursor-pointer transition-all hover:bg-[#d0dde9] min-w-[90px] sm:min-w-[110px] lg:min-w-[130px] ${
+                    currentView === card.id ? 'ring-2 ring-[#14b8a6] shadow-md' : 'shadow-sm'
+                  }`}
+                >
+                  <div className={`h-1 ${card.accentColor}`}></div>
+                  <div className="px-2 sm:px-3 py-1.5 sm:py-2">
+                    <div className="flex justify-between items-center gap-1">
+                      <div>
+                        <p className="text-slate-600 text-[10px] sm:text-xs font-medium uppercase tracking-wide truncate">{card.label}</p>
+                        <p className="text-[#0a2540] text-lg sm:text-2xl font-bold">{card.count}</p>
+                      </div>
+                      <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-md ${card.accentColor} bg-opacity-20 flex items-center justify-center flex-shrink-0`}>
+                        <span className="text-sm sm:text-base">{card.icon}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
+                {/* Arrow between cards */}
+                {index < statCards.length - 1 && (
+                  <div className="flex items-center px-0.5 sm:px-2 flex-shrink-0">
+                    <svg className="w-3 h-3 sm:w-5 sm:h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                )}
               </div>
-              {/* Arrow between cards */}
-              {index < statCards.length - 1 && (
-                <div className="flex items-center px-2 flex-shrink-0">
-                  <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* Today's Appointments Section - Collapsible */}
