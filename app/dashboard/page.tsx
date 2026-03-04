@@ -799,8 +799,8 @@ export default function Dashboard() {
         [data-tip]:hover::after { opacity: 1; }
       `}</style>
       {/* Header */}
-      <header className="bg-[#0a2540] text-white px-6 py-4 shadow-lg">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
+      <header className="bg-[#0a2540] text-white px-4 sm:px-6 py-3 sm:py-4 shadow-lg">
+        <div className="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2">
           <div className="flex items-center gap-4">
             <div className="bg-white rounded-lg p-1">
               <Image
@@ -818,80 +818,80 @@ export default function Dashboard() {
               <p className="text-slate-400 text-xs">Dashboard</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2 lg:gap-4">
             {userRole === 'Admin' && (
               <>
                 <Link
                   href="/dashboard/analytics"
-                  className="flex items-center gap-2 bg-[#14b8a6] hover:bg-[#0d9488] text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+                  className="flex items-center gap-1 lg:gap-2 bg-[#14b8a6] hover:bg-[#0d9488] text-white px-2 lg:px-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-medium transition"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
-                  Analytics
+                  <span className="hidden sm:inline">Analytics</span>
                 </Link>
                 <Link
                   href="/dashboard/financials"
-                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+                  className="flex items-center gap-1 lg:gap-2 bg-green-600 hover:bg-green-700 text-white px-2 lg:px-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-medium transition"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  Financials
+                  <span className="hidden sm:inline">Financials</span>
                 </Link>
                 <Link
                   href="/dashboard/payouts"
-                  className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+                  className="flex items-center gap-1 lg:gap-2 bg-red-600 hover:bg-red-700 text-white px-2 lg:px-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-medium transition"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
-                  Payouts
+                  <span className="hidden sm:inline">Payouts</span>
                 </Link>
                 <Link
                   href="/dashboard/reminders"
-                  className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+                  className="flex items-center gap-1 lg:gap-2 bg-purple-600 hover:bg-purple-700 text-white px-2 lg:px-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-medium transition"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                   </svg>
-                  SMS
+                  <span className="hidden sm:inline">SMS</span>
                 </Link>
                 <Link
                   href="/tech"
-                  className="flex items-center gap-2 bg-[#1a3a5c] hover:bg-[#0a2540] text-white px-4 py-2 rounded-lg text-sm font-medium transition border border-slate-600"
+                  className="flex items-center gap-1 lg:gap-2 bg-[#1a3a5c] hover:bg-[#0a2540] text-white px-2 lg:px-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-medium transition border border-slate-600"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                   </svg>
-                  Tech Portal
+                  <span className="hidden sm:inline">Tech</span>
                 </Link>
                 <button
                   onClick={() => setShowAgentSettings(true)}
-                  className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+                  className="flex items-center gap-1 lg:gap-2 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white px-2 lg:px-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-medium transition"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
-                  Agents
+                  <span className="hidden sm:inline">Agents</span>
                   {agentSettings['daily_summary_enabled'] === 'true' && (
                     <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
                   )}
                 </button>
               </>
             )}
-            <div className="flex items-center gap-3 border-l border-slate-600 pl-4 ml-2">
+            <div className="flex items-center gap-2 lg:gap-3 border-l border-slate-600 pl-2 lg:pl-4 ml-1 lg:ml-2">
               <div className="text-right">
-                <div className="flex items-center gap-3">
-                  <span className="text-slate-400 text-sm">{session?.user?.name}</span>
+                <div className="flex items-center gap-2 lg:gap-3">
+                  <span className="text-slate-400 text-xs lg:text-sm hidden sm:inline">{session?.user?.name}</span>
                   <button
                     onClick={() => signOut({ callbackUrl: '/login' })}
-                    className="text-slate-400 hover:text-white text-sm transition"
+                    className="text-slate-400 hover:text-white text-xs lg:text-sm transition"
                   >
                     Sign Out
                   </button>
                 </div>
-                <div className="text-slate-400 text-sm mt-1 flex items-center gap-3">
+                <div className="text-slate-400 text-xs lg:text-sm mt-1 hidden md:flex items-center gap-3">
                   <span>{new Date().toLocaleDateString('en-US', { timeZone: 'America/Chicago', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</span>
                   <span className="flex items-center gap-1 text-xs text-emerald-400">
                     <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
