@@ -104,11 +104,31 @@ export default function QuickImportModal({ onClose, onSuccess }: QuickImportModa
     // Find address line: "684, Fountain view lane,League City, Texas 77573"
     for (const line of lines) {
       // Look for line with Texas/TX and zip code
-      const addressMatch = line.match(/^(.+?),\s*(.+?),?\s*(?:Texas|TX)\s+(\d{5})/i);
-      if (addressMatch) {
-        address = addressMatch[1].trim();
-        city = addressMatch[2].trim();
-        zip = addressMatch[3];
+      const hasTexasZip = line.match(/(?:Texas|TX)\s+(\d{5})/i);
+      if (hasTexasZip) {
+        zip = hasTexasZip[1];
+
+        // Remove Texas/TX and zip from line to work with address and city
+        let addressPart = line.replace(/,?\s*(?:Texas|TX)\s+\d{5}.*/i, '').trim();
+
+        // Find city by matching against known Houston area cities (search from end)
+        let foundCity = '';
+        for (const cityName of houstonCities) {
+          // Create regex that matches city at end of string or before comma
+          const cityRegex = new RegExp(`[,\\s]+(${cityName})\\s*$`, 'i');
+          const cityMatch = addressPart.match(cityRegex);
+          if (cityMatch) {
+            foundCity = cityMatch[1];
+            // Remove city from address part
+            addressPart = addressPart.replace(cityRegex, '').trim();
+            // Remove trailing comma if present
+            addressPart = addressPart.replace(/,\s*$/, '').trim();
+            break;
+          }
+        }
+
+        city = foundCity;
+        address = addressPart;
         break;
       }
     }
