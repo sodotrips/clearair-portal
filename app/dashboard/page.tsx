@@ -1039,29 +1039,31 @@ export default function Dashboard() {
         </div>
 
         {/* Main Content Card */}
-        <div className="bg-white rounded-xl shadow-sm">
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           {/* Tabs */}
-          <div className="flex">
-            {tabs.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setCurrentView(tab.id)}
-                className={`px-4 py-2 text-sm transition-all border-l border-r border-b-4 border-t-0 rounded-t-lg ${
-                  currentView === tab.id
-                    ? 'bg-[#E0EBF7] text-black font-bold border-l-slate-300 border-r-slate-300 border-b-[#14b8a6]'
-                    : 'bg-white text-black font-normal border-l-slate-300 border-r-slate-300 border-b-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                {tab.label}
-                <span className={`ml-2 px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                  currentView === tab.id
-                    ? 'bg-[#14b8a6] text-white'
-                    : 'bg-slate-400 text-white'
-                }`}>
-                  {tab.count}
-                </span>
-              </button>
-            ))}
+          <div className="overflow-x-auto">
+            <div className="flex min-w-max">
+              {tabs.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setCurrentView(tab.id)}
+                  className={`px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm transition-all border-l border-r border-b-4 border-t-0 rounded-t-lg whitespace-nowrap ${
+                    currentView === tab.id
+                      ? 'bg-[#E0EBF7] text-black font-bold border-l-slate-300 border-r-slate-300 border-b-[#14b8a6]'
+                      : 'bg-white text-black font-normal border-l-slate-300 border-r-slate-300 border-b-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  {tab.label}
+                  <span className={`ml-1 sm:ml-2 px-1.5 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${
+                    currentView === tab.id
+                      ? 'bg-[#14b8a6] text-white'
+                      : 'bg-slate-400 text-white'
+                  }`}>
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Toolbar */}
