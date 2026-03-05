@@ -49,7 +49,142 @@ export default function QuickImportModal({ onClose, onSuccess }: QuickImportModa
     'september': '09', 'october': '10', 'november': '11', 'december': '12',
   };
 
-  // Parser for "New job #" format from lead gen companies
+  // Parser for MOR format
+  // Format:
+  // MOR
+  // New job # 15335
+  // Bharat Desai
+  // (8135784775 #615)
+  // 684, Fountain view lane,League City, Texas 77573
+  // Air Duct & Dryer Vent Cleaning $149.00
+  //
+  // Friday Mar 6 , 1:00PM - 3:00PM
+  const parseMORFormat = (text: string): ParsedLead | null => {
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+
+    // Check if first line is "MOR"
+    if (!lines[0] || lines[0].toUpperCase() !== 'MOR') return null;
+
+    let customerName = '';
+    let phone = '';
+    let address = '';
+    let city = '';
+    let zip = '';
+    let serviceRequested = '';
+    let leadJobId = '';
+    let appointmentDate = '';
+    let timeWindow = '';
+
+    // Line 2: "New job # 15335" - extract job number
+    for (const line of lines) {
+      const jobMatch = line.match(/new\s+job\s*#?\s*(\d+)/i);
+      if (jobMatch) {
+        leadJobId = jobMatch[1];
+        break;
+      }
+    }
+
+    // Find phone line: "(8135784775 #615)"
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const phoneMatch = line.match(/^\((\d{10,11})(?:\s*#\w+)?\)$/);
+      if (phoneMatch) {
+        const rawPhone = phoneMatch[1];
+        const digits = rawPhone.length === 11 && rawPhone.startsWith('1') ? rawPhone.slice(1) : rawPhone;
+        phone = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+
+        // Customer name is the line before phone
+        if (i > 0 && !lines[i-1].toLowerCase().includes('job')) {
+          customerName = lines[i-1];
+        }
+        break;
+      }
+    }
+
+    // Find address line: "684, Fountain view lane,League City, Texas 77573"
+    for (const line of lines) {
+      // Look for line with Texas/TX and zip code
+      const addressMatch = line.match(/^(.+?),\s*(.+?),?\s*(?:Texas|TX)\s+(\d{5})/i);
+      if (addressMatch) {
+        address = addressMatch[1].trim();
+        city = addressMatch[2].trim();
+        zip = addressMatch[3];
+        break;
+      }
+    }
+
+    // Find service line: "Air Duct & Dryer Vent Cleaning $149.00"
+    for (const line of lines) {
+      const lower = line.toLowerCase();
+      if (lower.includes('air duct') && lower.includes('dryer vent')) {
+        serviceRequested = 'Air Duct Cleaning'; // or could be both
+      } else if (lower.includes('dryer vent')) {
+        serviceRequested = 'Dryer Vent Cleaning';
+      } else if (lower.includes('air duct') || lower.includes('duct cleaning')) {
+        serviceRequested = 'Air Duct Cleaning';
+      } else if (lower.includes('insulation')) {
+        serviceRequested = 'Attic Insulation';
+      } else if (lower.includes('chimney')) {
+        serviceRequested = 'Chimney Services';
+      }
+      if (serviceRequested) break;
+    }
+
+    // Find date/time line: "Friday Mar 6 , 1:00PM - 3:00PM"
+    const monthMap: Record<string, string> = {
+      'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'may': '05', 'jun': '06',
+      'jul': '07', 'aug': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
+    };
+
+    for (const line of lines) {
+      // Match pattern like "Friday Mar 6 , 1:00PM - 3:00PM"
+      const dateTimeMatch = line.match(/(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+(\w{3})\s+(\d{1,2})\s*,?\s*(\d{1,2}:\d{2}\s*(?:AM|PM))\s*-\s*(\d{1,2}:\d{2}\s*(?:AM|PM))/i);
+      if (dateTimeMatch) {
+        const monthStr = dateTimeMatch[1].toLowerCase();
+        const day = dateTimeMatch[2];
+        const startTime = dateTimeMatch[3].replace(/\s/g, '');
+        const endTime = dateTimeMatch[4].replace(/\s/g, '');
+
+        const monthNum = monthMap[monthStr];
+        if (monthNum) {
+          // Assume current year or next year if month has passed
+          const now = new Date();
+          let year = now.getFullYear();
+          const currentMonth = now.getMonth() + 1;
+          if (parseInt(monthNum) < currentMonth) {
+            year += 1;
+          }
+          appointmentDate = `${monthNum}/${day.padStart(2, '0')}/${year}`;
+        }
+
+        timeWindow = `${startTime} - ${endTime}`;
+        break;
+      }
+    }
+
+    // If we found at least a phone number, consider it a valid MOR lead
+    if (!phone) return null;
+
+    return {
+      customerName,
+      phone,
+      address,
+      city,
+      zip,
+      serviceRequested,
+      leadSource: 'Lead Company',
+      leadSourceDetail: 'Dryer Vent Cleaning Houston',
+      referralSource: 'MOR',
+      leadJobId,
+      appointmentDate,
+      timeWindow,
+      customerNotes: '',
+      propertyType: 'Residential',
+      assignedTo: 'Amit',
+    };
+  };
+
+  // Parser for "New job #" format from lead gen companies (IDO format)
   // Format: New job # [Company] [RefNum] [Name] ([Phone] #[Unit]) [Address], [City], [State] [Zip] [Service]
   const parseNewJobFormat = (text: string): ParsedLead | null => {
     const lines = text.split('\n').map(line => line.trim()).filter(line => line);
@@ -226,6 +361,12 @@ export default function QuickImportModal({ onClose, onSuccess }: QuickImportModa
 
   const parseLeadText = (text: string): ParsedLead => {
     // Try specialized parsers first
+
+    // Try MOR format
+    const morResult = parseMORFormat(text);
+    if (morResult) return morResult;
+
+    // Try IDO/Kirby format
     const newJobResult = parseNewJobFormat(text);
     if (newJobResult) return newJobResult;
 
