@@ -1034,6 +1034,7 @@ export default function Dashboard() {
             leads={leads}
             onSelectLead={(lead) => setViewDetailsLead(lead)}
             onUpdate={() => fetchLeads()}
+            onCloseDeal={(lead) => setCloseDealModalLead(lead)}
             userRole={userRole}
           />
         </div>
@@ -1695,6 +1696,8 @@ export default function Dashboard() {
           onClose={() => setViewDetailsLead(null)}
           onEdit={() => setEditModalLead(viewDetailsLead)}
           onSchedule={() => setScheduleModalLead(viewDetailsLead)}
+          onCloseDeal={() => setCloseDealModalLead(viewDetailsLead)}
+          onCancel={() => updateLeadStatus(viewDetailsLead, 'CANCELED')}
         />
       )}
 

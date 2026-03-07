@@ -11,10 +11,11 @@ interface WeeklyCalendarProps {
   leads: Lead[];
   onSelectLead?: (lead: Lead) => void;
   onUpdate?: () => void;
+  onCloseDeal?: (lead: Lead) => void;
   userRole?: string;
 }
 
-export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, userRole }: WeeklyCalendarProps) {
+export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseDeal, userRole }: WeeklyCalendarProps) {
   const router = useRouter();
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const today = new Date();
@@ -465,7 +466,21 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, userRole
                     </div>
                     <div className="text-[10px] opacity-75 mt-0.5">{getTimeLabel(job['Time Window'])}</div>
                     <div className="truncate opacity-75 mt-0.5">{job['City']}</div>
-                    <div className="truncate opacity-75">{job['Service Requested']}</div>
+                    <div className="flex items-center justify-between mt-0.5">
+                      <div className="truncate opacity-75">{job['Service Requested']}</div>
+                      {jobStatus === 'QUOTED' && onCloseDeal && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCloseDeal(job);
+                          }}
+                          className="shrink-0 ml-1 px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[9px] font-bold transition"
+                          title="Close this deal"
+                        >
+                          Close
+                        </button>
+                      )}
+                    </div>
                   </div>
                   );
                 })}

@@ -30,6 +30,7 @@ export default function TechPortal() {
   const [selectedTech, setSelectedTech] = useState(() => session?.user?.name || 'Amit');
   const [checkingIn, setCheckingIn] = useState<string | null>(null);
   const [cancellingAppt, setCancellingAppt] = useState<string | null>(null);
+  const [cancellingFollowUp, setCancellingFollowUp] = useState<string | null>(null);
   const [rescheduleJob, setRescheduleJob] = useState<Lead | null>(null);
   const [addServiceJob, setAddServiceJob] = useState<Lead | null>(null);
   const [addingService, setAddingService] = useState(false);
@@ -202,6 +203,48 @@ export default function TechPortal() {
       alert('Failed to connect to server');
     } finally {
       setCancellingAppt(null);
+    }
+  }
+
+  // Cancel follow-up - set status to CANCELED so it drops out of the history view
+  async function handleCancelFollowUp(job: Lead) {
+    if (!confirm(`Cancel follow-up for ${job['Customer Name']}?\n\nThis will mark the lead as CANCELED and remove it from follow-ups.`)) return;
+
+    setCancellingFollowUp(job['Lead ID']);
+    try {
+      const currentNotes = job['Customer Issue/Notes'] || '';
+      const timestamp = new Date().toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        timeZone: 'America/Chicago'
+      });
+      const cancelNote = `[${timestamp}] Follow-up canceled by tech`;
+      const updatedNotes = currentNotes
+        ? `${currentNotes}\n${cancelNote}`
+        : cancelNote;
+
+      const response = await fetch('/api/leads/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rowIndex: job['rowIndex'],
+          updates: {
+            'Status': 'CANCELED',
+            'Customer Issue/Notes': updatedNotes,
+          },
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        await fetchLeads();
+      } else {
+        alert(data.error || 'Failed to cancel follow-up');
+      }
+    } catch (err) {
+      alert('Failed to connect to server');
+    } finally {
+      setCancellingFollowUp(null);
     }
   }
 
@@ -1100,8 +1143,24 @@ export default function TechPortal() {
                           </div>
                         )}
                       </div>
-                      <div className="text-xs text-slate-400 mt-1">
-                        {job['Address']}{job['City'] ? `, ${job['City']}` : ''}
+                      <div className="flex items-end justify-between mt-1">
+                        <div className="text-xs text-slate-400">
+                          {job['Address']}{job['City'] ? `, ${job['City']}` : ''}
+                        </div>
+                        <button
+                          onClick={() => handleCancelFollowUp(job)}
+                          disabled={cancellingFollowUp === job['Lead ID']}
+                          className="flex items-center justify-center gap-1 bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg font-medium transition text-xs disabled:opacity-50 shrink-0"
+                        >
+                          {cancellingFollowUp === job['Lead ID'] ? (
+                            <div className="animate-spin w-3 h-3 border-2 border-white border-t-transparent rounded-full"></div>
+                          ) : (
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          )}
+                          Cancel
+                        </button>
                       </div>
                     </div>
                   );

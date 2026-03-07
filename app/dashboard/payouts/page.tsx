@@ -24,6 +24,7 @@ export default function PayoutsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
   // Date range filter - default to current week
   const getWeekRange = (date: Date = new Date()) => {
@@ -218,6 +219,69 @@ export default function PayoutsPage() {
   const totalPayouts = payoutSummaries
     .filter(s => s.type !== 'amit')
     .reduce((sum, s) => sum + s.commissionAmount, 0);
+
+  const handleSort = (key: string) => {
+    setSortConfig(prev => {
+      if (prev?.key === key) {
+        return prev.direction === 'asc' ? { key, direction: 'desc' } : null;
+      }
+      return { key, direction: 'asc' };
+    });
+  };
+
+  const sortLeads = (leadsToSort: Lead[], summaryType: PayoutSummary['type']) => {
+    if (!sortConfig) return leadsToSort;
+    const { key, direction } = sortConfig;
+    return [...leadsToSort].sort((a, b) => {
+      let valA: string | number = '';
+      let valB: string | number = '';
+
+      if (key === 'grossProfit') {
+        valA = parseNumber(a['Profit $']);
+        valB = parseNumber(b['Profit $']);
+      } else if (key === 'commission') {
+        const profitA = parseNumber(a['Profit $']);
+        const profitB = parseNumber(b['Profit $']);
+        const pctField = summaryType === 'lead_company' ? 'Lead Company Commission %'
+          : summaryType === 'sophia' ? 'Sophia Commission %' : 'Amit Commission %';
+        valA = profitA * parseNumber(a[pctField]) / 100;
+        valB = profitB * parseNumber(b[pctField]) / 100;
+      } else if (key === 'paymentDate') {
+        const dateA = parseDate(a['Payment Date']);
+        const dateB = parseDate(b['Payment Date']);
+        valA = dateA?.getTime() || 0;
+        valB = dateB?.getTime() || 0;
+      } else {
+        const fieldMap: Record<string, string> = {
+          leadId: 'Lead ID',
+          jobId: 'Lead Job ID',
+          leadCompany: 'Lead Source Detail',
+          customer: 'Customer Name',
+          service: 'Service Requested',
+        };
+        valA = (a[fieldMap[key]] || '').toLowerCase();
+        valB = (b[fieldMap[key]] || '').toLowerCase();
+      }
+
+      if (valA < valB) return direction === 'asc' ? -1 : 1;
+      if (valA > valB) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
+  const SortHeader = ({ label, sortKey, className = '' }: { label: string; sortKey: string; className?: string }) => (
+    <th
+      className={`pb-2 cursor-pointer hover:text-[#14b8a6] select-none transition ${className}`}
+      onClick={() => handleSort(sortKey)}
+    >
+      <div className={`flex items-center gap-1 ${className.includes('text-right') ? 'justify-end' : ''}`}>
+        {label}
+        <span className="text-xs">
+          {sortConfig?.key === sortKey ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '⇅'}
+        </span>
+      </div>
+    </th>
+  );
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -501,18 +565,18 @@ export default function PayoutsPage() {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="text-left text-slate-500">
-                            <th className="pb-2">Lead ID</th>
-                            <th className="pb-2">Job ID</th>
-                            <th className="pb-2">Lead Company</th>
-                            <th className="pb-2">Customer</th>
-                            <th className="pb-2">Service</th>
-                            <th className="pb-2">Payment Date</th>
-                            <th className="pb-2 text-right">Gross Profit</th>
-                            <th className="pb-2 text-right">Commission</th>
+                            <SortHeader label="Lead ID" sortKey="leadId" />
+                            <SortHeader label="Job ID" sortKey="jobId" />
+                            <SortHeader label="Lead Company" sortKey="leadCompany" />
+                            <SortHeader label="Customer" sortKey="customer" />
+                            <SortHeader label="Service" sortKey="service" />
+                            <SortHeader label="Payment Date" sortKey="paymentDate" />
+                            <SortHeader label="Gross Profit" sortKey="grossProfit" className="text-right" />
+                            <SortHeader label="Commission" sortKey="commission" className="text-right" />
                           </tr>
                         </thead>
                         <tbody>
-                          {summary.leads.map((lead, i) => {
+                          {sortLeads(summary.leads, summary.type).map((lead, i) => {
                             const grossProfit = parseNumber(lead['Profit $']);
                             const commissionPercent = summary.type === 'lead_company'
                               ? parseNumber(lead['Lead Company Commission %'])
