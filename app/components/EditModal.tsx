@@ -17,11 +17,12 @@ export default function EditModal({ lead, onClose, onSuccess }: EditModalProps) 
   const [error, setError] = useState('');
 
   const cities = ['Houston', 'Katy', 'Sugar Land', 'Pearland', 'Spring', 'Cypress', 'The Woodlands', 'Humble', 'Pasadena', 'League City', 'Missouri City', 'Baytown', 'Conroe', 'Richmond', 'Tomball'];
-  const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
+  const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Air Duct & Dryer Vent', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
   const leadSources = ['Google Ads', 'Facebook Ads', 'Organic', 'Referral', 'Lead Company', 'Repeat Customer', 'Partner'];
   const propertyTypes = ['Single Family', 'Townhouse', 'Apartment', 'Commercial - Office'];
   const statuses = ['NEW', 'SCHEDULED', 'IN PROGRESS', 'QUOTED', 'CLOSED', 'CANCELED'];
   const priorities = ['LOW', 'MEDIUM', 'HIGH'];
+  const timeSlots = ['08:00AM - 11:00AM', '11:00AM - 2:00PM', '2:00PM - 5:00PM'];
 
   // Form state
   const [customerName, setCustomerName] = useState(lead['Customer Name'] || '');
@@ -32,6 +33,8 @@ export default function EditModal({ lead, onClose, onSuccess }: EditModalProps) 
   const [zip, setZip] = useState(lead['Zip Code'] || '');
   const [propertyType, setPropertyType] = useState(lead['Property Type'] || '');
   const [leadSource, setLeadSource] = useState(lead['Lead Source'] || '');
+  const [leadSourceDetail, setLeadSourceDetail] = useState(lead['Lead Source Detail'] || '');
+  const [referralSource, setReferralSource] = useState(lead['Referral Source'] || '');
   const [serviceRequested, setServiceRequested] = useState(lead['Service Requested'] || '');
   const [status, setStatus] = useState(lead['Status'] || 'NEW');
   const [priority, setPriority] = useState(lead['Priority Level'] || 'MEDIUM');
@@ -40,6 +43,27 @@ export default function EditModal({ lead, onClose, onSuccess }: EditModalProps) 
   const [pets, setPets] = useState(lead['Pets'] || '');
   const [parkingInfo, setParkingInfo] = useState(lead['Parking Info'] || '');
   const [accessInstructions, setAccessInstructions] = useState(lead['Access Instructions'] || '');
+
+  // Convert MM/DD/YYYY to YYYY-MM-DD for date input
+  const toInputDate = (val: string) => {
+    if (!val) return '';
+    const m = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
+    return val;
+  };
+  // Convert YYYY-MM-DD back to MM/DD/YYYY for storage
+  const fromInputDate = (val: string) => {
+    if (!val) return '';
+    const m = val.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) return `${m[2]}/${m[3]}/${m[1]}`;
+    return val;
+  };
+
+  const existingTimeWindow = lead['Time Window'] || '';
+  const isCustomTime = existingTimeWindow && !timeSlots.includes(existingTimeWindow);
+  const [appointmentDate, setAppointmentDate] = useState(toInputDate(lead['Appointment Date'] || ''));
+  const [timeWindowSelect, setTimeWindowSelect] = useState(isCustomTime ? 'custom' : existingTimeWindow);
+  const [timeWindowCustom, setTimeWindowCustom] = useState(isCustomTime ? existingTimeWindow : '');
 
   const formatPhone = (value: string) => {
     const digits = value.replace(/\D/g, '').slice(0, 10);
@@ -64,6 +88,8 @@ export default function EditModal({ lead, onClose, onSuccess }: EditModalProps) 
         'Zip Code': zip,
         'Property Type': propertyType,
         'Lead Source': leadSource,
+        'Lead Source Detail': leadSourceDetail,
+        'Referral Source': referralSource,
         'Service Requested': serviceRequested,
         'Status': status,
         'Priority Level': priority,
@@ -72,6 +98,8 @@ export default function EditModal({ lead, onClose, onSuccess }: EditModalProps) 
         'Pets': pets,
         'Parking Info': parkingInfo,
         'Access Instructions': accessInstructions,
+        'Appointment Date': fromInputDate(appointmentDate),
+        'Time Window': timeWindowSelect === 'custom' ? timeWindowCustom : timeWindowSelect,
       };
 
       const response = await fetch('/api/leads/update', {
@@ -194,6 +222,14 @@ export default function EditModal({ lead, onClose, onSuccess }: EditModalProps) 
                     {leadSources.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
+                <div className="col-span-2">
+                  <label className={labelClass}>Lead Source Detail (Lead Company Name)</label>
+                  <input type="text" value={leadSourceDetail} onChange={(e) => setLeadSourceDetail(e.target.value)} placeholder="e.g. campaign name, referrer name..." className={inputClass} />
+                </div>
+                <div className="col-span-2">
+                  <label className={labelClass}>Referral By</label>
+                  <input type="text" value={referralSource} onChange={(e) => setReferralSource(e.target.value)} placeholder="e.g. John Smith" className={inputClass} />
+                </div>
               </div>
             </div>
 
@@ -206,6 +242,43 @@ export default function EditModal({ lead, onClose, onSuccess }: EditModalProps) 
                   <option value="">Select service...</option>
                   {services.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
+              </div>
+            </div>
+
+            {/* Scheduling */}
+            <div className="border-t pt-4">
+              <h3 className="text-sm font-semibold text-[#0a2540] mb-3">Scheduling</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>Appointment Date</label>
+                  <input
+                    type="date"
+                    value={appointmentDate}
+                    onChange={(e) => setAppointmentDate(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Time Window</label>
+                  <select
+                    value={timeWindowSelect}
+                    onChange={(e) => setTimeWindowSelect(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">No time window</option>
+                    {timeSlots.map(t => <option key={t} value={t}>{t}</option>)}
+                    <option value="custom">Custom...</option>
+                  </select>
+                  {timeWindowSelect === 'custom' && (
+                    <input
+                      type="text"
+                      value={timeWindowCustom}
+                      onChange={(e) => setTimeWindowCustom(e.target.value)}
+                      placeholder="e.g. 3:00PM - 6:00PM"
+                      className={`${inputClass} mt-2`}
+                    />
+                  )}
+                </div>
               </div>
             </div>
 

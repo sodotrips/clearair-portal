@@ -54,7 +54,7 @@ export default function TechPortal() {
 
   const propertyTypes = ['Single Family', 'Townhouse', 'Apartment', 'Commercial - Office'];
 
-  const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
+  const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Air Duct & Dryer Vent', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
   // Houston timezone helper
   const getHoustonDate = (date: Date = new Date()) => {
     const houstonTime = new Date(date.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
@@ -370,8 +370,14 @@ export default function TechPortal() {
     const isOnDate = isDateMatch(l['Appointment Date'], selectedDate);
     return isAssigned && isScheduled && isOnDate;
   }).sort((a, b) => {
-    const timeOrder = ['08:00AM - 11:00AM', '11:00AM - 2:00PM', '2:00PM - 5:00PM'];
-    return timeOrder.indexOf(a['Time Window'] || '') - timeOrder.indexOf(b['Time Window'] || '');
+    const getOrder = (tw: string) => {
+      const t = (tw || '').trim().toLowerCase();
+      if (t.startsWith('08:00') || t.startsWith('8:00') || t.includes('8am')) return 1;
+      if (t.startsWith('11:00') || t.includes('11am')) return 2;
+      if (t.startsWith('2:00') || t.includes('2pm')) return 3;
+      return 99;
+    };
+    return getOrder(a['Time Window']) - getOrder(b['Time Window']);
   });
 
   // Get quoted jobs for today (visited but not closed/paid)

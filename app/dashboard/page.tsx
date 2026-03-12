@@ -73,7 +73,7 @@ export default function Dashboard() {
 
   // Dropdown options for inline editing
   const cities = ['Houston', 'Katy', 'Sugar Land', 'Pearland', 'Spring', 'Cypress', 'The Woodlands', 'Humble', 'Pasadena', 'League City', 'Missouri City', 'Baytown', 'Conroe', 'Richmond', 'Tomball'];
-  const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
+  const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Air Duct & Dryer Vent', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
   const techs = ['Amit', 'Tech 2', 'Subcontractor'];
   const statuses = ['NEW', 'SCHEDULED', 'IN PROGRESS', 'QUOTED', 'CLOSED', 'CANCELED'];
   const timeWindows = ['08:00AM - 11:00AM', '11:00AM - 2:00PM', '2:00PM - 5:00PM'];
@@ -687,9 +687,11 @@ export default function Dashboard() {
     const bClosed = b['Status']?.toUpperCase() === 'CLOSED';
     // Closed jobs go to the bottom
     if (aClosed !== bClosed) return aClosed ? 1 : -1;
-    // Then sort by time window
+    // Then sort by time window (no time window goes last)
     const timeOrder = ['08:00AM - 11:00AM', '11:00AM - 2:00PM', '2:00PM - 5:00PM'];
-    return timeOrder.indexOf(a['Time Window'] || '') - timeOrder.indexOf(b['Time Window'] || '');
+    const aIdx = timeOrder.indexOf(a['Time Window'] || '');
+    const bIdx = timeOrder.indexOf(b['Time Window'] || '');
+    return (aIdx === -1 ? 99 : aIdx) - (bIdx === -1 ? 99 : bIdx);
   });
 
   const stats = {

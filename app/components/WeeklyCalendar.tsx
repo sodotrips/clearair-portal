@@ -112,20 +112,17 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseD
     });
   };
 
-  // Time windows for sorting
-  const timeWindowOrder: Record<string, number> = {
-    '08:00AM - 11:00AM': 1,
-    '11:00AM - 2:00PM': 2,
-    '2:00PM - 5:00PM': 3,
+  // Sort jobs by time window
+  const getTimeOrder = (timeWindow: string): number => {
+    const tw = (timeWindow || '').trim().toLowerCase();
+    if (tw.startsWith('08:00') || tw.startsWith('8:00') || tw.includes('8am') || tw.includes('8-11')) return 1;
+    if (tw.startsWith('11:00') || tw.includes('11am') || tw.includes('11-2')) return 2;
+    if (tw.startsWith('2:00') || tw.startsWith('14:00') || tw.includes('2pm') || tw.includes('2-5')) return 3;
+    return 99;
   };
 
-  // Sort jobs by time window
   const sortJobsByTime = (jobs: Lead[]) => {
-    return [...jobs].sort((a, b) => {
-      const orderA = timeWindowOrder[a['Time Window']] || 99;
-      const orderB = timeWindowOrder[b['Time Window']] || 99;
-      return orderA - orderB;
-    });
+    return [...jobs].sort((a, b) => getTimeOrder(a['Time Window']) - getTimeOrder(b['Time Window']));
   };
 
   // Format month/year for header

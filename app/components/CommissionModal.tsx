@@ -136,7 +136,7 @@ export default function CommissionModal({ lead, onClose, onSuccess }: Commission
                   <div className={readOnlyClass}>{lead['Lead Source'] || ''}</div>
                 </div>
                 <div>
-                  <label className={labelClass}>Referral Source</label>
+                  <label className={labelClass}>Referral By</label>
                   <div className={readOnlyClass}>{lead['Referral Source'] || ''}</div>
                 </div>
               </div>

@@ -34,7 +34,7 @@ export default function QuickImportModal({ onClose, onSuccess }: QuickImportModa
   const [error, setError] = useState('');
   const [step, setStep] = useState<'paste' | 'review'>('paste');
 
-  const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
+  const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Air Duct & Dryer Vent', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
   const leadSources = ['Lead Company', 'Google Ads', 'Facebook Ads', 'Organic', 'Referral', 'Repeat Customer', 'Partner'];
   const timeWindows = ['08:00AM - 11:00AM', '11:00AM - 2:00PM', '2:00PM - 5:00PM'];
   const techs = ['Amit', 'Tech 2', 'Subcontractor'];
@@ -936,7 +936,7 @@ Monday 1/15  11-1pm`}
                 </div>
 
                 <div>
-                  <label className={labelClass}>Lead Source Detail (Company/Brand)</label>
+                  <label className={labelClass}>Lead Source Detail (Lead Company Name)</label>
                   <input
                     type="text"
                     value={parsedLead.leadSourceDetail}
@@ -947,7 +947,7 @@ Monday 1/15  11-1pm`}
                 </div>
 
                 <div>
-                  <label className={labelClass}>Referral Source (Col N)</label>
+                  <label className={labelClass}>Referral By</label>
                   <input
                     type="text"
                     value={parsedLead.referralSource}

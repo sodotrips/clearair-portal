@@ -431,6 +431,7 @@ export async function POST(request: NextRequest) {
       row[17] = '';
       row[18] = '';
       row[19] = `Customer called in via AI Receptionist. Call Log ID: ${callLogId}`;
+      row[35] = 'Amit';
       row[43] = appointmentDate;
       row[45] = timeWindow;
       row[50] = lead.accessInstructions;

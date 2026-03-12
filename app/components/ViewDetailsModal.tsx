@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 interface Lead {
   [key: string]: string;
 }
@@ -14,6 +16,30 @@ interface ViewDetailsModalProps {
 }
 
 export default function ViewDetailsModal({ lead, onClose, onEdit, onSchedule, onCloseDeal, onCancel }: ViewDetailsModalProps) {
+  const [transcript, setTranscript] = useState<string | null>(null);
+  const [loadingTranscript, setLoadingTranscript] = useState(false);
+
+  function extractCallLogId(notes: string): string | null {
+    const match = notes?.match(/CALL-\d+/);
+    return match ? match[0] : null;
+  }
+
+  async function fetchTranscript(callLogId: string) {
+    setLoadingTranscript(true);
+    try {
+      const res = await fetch(`/api/call-logs/transcript?id=${callLogId}`);
+      const data = await res.json();
+      if (data.success) {
+        setTranscript(data.callLog.transcript || '(No transcript available)');
+      } else {
+        setTranscript('Could not load transcript.');
+      }
+    } catch {
+      setTranscript('Error loading transcript.');
+    } finally {
+      setLoadingTranscript(false);
+    }
+  }
   const formatPhone = (phone: string) => {
     if (!phone) return '';
     const digits = phone.replace(/\D/g, '');
@@ -232,6 +258,32 @@ export default function ViewDetailsModal({ lead, onClose, onEdit, onSchedule, on
                   {lead['Customer Issue/Notes'] || 'No notes'}
                 </div>
               </Section>
+
+              {/* AI Receptionist Transcript */}
+              {extractCallLogId(lead['Customer Issue/Notes']) && (
+                <Section title="AI Call Transcript">
+                  {transcript ? (
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-sm text-slate-700 whitespace-pre-wrap font-mono leading-relaxed max-h-64 overflow-y-auto">
+                      {transcript}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => fetchTranscript(extractCallLogId(lead['Customer Issue/Notes'])!)}
+                      disabled={loadingTranscript}
+                      className="flex items-center gap-2 px-3 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+                    >
+                      {loadingTranscript ? (
+                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      )}
+                      Load Call Transcript
+                    </button>
+                  )}
+                </Section>
+              )}
 
               <Section title="Timeline">
                 <Field label="Created" value={formatDate(lead['Timestamp Received'])} />
