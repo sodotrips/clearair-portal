@@ -23,6 +23,7 @@ export default function EditModal({ lead, onClose, onSuccess }: EditModalProps) 
   const statuses = ['NEW', 'SCHEDULED', 'IN PROGRESS', 'QUOTED', 'CLOSED', 'CANCELED'];
   const priorities = ['LOW', 'MEDIUM', 'HIGH'];
   const timeSlots = ['08:00AM - 11:00AM', '11:00AM - 2:00PM', '2:00PM - 5:00PM'];
+  const technicians = ['Amit', 'Tech 2', 'Subcontractor'];
 
   // Form state
   const [customerName, setCustomerName] = useState(lead['Customer Name'] || '');
@@ -32,6 +33,7 @@ export default function EditModal({ lead, onClose, onSuccess }: EditModalProps) 
   const [city, setCity] = useState(lead['City'] || '');
   const [zip, setZip] = useState(lead['Zip Code'] || '');
   const [propertyType, setPropertyType] = useState(lead['Property Type'] || '');
+  const [assignedTo, setAssignedTo] = useState(lead['Assigned To'] || '');
   const [leadSource, setLeadSource] = useState(lead['Lead Source'] || '');
   const [leadSourceDetail, setLeadSourceDetail] = useState(lead['Lead Source Detail'] || '');
   const [referralSource, setReferralSource] = useState(lead['Referral Source'] || '');
@@ -87,6 +89,7 @@ export default function EditModal({ lead, onClose, onSuccess }: EditModalProps) 
         'City': city,
         'Zip Code': zip,
         'Property Type': propertyType,
+        'Assigned To': assignedTo,
         'Lead Source': leadSource,
         'Lead Source Detail': leadSourceDetail,
         'Referral Source': referralSource,
@@ -249,6 +252,13 @@ export default function EditModal({ lead, onClose, onSuccess }: EditModalProps) 
             <div className="border-t pt-4">
               <h3 className="text-sm font-semibold text-[#0a2540] mb-3">Scheduling</h3>
               <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className={labelClass}>Assigned Technician</label>
+                  <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} className={inputClass}>
+                    <option value="">Unassigned</option>
+                    {technicians.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
                 <div>
                   <label className={labelClass}>Appointment Date</label>
                   <input

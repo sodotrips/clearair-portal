@@ -489,7 +489,7 @@ export default function Dashboard() {
           serviceRequested: service,
           customerNotes: message,
           leadSource: 'Website',
-          leadSourceDetail: source,
+          referralSource: source,
           address: '',
           city: '',
           zip: '',

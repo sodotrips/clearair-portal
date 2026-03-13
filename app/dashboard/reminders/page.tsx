@@ -14,7 +14,7 @@ export default function RemindersPage() {
   const [sending, setSending] = useState<string | null>(null);
   const [sendingAll, setSendingAll] = useState<'tech' | 'customer' | null>(null);
   const [results, setResults] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'confirmations' | 'reminders' | 'tech'>('confirmations');
+  const [activeTab, setActiveTab] = useState<'confirmations' | 'reminders' | 'tech' | 'reviews'>('confirmations');
 
   // Houston timezone helper
   const getHoustonDate = (daysOffset: number = 0) => {
@@ -189,6 +189,54 @@ export default function RemindersPage() {
     }
   };
 
+  const updateReviewField = async (leadId: string, field: string, value: string) => {
+    const lead = leads.find(l => l['Lead ID'] === leadId);
+    if (!lead) return;
+    try {
+      const response = await fetch('/api/leads/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rowIndex: lead.rowIndex, updates: { [field]: value } }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        // Update local state
+        setLeads(prev => prev.map(l =>
+          l['Lead ID'] === leadId ? { ...l, [field]: value } : l
+        ));
+      } else {
+        alert('Failed to update: ' + data.error);
+      }
+    } catch (err) {
+      alert('Failed to update field');
+    }
+  };
+
+  const sendReviewRequest = async (leadId: string) => {
+    setSending(leadId);
+    setResults(null);
+
+    try {
+      const response = await fetch('/api/sms/send-review-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId }),
+      });
+      const data = await response.json();
+      setResults(data);
+      if (data.success) {
+        alert(`Review request sent to ${data.customer}`);
+        await fetchLeads();
+      } else {
+        alert('Error: ' + data.error);
+      }
+    } catch (err) {
+      alert('Failed to send review request');
+    } finally {
+      setSending(null);
+    }
+  };
+
   // Get newly scheduled leads (today) that may need booking confirmation
   const todayStr = getHoustonDate(0);
   const newBookings = leads.filter(l => {
@@ -223,6 +271,21 @@ export default function RemindersPage() {
     return (b['Timestamp Received'] || '').localeCompare(a['Timestamp Received'] || '');
   }).slice(0, 20); // Show last 20
 
+  // Get completed leads eligible for review request
+  const completedLeads = leads.filter(l => {
+    const status = l['Status']?.toUpperCase();
+    const isCompleted = status === 'CLOSED';
+    const hasPhone = l['Phone Number'] && l['Phone Number'] !== '-';
+    // Exclude Lead Company leads
+    const leadSource = (l['Lead Source'] || '').toLowerCase();
+    const isLeadCompany = leadSource === 'lead company' || leadSource.includes('lead company');
+    // Exclude if Review Left? has any value (Y = left review, N = don't request)
+    const reviewLeftFilled = l['Review Left?'] && l['Review Left?'].trim() !== '';
+    return isCompleted && hasPhone && !isLeadCompany && !reviewLeftFilled;
+  }).sort((a, b) => {
+    return (b['Appointment Date'] || '').localeCompare(a['Appointment Date'] || '');
+  }).slice(0, 30);
+
   const isToday = selectedDate === getHoustonDate(0);
   const isTomorrow = selectedDate === getHoustonDate(1);
 
@@ -254,7 +317,7 @@ export default function RemindersPage() {
         )}
 
         {/* Tabs */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="grid grid-cols-4 gap-3 mb-6">
           <button
             onClick={() => setActiveTab('confirmations')}
             className={`relative px-4 py-2.5 rounded-lg font-medium transition-all transform hover:scale-[1.02] ${
@@ -294,6 +357,20 @@ export default function RemindersPage() {
             <div className="flex items-center justify-center gap-2">
               <span className="text-xl">🔧</span>
               <span className="text-sm font-bold">TECH REMINDER</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('reviews')}
+            className={`relative px-4 py-2.5 rounded-lg font-medium transition-all transform hover:scale-[1.02] ${
+              activeTab === 'reviews'
+                ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-teal-200 ring-2 ring-teal-200'
+                : 'bg-teal-50 text-teal-700 hover:bg-teal-100 shadow-sm border-2 border-teal-200'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-xl">⭐</span>
+              <span className="text-sm font-bold">REVIEW REQUEST</span>
             </div>
           </button>
         </div>
@@ -712,6 +789,119 @@ Reply C to confirm or call (281) 904-4674 to reschedule.`}
    🔧 Dryer Vent Cleaning
    ⏰ 2:00PM - 5:00PM
    📞 (713) 555-5678`}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'reviews' && (
+          <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+            <h2 className="text-lg font-semibold text-slate-800 mb-4">Send Google Review Request</h2>
+            <p className="text-slate-500 text-sm mb-6">
+              Send a thank-you text with a direct link to your Google review page. Only shows completed jobs that haven't been sent a review request yet.
+            </p>
+
+            {completedLeads.length === 0 ? (
+              <div className="text-center py-8 text-slate-500">
+                <span className="text-3xl mb-2 block">⭐</span>
+                No completed jobs awaiting review request
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-slate-50 border-b">
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Customer</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Phone</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Service</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Appt Date</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Tech</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-slate-600">Requested?</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-slate-600">Request Date</th>
+                      <th className="text-center py-3 px-4 text-sm font-semibold text-slate-600">Review Left?</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-slate-600">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {completedLeads.map((lead, idx) => (
+                      <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="py-3 px-4">
+                          <div>
+                            <p className="font-medium text-slate-800">{lead['Customer Name']}</p>
+                            <p className="text-xs text-slate-500">{lead['Lead ID']}</p>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <a href={`tel:${lead['Phone Number']}`} className="text-sm text-[#14b8a6] hover:underline">
+                            {formatPhone(lead['Phone Number'])}
+                          </a>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-slate-600">{lead['Service Requested']}</td>
+                        <td className="py-3 px-4 text-sm text-slate-600">{lead['Appointment Date']}</td>
+                        <td className="py-3 px-4 text-sm text-slate-600">{lead['Assigned To'] || '-'}</td>
+                        <td className="py-3 px-4 text-center">
+                          <select
+                            value={lead['Review Requested?'] || ''}
+                            onChange={(e) => updateReviewField(lead['Lead ID'], 'Review Requested?', e.target.value)}
+                            className="text-xs px-2 py-1 border border-slate-300 rounded-md focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] focus:outline-none"
+                          >
+                            <option value="">-</option>
+                            <option value="YES">YES</option>
+                            <option value="NO">NO</option>
+                          </select>
+                        </td>
+                        <td className="py-3 px-4">
+                          <input
+                            type="text"
+                            value={lead['Review Request Date'] || ''}
+                            onChange={(e) => {
+                              setLeads(prev => prev.map(l =>
+                                l['Lead ID'] === lead['Lead ID'] ? { ...l, 'Review Request Date': e.target.value } : l
+                              ));
+                            }}
+                            onBlur={(e) => updateReviewField(lead['Lead ID'], 'Review Request Date', e.target.value)}
+                            className="text-xs px-2 py-1 border border-slate-300 rounded-md w-28 focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] focus:outline-none"
+                            placeholder="mm/dd/yyyy"
+                          />
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <select
+                            value={lead['Review Left?'] || ''}
+                            onChange={(e) => updateReviewField(lead['Lead ID'], 'Review Left?', e.target.value)}
+                            className="text-xs px-2 py-1 border border-slate-300 rounded-md focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] focus:outline-none"
+                          >
+                            <option value="">-</option>
+                            <option value="Y">Y</option>
+                            <option value="N">N</option>
+                          </select>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <button
+                            onClick={() => sendReviewRequest(lead['Lead ID'])}
+                            disabled={sending === lead['Lead ID']}
+                            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm rounded-lg transition disabled:opacity-50"
+                          >
+                            {sending === lead['Lead ID'] ? 'Sending...' : 'Send Review Request'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Sample Message */}
+            <div className="mt-6 p-4 bg-slate-50 rounded-lg">
+              <h4 className="text-sm font-semibold text-slate-700 mb-2">Sample Message:</h4>
+              <p className="text-sm text-slate-600 font-mono whitespace-pre-wrap">
+{`Hi John! Thank you for choosing ClearAir Solutions. We truly appreciate your business!
+
+If you had a great experience, we'd love for you to leave us a quick review on Google. It really helps us out!
+
+https://g.page/r/your-review-link
+
+Thank you so much!`}
               </p>
             </div>
           </div>

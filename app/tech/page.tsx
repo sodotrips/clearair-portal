@@ -31,6 +31,8 @@ export default function TechPortal() {
   const [checkingIn, setCheckingIn] = useState<string | null>(null);
   const [cancellingAppt, setCancellingAppt] = useState<string | null>(null);
   const [cancellingFollowUp, setCancellingFollowUp] = useState<string | null>(null);
+  const [sendingReview, setSendingReview] = useState<string | null>(null);
+  const [reviewSent, setReviewSent] = useState<Set<string>>(new Set());
   const [rescheduleJob, setRescheduleJob] = useState<Lead | null>(null);
   const [addServiceJob, setAddServiceJob] = useState<Lead | null>(null);
   const [addingService, setAddingService] = useState(false);
@@ -245,6 +247,31 @@ export default function TechPortal() {
       alert('Failed to connect to server');
     } finally {
       setCancellingFollowUp(null);
+    }
+  }
+
+  async function handleSendReviewRequest(job: Lead) {
+    if (!confirm(`Send review request to ${job['Customer Name']}?\n\nThis will text them a Google review link.`)) return;
+
+    setSendingReview(job['Lead ID']);
+    try {
+      const response = await fetch('/api/sms/send-review-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId: job['Lead ID'] }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setReviewSent(prev => new Set(prev).add(job['Lead ID']));
+        alert(`Review request sent to ${job['Customer Name']}!`);
+      } else {
+        alert(data.error || 'Failed to send review request');
+      }
+    } catch (err) {
+      alert('Failed to connect to server');
+    } finally {
+      setSendingReview(null);
     }
   }
 
@@ -738,7 +765,11 @@ export default function TechPortal() {
                   {expandedJob === job['Lead ID'] && (
                     <div className="border-t border-slate-100">
                       {/* Quick Actions */}
-                      <div className="p-4 bg-slate-50 grid grid-cols-4 gap-2">
+                      {(() => {
+                        const isClearAir = getRepresentingInfo(job).name === 'CLEARAIR';
+                        const alreadySentReview = reviewSent.has(job['Lead ID']) || job['Review Requested?']?.toUpperCase() === 'YES';
+                        return (
+                      <div className={`p-4 bg-slate-50 grid ${isClearAir ? 'grid-cols-5' : 'grid-cols-4'} gap-2`}>
                         <a
                           href={`tel:${job['Phone Number']}`}
                           className="flex items-center justify-center gap-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-medium transition text-sm"
@@ -783,7 +814,29 @@ export default function TechPortal() {
                           )}
                           Cancel
                         </button>
+                        {isClearAir && (
+                          <button
+                            onClick={() => handleSendReviewRequest(job)}
+                            disabled={sendingReview === job['Lead ID']}
+                            className={`flex items-center justify-center gap-1 py-3 rounded-lg font-medium transition text-sm disabled:opacity-50 ${
+                              alreadySentReview
+                                ? 'bg-yellow-100 text-yellow-700 border border-yellow-300'
+                                : 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                            }`}
+                          >
+                            {sendingReview === job['Lead ID'] ? (
+                              <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                            ) : (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                              </svg>
+                            )}
+                            {alreadySentReview ? 'Sent' : 'Review'}
+                          </button>
+                        )}
                       </div>
+                        );
+                      })()}
 
                       {/* Job Details */}
                       <div className="p-4 space-y-3">
@@ -1039,7 +1092,10 @@ export default function TechPortal() {
                   Visited Today
                 </h3>
                 <div className="space-y-2">
-                  {quotedToday.map((job, idx) => (
+                  {quotedToday.map((job, idx) => {
+                    const isClearAir = getRepresentingInfo(job).name === 'CLEARAIR';
+                    const alreadySentReview = reviewSent.has(job['Lead ID']) || job['Review Requested?']?.toUpperCase() === 'YES';
+                    return (
                     <div key={idx} className="bg-white rounded-lg p-3 flex justify-between items-center">
                       <div>
                         <p className="font-medium text-slate-700">{job['Customer Name']}</p>
@@ -1048,11 +1104,34 @@ export default function TechPortal() {
                           <p className="text-xs text-amber-600 font-medium mt-1">Quote: ${job['Total Cost']}</p>
                         )}
                       </div>
-                      <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-semibold">
-                        Quoted
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {isClearAir && (
+                          <button
+                            onClick={() => handleSendReviewRequest(job)}
+                            disabled={sendingReview === job['Lead ID']}
+                            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition disabled:opacity-50 ${
+                              alreadySentReview
+                                ? 'bg-yellow-100 text-yellow-700 border border-yellow-300'
+                                : 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                            }`}
+                          >
+                            {sendingReview === job['Lead ID'] ? (
+                              <div className="animate-spin w-3 h-3 border-2 border-white border-t-transparent rounded-full"></div>
+                            ) : (
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                              </svg>
+                            )}
+                            {alreadySentReview ? 'Sent' : 'Review'}
+                          </button>
+                        )}
+                        <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-semibold">
+                          Quoted
+                        </span>
+                      </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -1064,17 +1143,43 @@ export default function TechPortal() {
                   Closed Today
                 </h3>
                 <div className="space-y-2">
-                  {closedToday.map((job, idx) => (
-                    <div key={idx} className="bg-white rounded-lg p-3 flex justify-between items-center opacity-75">
+                  {closedToday.map((job, idx) => {
+                    const isClearAir = getRepresentingInfo(job).name === 'CLEARAIR';
+                    const alreadySentReview = reviewSent.has(job['Lead ID']) || job['Review Requested?']?.toUpperCase() === 'YES';
+                    return (
+                    <div key={idx} className="bg-white rounded-lg p-3 flex justify-between items-center">
                       <div>
                         <p className="font-medium text-slate-700">{job['Customer Name']}</p>
                         <p className="text-xs text-slate-500">{job['Service Requested']}</p>
                       </div>
-                      <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-semibold">
-                        Closed
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {isClearAir && (
+                          <button
+                            onClick={() => handleSendReviewRequest(job)}
+                            disabled={sendingReview === job['Lead ID']}
+                            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold transition disabled:opacity-50 ${
+                              alreadySentReview
+                                ? 'bg-yellow-100 text-yellow-700 border border-yellow-300'
+                                : 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                            }`}
+                          >
+                            {sendingReview === job['Lead ID'] ? (
+                              <div className="animate-spin w-3 h-3 border-2 border-white border-t-transparent rounded-full"></div>
+                            ) : (
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                              </svg>
+                            )}
+                            {alreadySentReview ? 'Sent' : 'Review'}
+                          </button>
+                        )}
+                        <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-semibold">
+                          Closed
+                        </span>
+                      </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
