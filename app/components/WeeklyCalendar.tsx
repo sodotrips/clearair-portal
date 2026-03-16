@@ -112,13 +112,18 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseD
     });
   };
 
-  // Sort jobs by time window
+  // Sort jobs by time window — parse start hour from any format
   const getTimeOrder = (timeWindow: string): number => {
-    const tw = (timeWindow || '').trim().toLowerCase();
-    if (tw.startsWith('08:00') || tw.startsWith('8:00') || tw.includes('8am') || tw.includes('8-11')) return 1;
-    if (tw.startsWith('11:00') || tw.includes('11am') || tw.includes('11-2')) return 2;
-    if (tw.startsWith('2:00') || tw.startsWith('14:00') || tw.includes('2pm') || tw.includes('2-5')) return 3;
-    return 99;
+    const tw = (timeWindow || '').trim();
+    // Extract leading hour from formats like "08:00AM - 11:00AM" or "8:00 AM - 11:00 AM"
+    const match = tw.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+    if (!match) return 99;
+    let hour = parseInt(match[1], 10);
+    const minutes = parseInt(match[2] || '0', 10);
+    const meridiem = (match[3] || '').toLowerCase();
+    if (meridiem === 'pm' && hour !== 12) hour += 12;
+    if (meridiem === 'am' && hour === 12) hour = 0;
+    return hour * 60 + minutes;
   };
 
   const sortJobsByTime = (jobs: Lead[]) => {
