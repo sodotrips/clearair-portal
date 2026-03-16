@@ -8,6 +8,8 @@ import ScheduleModal from '../components/ScheduleModal';
 import QuoteModal from '../components/QuoteModal';
 import CheckoutModal from '../components/CheckoutModal';
 
+const PhotosModal = dynamic(() => import('../components/PhotosModal'), { ssr: false });
+
 // Dynamically import the map to avoid SSR issues with Leaflet
 const JobMap = dynamic(() => import('../components/JobMap'), {
   ssr: false,
@@ -39,6 +41,7 @@ export default function TechPortal() {
   const [selectedNewService, setSelectedNewService] = useState('');
   const [quoteJob, setQuoteJob] = useState<Lead | null>(null);
   const [checkoutJob, setCheckoutJob] = useState<Lead | null>(null);
+  const [photosJob, setPhotosJob] = useState<Lead | null>(null);
   const [activeView, setActiveView] = useState<'schedule' | 'history'>('schedule');
 
   // Edit mode state
@@ -632,8 +635,8 @@ export default function TechPortal() {
         </div>
 
         {/* Map showing all jobs for the day */}
-        {!loading && myJobs.length > 0 && (
-          <JobMap jobs={myJobs} />
+        {!loading && [...myJobs, ...quotedToday, ...closedToday].length > 0 && (
+          <JobMap jobs={[...myJobs, ...quotedToday, ...closedToday]} />
         )}
 
         {/* Loading State */}
@@ -770,15 +773,16 @@ export default function TechPortal() {
                         const alreadySentReview = reviewSent.has(job['Lead ID']) || job['Review Requested?']?.toUpperCase() === 'YES';
                         return (
                       <div className={`p-4 bg-slate-50 grid ${isClearAir ? 'grid-cols-5' : 'grid-cols-4'} gap-2`}>
-                        <a
-                          href={`tel:${job['Phone Number']}`}
-                          className="flex items-center justify-center gap-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-medium transition text-sm"
+                        <button
+                          onClick={() => setPhotosJob(job)}
+                          className="flex items-center justify-center gap-1 bg-indigo-500 hover:bg-indigo-600 text-white py-3 rounded-lg font-medium transition text-sm"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                           </svg>
-                          Call
-                        </a>
+                          Photos
+                        </button>
                         <a
                           href={`https://maps.google.com/?q=${encodeURIComponent(job['Address'] + ', ' + job['City'] + ', TX ' + job['Zip Code'])}`}
                           target="_blank"
@@ -1105,6 +1109,16 @@ export default function TechPortal() {
                         )}
                       </div>
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setPhotosJob(job)}
+                          className="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-indigo-500 hover:bg-indigo-600 text-white transition"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          Photos
+                        </button>
                         {isClearAir && (
                           <button
                             onClick={() => handleSendReviewRequest(job)}
@@ -1153,6 +1167,16 @@ export default function TechPortal() {
                         <p className="text-xs text-slate-500">{job['Service Requested']}</p>
                       </div>
                       <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setPhotosJob(job)}
+                          className="flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-indigo-500 hover:bg-indigo-600 text-white transition"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          Photos
+                        </button>
                         {isClearAir && (
                           <button
                             onClick={() => handleSendReviewRequest(job)}
@@ -1347,6 +1371,14 @@ export default function TechPortal() {
             setCheckoutJob(null);
             fetchLeads();
           }}
+        />
+      )}
+
+      {/* Photos Modal */}
+      {photosJob && (
+        <PhotosModal
+          lead={photosJob}
+          onClose={() => setPhotosJob(null)}
         />
       )}
 

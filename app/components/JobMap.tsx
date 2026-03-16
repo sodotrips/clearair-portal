@@ -134,6 +134,33 @@ export default function JobMap({ jobs, onRouteOptimized }: JobMapProps) {
         } catch (err) {
           console.error('[JobMap] Geocoding error for:', address, err);
         }
+
+        // If geocoding failed, try with just city + zip
+        if (!results[index]) {
+          try {
+            const fallbackAddress = `${job['City']}, TX ${job['Zip Code']}`;
+            const response = await fetch('/api/geocode', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ address: fallbackAddress }),
+            });
+            const data = await response.json();
+            if (data.success) {
+              geocodeCache.current[address] = { lat: data.lat, lng: data.lng };
+              results[index] = { job, lat: data.lat, lng: data.lng };
+              console.warn('[JobMap] Used fallback geocoding for:', job['Lead ID'], address);
+            }
+          } catch (err) {
+            console.error('[JobMap] Fallback geocoding also failed for:', job['Lead ID']);
+          }
+        }
+      }
+    }
+
+    // Log any jobs that failed to geocode
+    for (let i = 0; i < jobs.length; i++) {
+      if (!results[i]) {
+        console.error('[JobMap] Failed to geocode job:', jobs[i]['Lead ID'], jobs[i]['Address'], jobs[i]['City']);
       }
     }
 
@@ -166,12 +193,10 @@ export default function JobMap({ jobs, onRouteOptimized }: JobMapProps) {
     // Optimize route
     const result = optimizeRoute(locations);
 
-    // Reorder geocoded jobs based on optimization
+    // Reorder geocoded jobs based on optimization (match by Lead ID)
     const reordered: GeocodedJob[] = result.orderedLocations.map(loc => {
-      return geocoded.find(g =>
-        g.job['Address'] === loc.address && g.job['City'] === loc.city
-      )!;
-    }).filter(Boolean);
+      return geocoded.find(g => (g.job['Lead ID'] || '') === loc.id);
+    }).filter((g): g is GeocodedJob => g !== undefined);
 
     setOptimizedJobs(reordered);
     setRouteInfo(result);
