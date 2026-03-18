@@ -730,7 +730,7 @@ export default function Dashboard() {
   ];
 
   const columnsByView: Record<string, string[]> = {
-    calllogs: ['Actions', 'Timestamp', 'Caller Phone', 'Customer Name', 'Service Inquiry', 'Outcome', 'Appt Date', 'Transcript'],
+    calllogs: ['Actions', 'Timestamp', 'Caller Phone', 'Customer Name', 'Service Inquiry', 'Outcome', 'Appt Date', 'Time Window', 'Transcript'],
     website: ['Actions', ...websiteLeadCols],
     new: ['Actions', 'Lead ID', 'Status', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Created', 'Technician', 'Appointment', 'Customer Notes'],
     scheduled: ['Actions', 'Lead ID', 'Status', 'Brand', 'Customer', 'Phone', 'Address', 'City', 'Service', 'Technician', 'Appointment', 'Time Window', 'Follow-up'],
@@ -1238,6 +1238,10 @@ export default function Dashboard() {
                           {/* Appt Date */}
                           <td className="px-3 py-2 text-sm text-slate-600" style={{ width: 120 }}>
                             {lead['Appt Date'] !== '(none)' ? lead['Appt Date'] : '-'}
+                          </td>
+                          {/* Time Window */}
+                          <td className="px-3 py-2 text-sm text-slate-600" style={{ width: 130 }}>
+                            {lead['Time Window'] !== '(none)' ? lead['Time Window'] : '-'}
                           </td>
                           {/* Transcript */}
                           <td className="px-3 py-2 text-xs text-slate-500 truncate" style={{ width: 300, maxWidth: 300 }}>

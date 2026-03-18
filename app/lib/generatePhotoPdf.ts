@@ -63,8 +63,8 @@ export async function generatePhotoPdf(
   // Try loading the logo
   try {
     const logoDataUrl = await loadImageAsDataUrl('/clearair-logo.png');
-    doc.addImage(logoDataUrl, 'PNG', margin, currentY, 1.1, 0.325);
-    currentY += 0.5;
+    doc.addImage(logoDataUrl, 'PNG', margin, currentY, 1.43, 0.4225);
+    currentY += 0.6;
   } catch {
     doc.setFontSize(22);
     doc.setTextColor(10, 37, 64);

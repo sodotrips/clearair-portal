@@ -52,7 +52,12 @@ export async function POST(request: NextRequest) {
     // Extract data from call log
     // Columns: A:CallLogID, B:Timestamp, C:Phone, D:Name, E:Service, F:Outcome, G:Promoted?, H:LeadID, I:Duration, J:ApptDate, K:TimeWindow, L:Transcript
     const customerName = callLogRow[3] || '';
-    const phone = callLogRow[2] || '';
+    const rawPhone = callLogRow[2] || '';
+    const phoneDigits = rawPhone.replace(/\D/g, '');
+    const localDigits = phoneDigits.length === 11 && phoneDigits.startsWith('1') ? phoneDigits.slice(1) : phoneDigits;
+    const phone = localDigits.length === 10
+      ? `(${localDigits.slice(0, 3)}) ${localDigits.slice(3, 6)}-${localDigits.slice(6)}`
+      : rawPhone;
     const service = callLogRow[4] || 'Air Duct Cleaning';
     const appointmentDate = callLogRow[9] || '';
     const timeWindow = callLogRow[10] || '';

@@ -97,6 +97,35 @@ function parseAppointmentDate(dateStr: string): string {
   return dateStr;
 }
 
+// Format any phone string to (xxx) xxx-xxxx — strips country code
+function formatPhone(phone: string): string {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  const local = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+  if (local.length !== 10) return phone; // return as-is if not a valid US number
+  return `(${local.slice(0, 3)}) ${local.slice(3, 6)}-${local.slice(6)}`;
+}
+
+// Normalize service name to proper casing and handle multi-service
+function normalizeService(serviceStr: string): string {
+  if (!serviceStr) return 'Air Duct Cleaning';
+  const lower = serviceStr.toLowerCase();
+
+  const hasAirDuct = lower.includes('air duct') || lower.includes('duct');
+  const hasDryerVent = lower.includes('dryer') || lower.includes('dryer vent');
+  const hasChimney = lower.includes('chimney');
+
+  if (hasAirDuct && hasDryerVent && hasChimney) return 'Air Duct, Dryer Vent & Chimney';
+  if (hasAirDuct && hasDryerVent) return 'Air Duct & Dryer Vent';
+  if (hasAirDuct && hasChimney) return 'Air Duct & Chimney';
+  if (hasDryerVent && hasChimney) return 'Dryer Vent & Chimney';
+  if (hasAirDuct) return 'Air Duct Cleaning';
+  if (hasDryerVent) return 'Dryer Vent Cleaning';
+  if (hasChimney) return 'Chimney Service';
+
+  return serviceStr;
+}
+
 // Normalize time window to standard format matching Google Sheet
 function normalizeTimeWindow(timeStr: string): string {
   if (!timeStr) return '';
@@ -277,12 +306,13 @@ export async function POST(request: NextRequest) {
         structuredData?.propertyType ||
         structuredData?.property_type ||
         '',
-      service:
+      service: normalizeService(
         structuredData?.serviceRequested ||
         structuredData?.service ||
         structuredData?.service_requested ||
         structuredData?.serviceType ||
-        'Air Duct Cleaning',
+        ''
+      ),
       numUnits:
         structuredData?.numUnits ||
         structuredData?.acUnits ||
@@ -323,11 +353,12 @@ export async function POST(request: NextRequest) {
       notes: transcript?.substring(0, 500) || summary || '',
     };
 
-    // Normalize phone number and format as (xxx) xxx-xxxx
-    const phoneDigits = lead.phone.replace(/^\+1/, '').replace(/\D/g, '');
-    const formattedPhone = phoneDigits.length === 10
-      ? `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`
-      : phoneDigits;
+    // Normalize phone number to (xxx) xxx-xxxx
+    console.log('RAW PHONES — lead.phone:', lead.phone, '| customerPhone:', customerPhone);
+    const formattedPhone = formatPhone(lead.phone) || formatPhone(customerPhone);
+    console.log('FORMATTED PHONE:', formattedPhone);
+    const rawDigits = (lead.phone || customerPhone).replace(/\D/g, '');
+    const phoneDigits = rawDigits.length === 11 && rawDigits.startsWith('1') ? rawDigits.slice(1) : rawDigits;
 
     // Use "Unknown Caller" if no name but we have phone
     if (!lead.customerName && phoneDigits) {
@@ -383,7 +414,7 @@ export async function POST(request: NextRequest) {
           values: [[
             callLogId,                                    // A: Call Log ID
             houstonTime,                                  // B: Timestamp
-            formattedPhone || customerPhone || '(unknown)', // C: Caller Phone
+            formattedPhone || '(unknown)', // C: Caller Phone
             lead.customerName || '(not captured)',        // D: Customer Name
             lead.service || '(not specified)',            // E: Service Inquiry
             callOutcome,                                  // F: Outcome (BOOKED, INQUIRY, SPAM/HANGUP, TRANSFER REQUEST)
@@ -402,78 +433,10 @@ export async function POST(request: NextRequest) {
       // Continue - don't fail if call log save fails
     }
 
-    // ============================================
-    // STEP 2: Only save to ACTIVE LEADS if valid
-    // (has name + phone + appointment date)
-    // ============================================
-    let leadId = '';
-
-    if (isValidLead) {
-      leadId = await generateLeadId(sheets);
-
-      // Build full row for ACTIVE LEADS
-      const row = new Array(125).fill('');
-
-      row[0] = leadId;
-      row[1] = 'SCHEDULED';
-      row[2] = 'MEDIUM';
-      row[3] = createdDate;
-      row[4] = lead.customerName;
-      row[5] = formattedPhone;
-      row[6] = '';
-      row[7] = lead.address;
-      row[8] = lead.city;
-      row[9] = lead.zip;
-      row[10] = '';
-      row[11] = 'Phone - AI Receptionist';
-      row[12] = '';
-      row[16] = lead.service;
-      row[17] = '';
-      row[18] = '';
-      row[19] = `Customer called in via AI Receptionist. Call Log ID: ${callLogId}`;
-      row[35] = 'Amit';
-      row[43] = appointmentDate;
-      row[45] = timeWindow;
-      row[50] = lead.accessInstructions;
-      row[51] = lead.gateCode;
-      row[53] = lead.pets;
-      row[117] = houstonTime;
-      row[118] = 'AI Receptionist';
-
-      await sheets.spreadsheets.values.append({
-        spreadsheetId: SPREADSHEET_ID,
-        range: `${SHEET_NAME}!A:DU`,
-        valueInputOption: 'USER_ENTERED',
-        requestBody: {
-          values: [row],
-        },
-      });
-
-      console.log(`Voice webhook: Lead ${leadId} promoted to ACTIVE LEADS`);
-
-      // Update CALL LOG with the Lead ID
-      // Find the row we just added and update column H
-      try {
-        const callLogData = await sheets.spreadsheets.values.get({
-          spreadsheetId: SPREADSHEET_ID,
-          range: `${CALL_LOG_SHEET}!A:A`,
-        });
-        const callLogRows = callLogData.data.values || [];
-        const rowIndex = callLogRows.findIndex((r: string[]) => r[0] === callLogId);
-        if (rowIndex >= 0) {
-          await sheets.spreadsheets.values.update({
-            spreadsheetId: SPREADSHEET_ID,
-            range: `${CALL_LOG_SHEET}!H${rowIndex + 1}`,
-            valueInputOption: 'USER_ENTERED',
-            requestBody: { values: [[leadId]] },
-          });
-        }
-      } catch (updateError) {
-        console.error('Failed to update CALL LOG with Lead ID:', updateError);
-      }
-    } else {
-      console.log(`Voice webhook: Call logged but NOT promoted (missing: ${!lead.customerName ? 'name ' : ''}${!phoneDigits ? 'phone ' : ''}${!appointmentDate ? 'appointment' : ''})`);
-    }
+    // All calls go to CALL LOG only — no auto-promotion to ACTIVE LEADS.
+    // User reviews in the AI Receptionist tab and manually promotes.
+    const leadId = '';
+    console.log(`Voice webhook: Call logged to CALL LOG only - ${callLogId} (${callOutcome}). Manual promotion required.`);
 
     // Send SMS notification to owner - always send for AI calls (bypass whitelist check)
     // The shouldSendSMS function is for filtering customer numbers, not owner notifications
@@ -485,8 +448,8 @@ export async function POST(request: NextRequest) {
         let smsBody = '';
 
         if (isValidLead) {
-          // BOOKED APPOINTMENT - Full details
-          smsBody = `✅ NEW BOOKING (AI)
+          // BOOKED APPOINTMENT - Full details (needs manual promotion)
+          smsBody = `📞 AI CALL — Review & Promote
 
 Name: ${lead.customerName}
 Phone: ${formattedPhone}
@@ -494,7 +457,7 @@ Address: ${lead.address}${lead.city ? ', ' + lead.city : ''}${lead.zip ? ' ' + l
 Service: ${lead.service}
 📅 ${appointmentDate}${timeWindow ? ` (${timeWindow})` : ''}${lead.gateCode ? `\nGate: ${lead.gateCode}` : ''}
 
-Lead ID: ${leadId}`;
+Review in AI Receptionist tab → promote to schedule`;
         } else if (phoneDigits || lead.customerName) {
           // INQUIRY ONLY - no appointment, but has some info
           smsBody = `📞 AI CALL (No Booking)
