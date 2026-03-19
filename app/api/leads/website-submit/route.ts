@@ -8,12 +8,13 @@ const WEBSITE_LEADS_SHEET = 'Website Leads';
 const TELEGRAM_BOT_TOKEN = '8287761472:AAHUXN6VhTapnMyE1agD6yhjNSBixNfeCNI';
 const TELEGRAM_CHAT_ID = '7327298510';
 
-// Format phone as (xxx) xxx-xxxx
+// Format phone as (xxx) xxx-xxxx — strips country code
 function formatPhone(phone: string): string {
   if (!phone) return '';
   const digits = phone.replace(/\D/g, '');
-  if (digits.length === 10) {
-    return `(${digits.substring(0, 3)}) ${digits.substring(3, 6)}-${digits.substring(6)}`;
+  const local = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+  if (local.length === 10) {
+    return `(${local.substring(0, 3)}) ${local.substring(3, 6)}-${local.substring(6)}`;
   }
   return phone;
 }

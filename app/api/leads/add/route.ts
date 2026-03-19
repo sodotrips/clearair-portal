@@ -4,6 +4,14 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import path from 'path';
 
+function formatPhone(phone: string): string {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  const local = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+  if (local.length === 10) return `(${local.slice(0, 3)}) ${local.slice(3, 6)}-${local.slice(6)}`;
+  return phone;
+}
+
 const SPREADSHEET_ID = '1sWJpsvt8aNnmwTssfQ3GWvxa8-RVUy2M7eLHM5YSN3k';
 const SHEET_NAME = 'ACTIVE LEADS';
 
@@ -91,7 +99,7 @@ export async function POST(request: Request) {
     row[2] = leadData.priority || 'MEDIUM';       // C: Priority Level
     row[3] = createdDate;                         // D: Lead Created Date
     row[4] = leadData.customerName || '';         // E: Customer Name
-    row[5] = leadData.phone || '';                // F: Phone Number
+    row[5] = formatPhone(leadData.phone || '');   // F: Phone Number
     row[6] = leadData.email || '';                // G: Email
     row[7] = leadData.address || '';              // H: Address
     row[8] = leadData.city || '';                 // I: City
