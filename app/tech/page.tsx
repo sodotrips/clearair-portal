@@ -400,14 +400,17 @@ export default function TechPortal() {
     const isOnDate = isDateMatch(l['Appointment Date'], selectedDate);
     return isAssigned && isScheduled && isOnDate;
   }).sort((a, b) => {
-    const getOrder = (tw: string) => {
-      const t = (tw || '').trim().toLowerCase();
-      if (t.startsWith('08:00') || t.startsWith('8:00') || t.includes('8am')) return 1;
-      if (t.startsWith('11:00') || t.includes('11am')) return 2;
-      if (t.startsWith('2:00') || t.includes('2pm')) return 3;
-      return 99;
+    const parseTimeWindow = (tw: string): number => {
+      const match = (tw || '').trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+      if (!match) return 99 * 60;
+      let hour = parseInt(match[1], 10);
+      const minutes = parseInt(match[2] || '0', 10);
+      const meridiem = (match[3] || '').toLowerCase();
+      if (meridiem === 'pm' && hour !== 12) hour += 12;
+      if (meridiem === 'am' && hour === 12) hour = 0;
+      return hour * 60 + minutes;
     };
-    return getOrder(a['Time Window']) - getOrder(b['Time Window']);
+    return parseTimeWindow(a['Time Window']) - parseTimeWindow(b['Time Window']);
   });
 
   // Get quoted jobs for today (visited but not closed/paid)

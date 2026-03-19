@@ -715,7 +715,6 @@ export default function Dashboard() {
     { id: 'scheduled', label: 'Scheduled', count: stats.scheduled },
     { id: 'quoted', label: 'Quoted', count: stats.quoted, adminOnly: true },
     { id: 'followups', label: 'Follow-ups', count: stats.followups },
-    { id: 'closed', label: 'Closed', count: stats.closed, adminOnly: true },
     { id: 'canceled', label: 'Canceled', count: stats.canceled },
   ];
 

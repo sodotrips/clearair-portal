@@ -177,35 +177,34 @@ export default function JobMap({ jobs, onRouteOptimized }: JobMapProps) {
     }
   };
 
+  const parseTimeWindow = (tw: string): number => {
+    if (!tw) return 99 * 60;
+    const match = tw.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+    if (!match) return 99 * 60;
+    let hour = parseInt(match[1], 10);
+    const minutes = parseInt(match[2] || '0', 10);
+    const meridiem = (match[3] || '').toLowerCase();
+    if (meridiem === 'pm' && hour !== 12) hour += 12;
+    if (meridiem === 'am' && hour === 12) hour = 0;
+    return hour * 60 + minutes;
+  };
+
   const optimizeRouteOrder = (geocoded: GeocodedJob[]) => {
     setOptimizing(true);
 
-    // Convert to Location format for optimizer
-    const locations: Location[] = geocoded.map((g, idx) => ({
-      id: g.job['Lead ID'] || String(idx),
-      address: g.job['Address'],
-      city: g.job['City'],
-      zip: g.job['Zip Code'],
-      lat: g.lat,
-      lng: g.lng,
-    }));
-
-    // Optimize route
-    const result = optimizeRoute(locations);
-
-    // Reorder geocoded jobs based on optimization (match by Lead ID)
-    const reordered: GeocodedJob[] = result.orderedLocations.map(loc => {
-      return geocoded.find(g => (g.job['Lead ID'] || '') === loc.id);
-    }).filter((g): g is GeocodedJob => g !== undefined);
+    // Sort by scheduled time window instead of geographic optimization
+    const reordered = [...geocoded].sort((a, b) =>
+      parseTimeWindow(a.job['Time Window']) - parseTimeWindow(b.job['Time Window'])
+    );
 
     setOptimizedJobs(reordered);
-    setRouteInfo(result);
+    setRouteInfo(null);
     setOptimizing(false);
     setLoading(false);
 
-    // Callback with optimized order
+    // Callback with time-ordered jobs
     if (onRouteOptimized) {
-      onRouteOptimized(reordered.map(g => g.job), result);
+      onRouteOptimized(reordered.map(g => g.job), { orderedLocations: [], totalDistance: 0, totalDuration: 0 } as any);
     }
   };
 
@@ -223,7 +222,7 @@ export default function JobMap({ jobs, onRouteOptimized }: JobMapProps) {
           <div className="text-center">
             <div className="animate-spin w-8 h-8 border-3 border-[#14b8a6] border-t-transparent rounded-full mx-auto mb-2"></div>
             <p className="text-slate-500 text-sm">
-              {optimizing ? 'Optimizing route...' :
+              {optimizing ? 'Sorting by schedule...' :
                geocodeProgress.total > 0
                  ? `Finding addresses (${geocodeProgress.current}/${geocodeProgress.total})...`
                  : 'Loading map...'}
@@ -254,7 +253,7 @@ export default function JobMap({ jobs, onRouteOptimized }: JobMapProps) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-lg">🗺️</span>
-          <h3 className="font-semibold text-[#0a2540]">Optimized Route</h3>
+          <h3 className="font-semibold text-[#0a2540]">Today's Route</h3>
         </div>
         {routeInfo && routeInfo.totalDistanceMiles > 0 && (
           <div className="flex items-center gap-3 text-xs">

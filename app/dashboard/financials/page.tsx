@@ -71,8 +71,13 @@ export default function FinancialDashboard() {
   const [partnerCommission, setPartnerCommission] = useState('');
   const [amitCommission, setAmitCommission] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
+  const [invoiceNumber, setInvoiceNumber] = useState('');
   const [saving, setSaving] = useState(false);
-  const [rowsToShow, setRowsToShow] = useState(50);
+  const [financialPage, setFinancialPage] = useState(1);
+  const FINANCIAL_PAGE_SIZE = 25;
+  const [financialSortCol, setFinancialSortCol] = useState('Appointment Date');
+  const [financialSortDir, setFinancialSortDir] = useState<'asc' | 'desc'>('asc');
+  const [financialSearch, setFinancialSearch] = useState('');
 
   useEffect(() => {
     fetchLeads();
@@ -476,6 +481,7 @@ export default function FinancialDashboard() {
     setSaving(true);
     try {
       const updates: Record<string, string> = {
+        'Invoice Number': invoiceNumber,
         'Quote Amount': quoteAmount,
         'Amount Paid': finalAmount,
         'Payment Method': paymentMethod,
@@ -879,40 +885,114 @@ export default function FinancialDashboard() {
 
         {/* Job Financial Details Table */}
         <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
             <h3 className="text-lg font-semibold text-[#0a2540]">Job Financial Details</h3>
-            <p className="text-xs text-slate-500">Click a row to edit financial details</p>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search customer, lead ID…"
+                  value={financialSearch}
+                  onChange={e => { setFinancialSearch(e.target.value); setFinancialPage(1); }}
+                  className="pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#14b8a6] w-52"
+                />
+                {financialSearch && (
+                  <button onClick={() => setFinancialSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">✕</button>
+                )}
+              </div>
+              <p className="text-xs text-slate-500">Click a row to edit financial details</p>
+            </div>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto max-h-[480px]">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-200">
-                  <th className="text-left py-3 px-3 text-sm font-semibold text-slate-600">Lead ID</th>
-                  <th className="text-left py-3 px-3 text-sm font-semibold text-slate-600">Customer</th>
-                  <th className="text-center py-3 px-3 text-sm font-semibold text-slate-600">Appt Date</th>
-                  <th className="text-left py-3 px-3 text-sm font-semibold text-slate-600">Status</th>
-                  <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Quote $</th>
-                  <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Paid $</th>
-                  <th className="text-center py-3 px-3 text-sm font-semibold text-slate-600">Payment Method</th>
-                  <th className="text-center py-3 px-3 text-sm font-semibold text-slate-600">Payment Date</th>
-                  <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Pretax Total Cost</th>
-                  <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Expenses</th>
-                  <th className="text-right py-3 px-3 text-sm font-semibold text-slate-600">Gross Profit</th>
+                  {([
+                    { label: 'Lead ID', col: 'Lead ID', align: 'left' },
+                    { label: 'Invoice #', col: 'Invoice Number', align: 'left' },
+                    { label: 'Customer', col: 'Customer Name', align: 'left' },
+                    { label: 'Appt Date', col: 'Appointment Date', align: 'center' },
+                    { label: 'Status', col: 'Status', align: 'left' },
+                    { label: 'Quote $', col: 'Quote Amount', align: 'right' },
+                    { label: 'Paid $', col: 'Amount Paid', align: 'right' },
+                    { label: 'Payment Method', col: 'Payment Method', align: 'center' },
+                    { label: 'Payment Date', col: 'Payment Date', align: 'center' },
+                    { label: 'Pretax Total Cost', col: 'Total Cost', align: 'right' },
+                    { label: 'Expenses', col: '_expenses', align: 'right' },
+                    { label: 'Gross Profit', col: 'Profit $', align: 'right' },
+                  ] as { label: string; col: string; align: string }[]).map(({ label, col, align }) => (
+                    <th
+                      key={col}
+                      onClick={() => {
+                        if (financialSortCol === col) {
+                          setFinancialSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setFinancialSortCol(col);
+                          setFinancialSortDir('asc');
+                        }
+                        setFinancialPage(1);
+                      }}
+                      className={`py-3 px-3 text-sm font-semibold text-slate-600 cursor-pointer select-none hover:text-[#14b8a6] whitespace-nowrap text-${align}`}
+                    >
+                      {label}
+                      <span className="ml-1 text-xs text-slate-400">
+                        {financialSortCol === col ? (financialSortDir === 'asc' ? '↑' : '↓') : '↕'}
+                      </span>
+                    </th>
+                  ))}
                   <th className="text-center py-3 px-3 text-sm font-semibold text-slate-600">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredLeads
                   .filter(l => l['Status']?.toUpperCase() === 'CLOSED')
-                  .sort((a, b) => {
-                    const dateA = parseDate(a['Appointment Date']);
-                    const dateB = parseDate(b['Appointment Date']);
-                    if (!dateA && !dateB) return 0;
-                    if (!dateA) return 1;
-                    if (!dateB) return -1;
-                    return dateA.getTime() - dateB.getTime(); // Oldest to latest
+                  .filter(l => {
+                    if (!financialSearch.trim()) return true;
+                    const q = financialSearch.toLowerCase();
+                    return (
+                      (l['Customer Name'] || '').toLowerCase().includes(q) ||
+                      (l['Lead ID'] || '').toLowerCase().includes(q) ||
+                      (l['Address'] || '').toLowerCase().includes(q) ||
+                      (l['Payment Method'] || '').toLowerCase().includes(q)
+                    );
                   })
-                  .slice(0, rowsToShow)
+                  .sort((a, b) => {
+                    const dir = financialSortDir === 'asc' ? 1 : -1;
+                    const col = financialSortCol;
+
+                    // Date columns
+                    if (col === 'Appointment Date' || col === 'Payment Date') {
+                      const dateA = parseDate(a[col]);
+                      const dateB = parseDate(b[col]);
+                      if (!dateA && !dateB) return 0;
+                      if (!dateA) return dir;
+                      if (!dateB) return -dir;
+                      return (dateA.getTime() - dateB.getTime()) * dir;
+                    }
+
+                    // Currency columns
+                    if (['Quote Amount', 'Amount Paid', 'Total Cost', 'Profit $'].includes(col)) {
+                      return (parseCurrency(a[col]) - parseCurrency(b[col])) * dir;
+                    }
+
+                    // Computed expenses column
+                    if (col === '_expenses') {
+                      const expA = parseCurrency(a['Labor Cost']) + parseCurrency(a['Materials Cost']) + parseCurrency(a['Subcontractor Cost']);
+                      const expB = parseCurrency(b['Labor Cost']) + parseCurrency(b['Materials Cost']) + parseCurrency(b['Subcontractor Cost']);
+                      return (expA - expB) * dir;
+                    }
+
+                    // Text columns
+                    const valA = (a[col] || '').toLowerCase();
+                    const valB = (b[col] || '').toLowerCase();
+                    if (valA < valB) return -dir;
+                    if (valA > valB) return dir;
+                    return 0;
+                  })
+                  .slice((financialPage - 1) * FINANCIAL_PAGE_SIZE, financialPage * FINANCIAL_PAGE_SIZE)
                   .map((lead, idx) => {
                     // Calculate expenses from columns CE, CF, CG
                     // Headers: Labor Cost (CE), Materials Cost (CF), Subcontractor Cost (CG)
@@ -924,9 +1004,10 @@ export default function FinancialDashboard() {
                     return (
                       <tr
                         key={idx}
-                        className="border-b border-slate-100 hover:bg-slate-50 transition"
+                        className="border-b border-slate-300 hover:bg-slate-50 transition"
                       >
                         <td className="py-3 px-3 text-sm text-slate-600">{lead['Lead ID']}</td>
+                        <td className="py-3 px-3 text-sm text-slate-600">{lead['Invoice Number'] || '-'}</td>
                         <td className="py-3 px-3 text-sm font-medium text-slate-800">{lead['Customer Name']}</td>
                         <td className="py-3 px-3 text-sm text-center text-slate-600">
                           {lead['Appointment Date'] || '-'}
@@ -975,6 +1056,7 @@ export default function FinancialDashboard() {
                               setProfitAmount(lead['Profit $'] || '');
                               setPartnerCommission(lead['Partner Commission'] || '');
                               setAmitCommission(lead['Amit Commission'] || '');
+                              setInvoiceNumber(lead['Invoice Number'] || '');
                             }}
                             className="p-1.5 text-slate-400 hover:text-[#14b8a6] hover:bg-slate-100 rounded-lg transition"
                             title="Edit financials"
@@ -991,33 +1073,80 @@ export default function FinancialDashboard() {
             </table>
           </div>
 
-          {/* Row count and Show More */}
+          {/* Pagination */}
           {(() => {
-            const closedJobs = filteredLeads.filter(l => l['Status']?.toUpperCase() === 'CLOSED');
+            const closedJobs = filteredLeads
+              .filter(l => l['Status']?.toUpperCase() === 'CLOSED')
+              .filter(l => {
+                if (!financialSearch.trim()) return true;
+                const q = financialSearch.toLowerCase();
+                return (
+                  (l['Customer Name'] || '').toLowerCase().includes(q) ||
+                  (l['Lead ID'] || '').toLowerCase().includes(q) ||
+                  (l['Address'] || '').toLowerCase().includes(q) ||
+                  (l['Payment Method'] || '').toLowerCase().includes(q)
+                );
+              });
             const totalCount = closedJobs.length;
-            const showingCount = Math.min(rowsToShow, totalCount);
+            const totalPages = Math.max(1, Math.ceil(totalCount / FINANCIAL_PAGE_SIZE));
+            const start = Math.min((financialPage - 1) * FINANCIAL_PAGE_SIZE + 1, totalCount);
+            const end = Math.min(financialPage * FINANCIAL_PAGE_SIZE, totalCount);
+
+            const btnBase = "inline-flex items-center justify-center w-8 h-8 rounded-lg transition text-slate-600";
+            const btnEnabled = `${btnBase} hover:bg-slate-100 hover:text-[#14b8a6]`;
+            const btnDisabled = `${btnBase} opacity-30 cursor-not-allowed`;
 
             return (
-              <div className="mt-4 flex items-center justify-between text-sm">
-                <span className="text-slate-500">
-                  Showing {showingCount} of {totalCount} jobs
+              <div className="mt-4 flex items-center justify-center text-sm gap-3">
+                <div className="flex items-center gap-1">
+                  {/* First page */}
+                  <button
+                    onClick={() => setFinancialPage(1)}
+                    disabled={financialPage === 1}
+                    className={financialPage === 1 ? btnDisabled : btnEnabled}
+                    title="First page"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7M18 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  {/* Previous page */}
+                  <button
+                    onClick={() => setFinancialPage(p => Math.max(1, p - 1))}
+                    disabled={financialPage === 1}
+                    className={financialPage === 1 ? btnDisabled : btnEnabled}
+                    title="Previous page"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  {/* Next page */}
+                  <button
+                    onClick={() => setFinancialPage(p => Math.min(totalPages, p + 1))}
+                    disabled={financialPage === totalPages}
+                    className={financialPage === totalPages ? btnDisabled : btnEnabled}
+                    title="Next page"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                  {/* Last page */}
+                  <button
+                    onClick={() => setFinancialPage(totalPages)}
+                    disabled={financialPage === totalPages}
+                    className={financialPage === totalPages ? btnDisabled : btnEnabled}
+                    title="Last page"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M6 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+                <span className="font-medium text-slate-700">
+                  {totalCount === 0 ? 'No jobs found' : `${start}–${end} of ${totalCount} jobs`}
                 </span>
-                {totalCount > rowsToShow && (
-                  <button
-                    onClick={() => setRowsToShow(prev => prev + 50)}
-                    className="px-4 py-2 bg-[#14b8a6] hover:bg-[#0d9488] text-white rounded-lg font-medium transition"
-                  >
-                    Show More
-                  </button>
-                )}
-                {rowsToShow > 50 && (
-                  <button
-                    onClick={() => setRowsToShow(50)}
-                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition ml-2"
-                  >
-                    Reset
-                  </button>
-                )}
               </div>
             );
           })()}
@@ -1045,6 +1174,18 @@ export default function FinancialDashboard() {
                 <p><span className="font-medium">Service:</span> {editingLead['Service Requested']}</p>
                 <p><span className="font-medium">Status:</span> {editingLead['Status']}</p>
                 <p><span className="font-medium">Technician:</span> {editingLead['Assigned To'] || 'Unassigned'}</p>
+              </div>
+
+              {/* Invoice Number */}
+              <div className="border-t border-slate-200 pt-4">
+                <label className="block text-slate-700 text-xs font-medium mb-1">Invoice #</label>
+                <input
+                  type="text"
+                  value={invoiceNumber}
+                  onChange={(e) => setInvoiceNumber(e.target.value)}
+                  placeholder="e.g., INV-001234"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] focus:outline-none transition text-sm"
+                />
               </div>
 
               {/* Revenue Section */}
