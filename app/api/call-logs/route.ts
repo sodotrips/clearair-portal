@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     // Status column M will be used for PROMOTED/DISMISSED status
     const pendingCalls = callLogs.filter(log => {
       const status = log['Status'] || '';
-      const promoted = log['Promoted?'] || '';
+      const promoted = log['Promoted?'] || log['Promoted to Lead?'] || '';
       // Show if not already promoted and not dismissed
       return promoted !== 'YES' && status !== 'DISMISSED';
     });

@@ -418,7 +418,7 @@ export async function POST(request: NextRequest) {
             lead.customerName || '(not captured)',        // D: Customer Name
             lead.service || '(not specified)',            // E: Service Inquiry
             callOutcome,                                  // F: Outcome (BOOKED, INQUIRY, SPAM/HANGUP, TRANSFER REQUEST)
-            isValidLead ? 'YES' : 'NO',                   // G: Promoted to Lead?
+            'NO',                                             // G: Promoted to Lead? (always NO - manual promotion only)
             isValidLead ? '' : '',                        // H: Lead ID (filled below if promoted)
             callDuration ? `${Math.round(callDuration)}s` : '', // I: Duration
             appointmentDate || '(none)',                  // J: Appointment Date

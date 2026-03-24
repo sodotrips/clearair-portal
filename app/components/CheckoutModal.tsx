@@ -25,6 +25,9 @@ export default function CheckoutModal({ lead, onClose, onSuccess }: CheckoutModa
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [totalPaid, setTotalPaid] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
+  const [laborCost, setLaborCost] = useState('');
+  const [materialCost, setMaterialCost] = useState('');
+  const [subcontractorCost, setSubcontractorCost] = useState('');
 
   const paymentMethods = ['Cash', 'Zelle', 'Credit Card', 'Check', 'Venmo', 'Other'];
 
@@ -54,6 +57,9 @@ export default function CheckoutModal({ lead, onClose, onSuccess }: CheckoutModa
         updates['Amount Paid'] = totalPaid;
         updates['Payment Method'] = paymentMethod;
         updates['Quote Amount'] = totalPaid;  // Column AP - same as Amount Paid
+        if (laborCost) updates['Labor Cost'] = laborCost;
+        if (materialCost) updates['Materials Cost'] = materialCost;
+        if (subcontractorCost) updates['Subcontractor Cost'] = subcontractorCost;
       } else {
         // Job quoted - no payment yet
         updates['Status'] = 'QUOTED';
@@ -208,6 +214,58 @@ export default function CheckoutModal({ lead, onClose, onSuccess }: CheckoutModa
                         <option key={method} value={method}>{method}</option>
                       ))}
                     </select>
+                  </div>
+
+                  {/* Cost Breakdown (optional) */}
+                  <div className="border-t border-slate-200 pt-4 mt-2">
+                    <p className="text-xs text-slate-500 mb-3">Cost Breakdown (optional)</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className={labelClass}>Labor $</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={laborCost}
+                            onChange={(e) => setLaborCost(e.target.value)}
+                            placeholder="0"
+                            className={`${inputClass} pl-7 text-sm`}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className={labelClass}>Material $</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={materialCost}
+                            onChange={(e) => setMaterialCost(e.target.value)}
+                            placeholder="0"
+                            className={`${inputClass} pl-7 text-sm`}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className={labelClass}>Subcon $</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={subcontractorCost}
+                            onChange={(e) => setSubcontractorCost(e.target.value)}
+                            placeholder="0"
+                            className={`${inputClass} pl-7 text-sm`}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </>
               ) : (
