@@ -268,13 +268,22 @@ export default function JobMap({ jobs, onRouteOptimized }: JobMapProps) {
       </div>
 
       {/* Route Legend */}
-      <div className="flex flex-wrap gap-2 mb-3 text-xs">
+      <div className="flex flex-col gap-1 mb-3 text-xs">
         {displayJobs.map((g, idx) => (
-          <div key={idx} className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded">
-            <span className="w-5 h-5 bg-[#14b8a6] text-white rounded-full flex items-center justify-center text-xs font-bold">
+          <div key={idx} className="flex items-center gap-2 bg-slate-100 px-2 py-1.5 rounded">
+            <span className="w-5 h-5 bg-[#14b8a6] text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
               {idx + 1}
             </span>
-            <span className="text-slate-600 truncate max-w-[100px]">{g.job['Customer Name']}</span>
+            <span className="text-[#0a2540] font-semibold flex-shrink-0">{g.job['Customer Name']}</span>
+            <span className="text-slate-400">—</span>
+            <span className="text-slate-600 truncate">{g.job['Address']}, {g.job['City']}, TX {g.job['Zip Code']}</span>
+            {g.job['Phone Number'] && (
+              <>
+                <span className="text-slate-400">—</span>
+                <a href={`tel:${g.job['Phone Number'].replace(/\D/g, '')}`} className="text-blue-600 hover:text-blue-800 font-medium flex-shrink-0">{g.job['Phone Number']}</a>
+              </>
+            )}
+            <span className="ml-auto text-[#14b8a6] font-semibold flex-shrink-0">{g.job['Time Window'] || 'No time'}</span>
           </div>
         ))}
       </div>
@@ -295,7 +304,7 @@ export default function JobMap({ jobs, onRouteOptimized }: JobMapProps) {
       )}
 
       {/* Map */}
-      <div className="h-64 rounded-lg overflow-hidden border border-slate-200">
+      <div className="h-[50vh] rounded-lg overflow-hidden border border-slate-200">
         <MapContainer
           center={positions.length > 0 ? positions[0] : houstonCenter}
           zoom={11}

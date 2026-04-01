@@ -12,13 +12,13 @@ export async function getAuthClient() {
     const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
     return new google.auth.GoogleAuth({
       credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      scopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'],
     });
   } else {
     const credentialsPath = path.join(process.cwd(), 'google-credentials.json');
     return new google.auth.GoogleAuth({
       keyFile: credentialsPath,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      scopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'],
     });
   }
 }

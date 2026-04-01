@@ -103,7 +103,7 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseD
   const getJobsForDate = (date: Date) => {
     return leads.filter(lead => {
       const status = lead['Status']?.toUpperCase();
-      if (status !== 'SCHEDULED' && status !== 'IN PROGRESS' && status !== 'QUOTED' && status !== 'CLOSED') return false;
+      if (status !== 'SCHEDULED' && status !== 'IN PROGRESS' && status !== 'QUOTED' && status !== 'COMPLETED' && status !== 'CLOSED') return false;
 
       const appointmentDate = parseDate(lead['Appointment Date']);
       if (!appointmentDate) return false;
@@ -144,6 +144,7 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseD
       case 'SCHEDULED': return 'bg-blue-100 border-blue-400 text-blue-800';
       case 'IN PROGRESS': return 'bg-purple-100 border-purple-400 text-purple-800';
       case 'QUOTED': return 'bg-amber-100 border-amber-400 text-amber-800';
+      case 'COMPLETED': return 'bg-cyan-100 border-cyan-400 text-cyan-800';
       case 'CLOSED': return 'bg-emerald-100 border-emerald-400 text-emerald-800';
       default: return 'bg-slate-100 border-slate-400 text-slate-800';
     }
@@ -470,7 +471,7 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseD
                     <div className="truncate opacity-75 mt-0.5">{job['City']}</div>
                     <div className="flex items-center justify-between mt-0.5">
                       <div className="truncate opacity-75">{job['Service Requested']}</div>
-                      {jobStatus === 'QUOTED' && onCloseDeal && (
+                      {(jobStatus === 'QUOTED' || jobStatus === 'COMPLETED') && onCloseDeal && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

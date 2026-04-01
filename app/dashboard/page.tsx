@@ -75,7 +75,7 @@ export default function Dashboard() {
   const cities = ['Houston', 'Katy', 'Sugar Land', 'Pearland', 'Spring', 'Cypress', 'The Woodlands', 'Humble', 'Pasadena', 'League City', 'Missouri City', 'Baytown', 'Conroe', 'Richmond', 'Tomball'];
   const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Air Duct & Dryer Vent', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
   const techs = ['Amit', 'Tech 2', 'Subcontractor'];
-  const statuses = ['NEW', 'SCHEDULED', 'IN PROGRESS', 'QUOTED', 'CLOSED', 'CANCELED'];
+  const statuses = ['NEW', 'SCHEDULED', 'IN PROGRESS', 'QUOTED', 'COMPLETED', 'CLOSED', 'CANCELED'];
   const timeWindows = ['08:00AM - 11:00AM', '11:00AM - 2:00PM', '2:00PM - 5:00PM'];
 
   // Website leads columns - dynamically built from sheet headers (defined early for width calc)
@@ -681,7 +681,7 @@ export default function Dashboard() {
   // Get today's appointments (including closed)
   const todaysAppointments = leads.filter(l => {
     const status = l['Status']?.toUpperCase();
-    return (status === 'SCHEDULED' || status === 'IN PROGRESS' || status === 'QUOTED' || status === 'CLOSED') && isToday(l['Appointment Date']);
+    return (status === 'SCHEDULED' || status === 'IN PROGRESS' || status === 'QUOTED' || status === 'COMPLETED' || status === 'CLOSED') && isToday(l['Appointment Date']);
   }).sort((a, b) => {
     const aClosed = a['Status']?.toUpperCase() === 'CLOSED';
     const bClosed = b['Status']?.toUpperCase() === 'CLOSED';
@@ -746,6 +746,7 @@ export default function Dashboard() {
     'SCHEDULED': 'bg-teal-100 text-teal-700',
     'IN PROGRESS': 'bg-purple-100 text-purple-700',
     'QUOTED': 'bg-amber-100 text-amber-700',
+    'COMPLETED': 'bg-cyan-100 text-cyan-700',
     'CLOSED': 'bg-emerald-100 text-emerald-700',
     'CANCELED': 'bg-slate-100 text-slate-500',
   };
@@ -858,7 +859,7 @@ export default function Dashboard() {
                   </svg>
                   <span className="hidden sm:inline">SMS</span>
                 </Link>
-                <Link
+                <a
                   href="/tech"
                   className="flex items-center gap-1 lg:gap-2 bg-[#1a3a5c] hover:bg-[#0a2540] text-white px-2 lg:px-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-medium transition border border-slate-600"
                 >
@@ -866,7 +867,7 @@ export default function Dashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                   </svg>
                   <span className="hidden sm:inline">Tech</span>
-                </Link>
+                </a>
                 <button
                   onClick={() => setShowAgentSettings(true)}
                   className="flex items-center gap-1 lg:gap-2 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white px-2 lg:px-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-medium transition"
