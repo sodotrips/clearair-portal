@@ -902,15 +902,35 @@ export default function QuoteModal({ lead, onClose, onSuccess, initialStep }: Qu
                           />
                         </div>
                         <span className="text-slate-400 text-lg mt-3">×</span>
-                        <div className="w-16">
+                        <div className="w-24">
                           <label className="text-[10px] text-slate-500 uppercase font-semibold tracking-wide">Qty</label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={item.qty || ''}
-                            onChange={(e) => updateLineItem(item.id, 'qty', parseInt(e.target.value) || 1)}
-                            className="w-full px-2 py-1 border-b border-slate-300 text-sm focus:border-[#14b8a6] focus:outline-none bg-transparent text-center"
-                          />
+                          <div className="flex items-center border-b border-slate-300">
+                            <button
+                              type="button"
+                              onClick={() => updateLineItem(item.id, 'qty', Math.max(1, (item.qty || 1) - 1))}
+                              className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-[#14b8a6] hover:bg-slate-100 rounded transition"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                              </svg>
+                            </button>
+                            <input
+                              type="number"
+                              min="1"
+                              value={item.qty || ''}
+                              onChange={(e) => updateLineItem(item.id, 'qty', parseInt(e.target.value) || 1)}
+                              className="w-8 px-0 py-1 text-sm focus:outline-none bg-transparent text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => updateLineItem(item.id, 'qty', (item.qty || 1) + 1)}
+                              className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-[#14b8a6] hover:bg-slate-100 rounded transition"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                         <div className="text-right mt-3">
                           <span className="text-xs text-slate-500">Total</span>
