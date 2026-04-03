@@ -26,26 +26,20 @@ export default function PayoutsPage() {
   const [error, setError] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
 
-  // Date range filter - default to current week
+  // Date range filter - default to current week (Sun-Sat)
+  const formatLocalDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
   const getWeekRange = (date: Date = new Date()) => {
-    const start = new Date(date);
-    start.setDate(start.getDate() - start.getDay()); // Start of week (Sunday)
-    start.setHours(0, 0, 0, 0);
-
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const dayOfWeek = d.getDay(); // 0=Sun, 6=Sat
+    const start = new Date(d);
+    start.setDate(d.getDate() - dayOfWeek); // Sunday
     const end = new Date(start);
-    end.setDate(end.getDate() + 6); // End of week (Saturday)
-    end.setHours(23, 59, 59, 999);
-
-    return { start, end };
+    end.setDate(start.getDate() + 6); // Saturday
+    return { start: formatLocalDate(start), end: formatLocalDate(end) };
   };
 
-  const [dateRange, setDateRange] = useState(() => {
-    const { start, end } = getWeekRange();
-    return {
-      start: start.toISOString().split('T')[0],
-      end: end.toISOString().split('T')[0],
-    };
-  });
+  const [dateRange, setDateRange] = useState(() => getWeekRange());
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -302,21 +296,15 @@ export default function PayoutsPage() {
 
   // Quick date range presets
   const setThisWeek = () => {
-    const { start, end } = getWeekRange();
-    setDateRange({
-      start: start.toISOString().split('T')[0],
-      end: end.toISOString().split('T')[0],
-    });
+    setDateRange(getWeekRange());
   };
 
   const setLastWeek = () => {
-    const lastWeek = new Date();
-    lastWeek.setDate(lastWeek.getDate() - 7);
-    const { start, end } = getWeekRange(lastWeek);
-    setDateRange({
-      start: start.toISOString().split('T')[0],
-      end: end.toISOString().split('T')[0],
-    });
+    const now = new Date();
+    const thisSunday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+    const lastWeekDay = new Date(thisSunday);
+    lastWeekDay.setDate(thisSunday.getDate() - 1); // Last Saturday
+    setDateRange(getWeekRange(lastWeekDay));
   };
 
   const setThisMonth = () => {

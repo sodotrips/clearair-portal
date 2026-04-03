@@ -19,6 +19,7 @@ export default function JobDetail() {
   const [transcript, setTranscript] = useState<Record<string, string> | null>(null);
   const [loadingTranscript, setLoadingTranscript] = useState(false);
   const [sendingReview, setSendingReview] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
   const [editFields, setEditFields] = useState({
     'Customer Name': '',
     'Address': '',
@@ -30,6 +31,12 @@ export default function JobDetail() {
     'Property Type': '',
     'Appointment Date': '',
     'Time Window': '',
+    'Check In': '',
+    'Check Out': '',
+    'Status': '',
+    'Lead Source': '',
+    'Lead Source Detail': '',
+    'Referral Source': '',
     'Customer Issue/Notes': '',
   });
 
@@ -47,6 +54,8 @@ export default function JobDetail() {
   }
 
   const job = selectedJob;
+  const isCanceled = job['Status']?.toUpperCase() === 'CANCELED' || job['Status']?.toUpperCase() === 'CANCELLED';
+  const isFinished = job['Status']?.toUpperCase() === 'CLOSED' || job['Status']?.toUpperCase() === 'COMPLETED' || isCanceled;
   const status = job['Status']?.toUpperCase() || '';
   const hasDeposit = !!(job['Deposit Amount'] && parseFloat(job['Deposit Amount']) > 0);
   const depositAmount = parseFloat(job['Deposit Amount'] || '0');
@@ -96,6 +105,12 @@ export default function JobDetail() {
       'Property Type': job['Property Type'] || '',
       'Appointment Date': job['Appointment Date'] || '',
       'Time Window': job['Time Window'] || '',
+      'Check In': job['Check In'] || '',
+      'Check Out': job['Check Out'] || '',
+      'Status': job['Status'] || '',
+      'Lead Source': job['Lead Source'] || '',
+      'Lead Source Detail': job['Lead Source Detail'] || '',
+      'Referral Source': job['Referral Source'] || '',
       'Customer Issue/Notes': job['Customer Issue/Notes'] || '',
     });
     setEditing(true);
@@ -180,6 +195,49 @@ export default function JobDetail() {
       console.error('[regen] Error:', err);
     } finally {
       setRegenerating(false);
+    }
+  };
+
+  const handleDuplicate = async () => {
+    if (!confirm(`Duplicate ${job['Customer Name']} — ${job['Lead ID']}?\n\nThis will create a new lead with the same customer info.`)) return;
+    setDuplicating(true);
+    try {
+      const res = await fetch('/api/leads/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: job['Customer Name'],
+          phone: job['Phone Number'],
+          email: job['Email'],
+          address: job['Address'],
+          city: job['City'],
+          zip: job['Zip Code'],
+          propertyType: job['Property Type'],
+          leadSource: job['Lead Source'],
+          leadSourceDetail: job['Lead Source Detail'],
+          referralSource: job['Referral Source'],
+          serviceRequested: job['Service Requested'] || '',
+          assignedTo: job['Assigned To'],
+          appointmentDate: job['Appointment Date'] || '',
+          timeWindow: job['Time Window'] || '',
+          customerNotes: `Upsell from ${job['Lead ID']}`,
+          accessInstructions: job['Access Instructions'] || '',
+          gateCode: job['Gate Code/Special Access'] || '',
+          parkingInfo: job['Parking Info'] || '',
+          pets: job['Pets?'] || '',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`New lead created: ${data.leadId}`);
+        fetchLeads();
+      } else {
+        alert(data.error || 'Failed to create lead');
+      }
+    } catch {
+      alert('Failed to connect to server');
+    } finally {
+      setDuplicating(false);
     }
   };
 
@@ -406,11 +464,63 @@ export default function JobDetail() {
             {job['Referral Source'] && <span className="text-slate-400"> — {job['Referral Source']}</span>}
           </p>
         </div>
-        <button onClick={() => setSelectedJob(null)} className="text-slate-400 hover:text-slate-600 p-1">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleDuplicate}
+            disabled={duplicating}
+            className="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1 rounded-lg font-medium transition disabled:opacity-50 flex items-center gap-1"
+          >
+            {duplicating ? (
+              <div className="animate-spin w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full"></div>
+            ) : (
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            )}
+            Duplicate
+          </button>
+          {(status === 'CANCELED' || status === 'CANCELLED') ? (
+            <span className="text-xs bg-red-500 text-white px-3 py-1 rounded-lg font-semibold">CANCELED</span>
+          ) : (
+            <select
+              defaultValue=""
+              onChange={async (e) => {
+                const reason = e.target.value;
+                if (!reason) return;
+                if (!confirm(`Cancel this job?\n\nReason: ${reason}`)) { e.target.value = ''; return; }
+                try {
+                  await fetch('/api/leads/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      rowIndex: parseInt(job.rowIndex),
+                      updates: {
+                        'Status': 'CANCELED',
+                        'Customer Issue/Notes': `${job['Customer Issue/Notes'] ? job['Customer Issue/Notes'] + ' | ' : ''}CANCELED: ${reason} — ${new Date().toLocaleDateString('en-US', { timeZone: 'America/Chicago' })}`,
+                      },
+                    }),
+                  });
+                  fetchLeads();
+                  setSelectedJob(null);
+                } catch { alert('Failed to cancel'); }
+              }}
+              className="text-xs bg-red-500 text-white border border-red-500 rounded-lg px-3 py-1 cursor-pointer appearance-none pr-6 font-semibold text-center"
+              style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'10\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'white\' stroke-width=\'3\'%3E%3Cpath d=\'M6 9l6 6 6-6\'/%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center' }}
+            >
+              <option value="" disabled>Cancel Job?</option>
+              <option value="Customer not interested">Not Interested</option>
+              <option value="Lost bid to competitor">Lost Bid</option>
+              <option value="Customer no-show">No Show</option>
+              <option value="Duplicate lead">Duplicate</option>
+              <option value="Other">Other</option>
+            </select>
+          )}
+          <button onClick={() => setSelectedJob(null)} className="text-slate-400 hover:text-slate-600 p-1">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Progress Tracker */}
@@ -510,7 +620,7 @@ export default function JobDetail() {
           </div>
 
           {editing ? (
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <div className="space-y-2">
                 <div>
                   <p className="text-xs text-slate-500">Customer Name</p>
@@ -556,13 +666,46 @@ export default function JobDetail() {
                   <p className="text-xs text-slate-500">Time Window</p>
                   <input value={editFields['Time Window']} onChange={e => setEditFields(f => ({ ...f, 'Time Window': e.target.value }))} className="w-full text-sm border border-slate-300 rounded px-2 py-1" placeholder="e.g. 9am-12pm" />
                 </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-xs text-slate-500">Check In</p>
+                    <input value={editFields['Check In']} onChange={e => setEditFields(f => ({ ...f, 'Check In': e.target.value }))} className="w-full text-sm border border-slate-300 rounded px-2 py-1" placeholder="e.g. 9:30 AM" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Check Out</p>
+                    <input value={editFields['Check Out']} onChange={e => setEditFields(f => ({ ...f, 'Check Out': e.target.value }))} className="w-full text-sm border border-slate-300 rounded px-2 py-1" placeholder="e.g. 11:45 AM" />
+                  </div>
+                </div>
                 <div>
                   <p className="text-xs text-slate-500">Status</p>
-                  <p className="text-sm font-medium">{status}</p>
+                  <select
+                    value={editFields['Status']}
+                    onChange={e => setEditFields(f => ({ ...f, 'Status': e.target.value }))}
+                    className="w-full text-sm border border-slate-300 rounded px-2 py-1"
+                  >
+                    {['NEW', 'SCHEDULED', 'IN PROGRESS', 'QUOTED', 'COMPLETED', 'CLOSED', 'CANCELED'].map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500">Customer Notes</p>
                   <textarea value={editFields['Customer Issue/Notes']} onChange={e => setEditFields(f => ({ ...f, 'Customer Issue/Notes': e.target.value }))} rows={3} className="w-full text-sm border border-slate-300 rounded px-2 py-1 resize-none" />
+                </div>
+              </div>
+              {/* Column 4 */}
+              <div className="space-y-2">
+                <div>
+                  <p className="text-xs text-slate-500">Lead Source</p>
+                  <input value={editFields['Lead Source']} onChange={e => setEditFields(f => ({ ...f, 'Lead Source': e.target.value }))} className="w-full text-sm border border-slate-300 rounded px-2 py-1" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Lead Company</p>
+                  <input value={editFields['Lead Source Detail']} onChange={e => setEditFields(f => ({ ...f, 'Lead Source Detail': e.target.value }))} className="w-full text-sm border border-slate-300 rounded px-2 py-1" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500">Referral</p>
+                  <input value={editFields['Referral Source']} onChange={e => setEditFields(f => ({ ...f, 'Referral Source': e.target.value }))} className="w-full text-sm border border-slate-300 rounded px-2 py-1" />
                 </div>
               </div>
             </div>
@@ -693,8 +836,8 @@ export default function JobDetail() {
           {/* Check In */}
           <button
             onClick={handleCheckIn}
-            disabled={checkingIn}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 font-medium transition text-sm border-r border-[#0d9488] disabled:opacity-50 bg-[#14b8a6] hover:bg-[#0d9488] text-white"
+            disabled={checkingIn || isFinished}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 font-medium transition text-sm border-r border-[#0d9488] disabled:opacity-40 disabled:cursor-not-allowed ${isFinished ? 'bg-slate-300 text-slate-500' : 'bg-[#14b8a6] hover:bg-[#0d9488] text-white'}`}
           >
             {checkingIn ? (
               <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
@@ -709,8 +852,9 @@ export default function JobDetail() {
           </button>
           {/* Estimate */}
           <button
-            onClick={() => setActiveView('estimate')}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 font-medium transition text-sm border-r border-[#0d9488] bg-[#14b8a6] hover:bg-[#0d9488] text-white"
+            onClick={() => !isFinished && setActiveView('estimate')}
+            disabled={isFinished}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 font-medium transition text-sm border-r border-[#0d9488] disabled:opacity-40 disabled:cursor-not-allowed ${isFinished ? 'bg-slate-300 text-slate-500' : 'bg-[#14b8a6] hover:bg-[#0d9488] text-white'}`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -719,8 +863,9 @@ export default function JobDetail() {
           </button>
           {/* Photos */}
           <button
-            onClick={() => setActiveView('photos')}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 font-medium transition text-sm border-r border-[#0d9488] bg-[#14b8a6] hover:bg-[#0d9488] text-white"
+            onClick={() => !isFinished && setActiveView('photos')}
+            disabled={isFinished}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 font-medium transition text-sm border-r border-[#0d9488] disabled:opacity-40 disabled:cursor-not-allowed ${isFinished ? 'bg-slate-300 text-slate-500' : 'bg-[#14b8a6] hover:bg-[#0d9488] text-white'}`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -729,8 +874,9 @@ export default function JobDetail() {
           </button>
           {/* Payment */}
           <button
-            onClick={() => setShowCheckout(true)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 font-medium transition text-sm border-r border-[#0d9488] bg-[#14b8a6] hover:bg-[#0d9488] text-white"
+            onClick={() => !isFinished && setShowCheckout(true)}
+            disabled={isFinished}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 font-medium transition text-sm border-r border-[#0d9488] disabled:opacity-40 disabled:cursor-not-allowed ${isFinished ? 'bg-slate-300 text-slate-500' : 'bg-[#14b8a6] hover:bg-[#0d9488] text-white'}`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -740,8 +886,8 @@ export default function JobDetail() {
           {/* Review */}
           <button
             onClick={handleSendReview}
-            disabled={sendingReview}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 font-medium transition text-sm disabled:opacity-50 bg-[#14b8a6] hover:bg-[#0d9488] text-white"
+            disabled={sendingReview || isCanceled}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 font-medium transition text-sm disabled:opacity-40 disabled:cursor-not-allowed ${isCanceled ? 'bg-slate-300 text-slate-500' : 'bg-[#14b8a6] hover:bg-[#0d9488] text-white'}`}
           >
             {sendingReview ? (
               <div className="animate-spin w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full"></div>

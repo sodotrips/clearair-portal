@@ -19,11 +19,14 @@ const MENU_ITEMS: MenuItem[] = [
 ];
 
 export default function TechSidebar() {
-  const { activeView, setActiveView, selectedJob, setSelectedJob } = useTechContext();
+  const { activeView, setActiveView, selectedJob, setSelectedJob, setSelectedDate, getHoustonDate } = useTechContext();
 
   const handleMenuClick = (id: ActiveView) => {
     if (id === 'jobs' || id === 'history' || id === 'route') {
       setSelectedJob(null);
+    }
+    if (id === 'jobs') {
+      setSelectedDate(getHoustonDate());
     }
     setActiveView(id);
   };

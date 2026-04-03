@@ -182,7 +182,11 @@ export function TechProvider({ children }: { children: ReactNode }) {
 
   const historyJobs = leads.filter(l => {
     const status = l['Status']?.toUpperCase();
-    return l['Assigned To'] === selectedTech && (status === 'QUOTED' || status === 'COMPLETED');
+    if (l['Assigned To'] !== selectedTech || !status) return false;
+    const raw = (l['Appointment Date'] || '').trim();
+    let apptDate = '';
+    if (raw.includes('/')) { const [m, d, y] = raw.split('/'); apptDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`; } else { apptDate = raw; }
+    return !apptDate || apptDate < getHoustonDate();
   }).sort((a, b) => {
     const norm = (d: string) => {
       if (!d) return '';

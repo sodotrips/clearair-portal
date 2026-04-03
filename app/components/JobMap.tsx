@@ -283,6 +283,21 @@ export default function JobMap({ jobs, onRouteOptimized }: JobMapProps) {
                 <a href={`tel:${g.job['Phone Number'].replace(/\D/g, '')}`} className="text-blue-600 hover:text-blue-800 font-medium flex-shrink-0">{g.job['Phone Number']}</a>
               </>
             )}
+            {g.job['Appointment Confirmed']?.toUpperCase() === 'YES' ? (
+              <span className="flex-shrink-0 ml-1 flex items-center gap-1 text-green-600 text-[10px] font-semibold">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Appt Confirmed
+              </span>
+            ) : (
+              <span className="flex-shrink-0 ml-1 flex items-center gap-1 text-amber-500 text-[10px] font-semibold">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Not Confirmed
+              </span>
+            )}
             <span className="ml-auto text-[#14b8a6] font-semibold flex-shrink-0">{g.job['Time Window'] || 'No time'}</span>
           </div>
         ))}
