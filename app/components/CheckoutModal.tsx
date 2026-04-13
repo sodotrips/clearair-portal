@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { fileToCompressedJpeg, type PhotoItem } from '@/app/lib/photo-utils';
 
@@ -18,6 +18,12 @@ interface CheckoutModalProps {
 }
 
 export default function CheckoutModal({ lead, onClose, onSuccess }: CheckoutModalProps) {
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [jobClosed, setJobClosed] = useState<boolean | null>(null); // null = not selected yet
@@ -230,7 +236,7 @@ export default function CheckoutModal({ lead, onClose, onSuccess }: CheckoutModa
   const labelClass = "block text-slate-700 text-sm font-medium mb-1.5";
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4" onClick={() => { if (checkoutComplete) onSuccess(); onClose(); }}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="bg-[#0a2540] text-white px-6 py-4 rounded-t-xl flex justify-between items-center">

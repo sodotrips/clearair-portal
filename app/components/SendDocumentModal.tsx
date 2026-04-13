@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Lead {
   [key: string]: string;
@@ -48,6 +48,12 @@ export default function SendDocumentModal({
   techNotes,
   driveUrl,
 }: SendDocumentModalProps) {
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
   const [sendVia, setSendVia] = useState<'sms' | 'email' | 'both'>('sms');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -212,7 +218,7 @@ export default function SendDocumentModal({
   const inputClass = "w-full px-4 py-3 border border-slate-300 rounded-xl focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] focus:outline-none transition text-base";
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000] p-4 overflow-y-auto" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[10000] p-4 overflow-y-auto">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto my-auto" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="bg-[#0a2540] text-white px-6 py-4 rounded-t-xl flex justify-between items-center">

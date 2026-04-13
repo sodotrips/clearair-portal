@@ -223,7 +223,7 @@ export async function POST(request: NextRequest) {
       if (smsCheck.allowed) {
         const smsBody = isPaid
           ? `ClearAir Solutions - Payment Receipt\n\nHi ${customerName.split(' ')[0]}!\n\nInvoice #${docNumber}\nAmount Paid: $${amountPaid || totalAmount}\nPayment: ${paymentMethod || 'N/A'}\nDate: ${date}\n\n${driveLink ? `View receipt: ${driveLink}\n\n` : ''}Thank you for your business!`
-          : `ClearAir Solutions - Invoice\n\nHi ${customerName.split(' ')[0]}!\n\nInvoice #${docNumber}\nAmount Due: $${invoiceTotals.total.toFixed(2)}\nDue: On Receipt\n\n${driveLink ? `View invoice: ${driveLink}\n\n` : ''}Payment: Card, Cash, Check, or Zelle\nQuestions? Call (281) 904-4674`;
+          : `ClearAir Solutions - Invoice\n\nHi ${customerName.split(' ')[0]}!\n\nInvoice #${docNumber}\nAmount Due: $${invoiceTotals.total.toFixed(2)}\nDue: On Receipt\n\n${driveLink ? `View invoice: ${driveLink}\n\n` : ''}Payment: Card, Cash, Check, or Zelle\nQuestions? Call/Text (281) 904-4674`;
 
         try {
           await client.messages.create({

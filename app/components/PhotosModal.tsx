@@ -78,6 +78,12 @@ async function fileToCompressedJpeg(file: File, maxDim: number = 1200, quality: 
 }
 
 export default function PhotosModal({ lead, onClose }: PhotosModalProps) {
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
   const [activeTab, setActiveTab] = useState<'before' | 'after'>('before');
   const [beforePhotos, setBeforePhotos] = useState<PhotoItem[]>([]);
   const [afterPhotos, setAfterPhotos] = useState<PhotoItem[]>([]);
@@ -285,7 +291,7 @@ export default function PhotosModal({ lead, onClose }: PhotosModalProps) {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4" onClick={onClose}>
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
         <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
           {/* Header */}
           <div className="bg-[#0a2540] text-white px-6 py-4 rounded-t-xl flex justify-between items-center shrink-0">

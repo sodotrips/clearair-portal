@@ -452,7 +452,7 @@ Your Air Duct Cleaning appointment:
 
 Our technician will call you 30-40 minutes before arrival.
 
-Questions? Call (281) 904-4674`}
+Questions? Call/Text (281) 904-4674`}
               </p>
             </div>
           </div>

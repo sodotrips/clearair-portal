@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
     if ((sendVia === 'sms' || sendVia === 'both') && phone && client) {
       const smsCheck = shouldSendSMS(phone);
       if (smsCheck.allowed) {
-        const smsBody = `ClearAir Solutions - Estimate\n\nHi ${customerName.split(' ')[0]}!\n\nEstimate #${docNumber}\nService: ${service}\nEstimated Total: $${estimateTotals.total.toFixed(2)}\nValid Until: ${validUntil}\n\n${driveLink ? `View estimate: ${driveLink}\n\n` : ''}Questions? Call (281) 904-4674`;
+        const smsBody = `ClearAir Solutions - Estimate\n\nHi ${customerName.split(' ')[0]}!\n\nEstimate #${docNumber}\nService: ${service}\nEstimated Total: $${estimateTotals.total.toFixed(2)}\nValid Until: ${validUntil}\n\n${driveLink ? `View estimate: ${driveLink}\n\n` : ''}Questions? Call/Text (281) 904-4674`;
 
         try {
           await client.messages.create({

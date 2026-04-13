@@ -81,6 +81,12 @@ export default function QuoteModal({ lead, onClose, onSuccess, initialStep }: Qu
   const existingDeposit = parseFloat(lead['Deposit Amount'] || '0');
 
   // Fetch services from SERVICES sheet
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
   useEffect(() => {
     async function fetchServices() {
       try {
@@ -418,7 +424,7 @@ export default function QuoteModal({ lead, onClose, onSuccess, initialStep }: Qu
         body: JSON.stringify({
           rowIndex: lead.rowIndex,
           updates: {
-            'Status': 'CLOSED',
+            'Status': 'COMPLETED',
             'Amount Paid': hasDeposit ? (existingDeposit + parseFloat(amountPaid)).toFixed(2) : amountPaid,
             'Payment Method': paymentMethod,
             'Quote Amount': total.toFixed(2),
@@ -828,6 +834,38 @@ export default function QuoteModal({ lead, onClose, onSuccess, initialStep }: Qu
                     <div
                       className="flex justify-between items-center px-4 py-2.5 bg-slate-50 border-b border-slate-200 cursor-grab active:cursor-grabbing"
                     >
+                      <div className="flex flex-col flex-shrink-0 mr-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (idx === 0) return;
+                            const updated = [...lineItems];
+                            [updated[idx - 1], updated[idx]] = [updated[idx], updated[idx - 1]];
+                            setLineItems(updated);
+                          }}
+                          disabled={idx === 0}
+                          className="text-slate-500 hover:text-[#14b8a6] disabled:opacity-30 p-0.5"
+                          aria-label="Move up"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (idx === lineItems.length - 1) return;
+                            const updated = [...lineItems];
+                            [updated[idx], updated[idx + 1]] = [updated[idx + 1], updated[idx]];
+                            setLineItems(updated);
+                          }}
+                          disabled={idx === lineItems.length - 1}
+                          className="text-slate-500 hover:text-[#14b8a6] disabled:opacity-30 p-0.5"
+                          aria-label="Move down"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+                      </div>
                       <div className="flex items-center gap-2 flex-1 min-w-0" onClick={() => toggleItemExpand(item.id)}>
                         <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />

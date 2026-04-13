@@ -133,7 +133,7 @@ export default function EditModal({ lead, onClose, onSuccess }: EditModalProps) 
   const labelClass = "block text-slate-700 text-xs font-medium mb-1";
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="bg-[#0a2540] text-white px-6 py-4 flex justify-between items-center flex-shrink-0">

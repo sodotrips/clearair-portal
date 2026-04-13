@@ -157,7 +157,7 @@ export default function CloseDealModal({ lead, onClose, onSuccess }: CloseDealMo
   const profitVal = parseFloat(calculateProfit());
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="bg-emerald-600 text-white px-6 py-4 flex justify-between items-center shrink-0">

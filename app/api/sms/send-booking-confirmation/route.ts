@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
       sms += `📍 ${address}${city ? ', ' + city : ''}\n`;
     }
     sms += `\nOur technician will call you 30-40 minutes before arrival.\n\n`;
-    sms += `Questions? Call ${businessPhone}`;
+    sms += `Questions? Call/Text ${businessPhone}`;
 
     // Send SMS
     await client.messages.create({
