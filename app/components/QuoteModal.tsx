@@ -373,37 +373,41 @@ export default function QuoteModal({ lead, onClose, onSuccess, initialStep }: Qu
       setDoneType('estimate');
       setStep('done');
 
-      // Save photos and generate PDF in background (non-blocking)
-      if (photos.length > 0) {
-        fetch('/api/documents/save-assets', {
+      // Save photos to Drive first (blocking), then generate PDF — ensures PDF has photos even if inline upload fails on iPad
+      (async () => {
+        if (photos.length > 0) {
+          try {
+            await fetch('/api/documents/save-assets', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                leadId: lead['Lead ID'],
+                rowIndex: lead.rowIndex,
+                photos,
+              }),
+            });
+          } catch { /* non-critical — server will try inline photos */ }
+        }
+
+        const res = await fetch('/api/documents/send-estimate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             leadId: lead['Lead ID'],
-            rowIndex: lead.rowIndex,
-            photos,
+            sendVia: 'none',
+            lineItems: getLineItemsForApi(),
+            totals: getTotals(),
+            signatureDataUrl: signature,
+            signatureTimestamp,
+            photos: photos.length > 0 ? photos.map(p => ({ dataUrl: p.dataUrl, name: p.name })) : undefined,
           }),
-        }).catch(() => {});
-      }
-
-      fetch('/api/documents/send-estimate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          leadId: lead['Lead ID'],
-          sendVia: 'none',
-          lineItems: getLineItemsForApi(),
-          totals: getTotals(),
-          signatureDataUrl: signature,
-          signatureTimestamp,
-          photos: photos.length > 0 ? photos.map(p => ({ dataUrl: p.dataUrl, name: p.name })) : undefined,
-        }),
-      }).then(res => res.json()).then(data => {
+        });
+        const data = await res.json();
         if (data.success) {
           setInvoiceNumber(data.estimateNumber || '');
           setInvoiceDriveLink(data.driveLink || '');
         }
-      }).catch(() => {});
+      })().catch(() => {});
     } catch {
       setError('Failed to connect to server');
     } finally {
