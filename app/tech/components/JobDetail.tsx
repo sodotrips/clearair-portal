@@ -444,7 +444,7 @@ export default function JobDetail() {
   return (
     <div className="flex-1 overflow-y-auto">
       {/* Header bar */}
-      <div className="sticky top-0 bg-white border-b border-slate-200 px-3 md:px-6 py-3 flex justify-between items-center gap-2 z-10">
+      <div className="sticky top-0 bg-white border-b border-slate-200 px-3 lg:px-6 py-3 flex justify-between items-center gap-2 z-10">
         <div className="min-w-0 flex-1">
           {editing ? (
             <input
@@ -524,7 +524,7 @@ export default function JobDetail() {
       </div>
 
       {/* Progress Tracker */}
-      <div className="px-3 md:px-6 py-4 bg-slate-50 border-b-2 border-slate-300 overflow-visible relative z-20">
+      <div className="px-3 lg:px-6 py-4 bg-slate-50 border-b-2 border-slate-300 overflow-visible relative z-20">
         <div className="flex items-center justify-center">
           {steps.map((step, idx) => {
             const isCompleted = idx < currentStep;
@@ -541,7 +541,7 @@ export default function JobDetail() {
             ];
             return (
               <div key={step} className="flex items-center">
-                <div className="flex flex-col items-center w-12 md:w-16 group relative">
+                <div className="flex flex-col items-center w-12 lg:w-16 group relative">
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold border-2 cursor-help ${
                     isCompleted
                       ? 'bg-[#14b8a6] border-[#14b8a6] text-white'
@@ -566,7 +566,7 @@ export default function JobDetail() {
                   </div>
                 </div>
                 {idx < steps.length - 1 && (
-                  <div className={`w-4 md:w-10 h-0.5 mt-[-14px] ${
+                  <div className={`w-4 lg:w-10 h-0.5 mt-[-14px] ${
                     idx < currentStep ? 'bg-[#14b8a6]' : 'bg-slate-300'
                   }`} />
                 )}
