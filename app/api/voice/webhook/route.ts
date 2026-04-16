@@ -385,6 +385,9 @@ export async function POST(request: NextRequest) {
     // Get call duration if available
     const callDuration = payload.message?.call?.duration || payload.call?.duration || '';
 
+    // Get recording URL from Vapi payload (tries multiple paths)
+    const recordingUrl = payload.message?.recordingUrl || payload.message?.artifact?.recordingUrl || payload.message?.call?.recordingUrl || payload.recordingUrl || payload.call?.recordingUrl || '';
+
     // Determine call outcome
     let callOutcome = 'INQUIRY';
     if (appointmentDate && lead.customerName && phoneDigits) {
@@ -408,7 +411,7 @@ export async function POST(request: NextRequest) {
     try {
       await sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID,
-        range: `${CALL_LOG_SHEET}!A:L`,
+        range: `${CALL_LOG_SHEET}!A:N`,
         valueInputOption: 'USER_ENTERED',
         requestBody: {
           values: [[
@@ -424,6 +427,8 @@ export async function POST(request: NextRequest) {
             appointmentDate || '(none)',                  // J: Appointment Date
             timeWindow || '(none)',                       // K: Time Window
             transcript || '(no transcript)',              // L: Full Transcript
+            '',                                           // M: Status (existing)
+            recordingUrl || '',                           // N: Recording URL
           ]],
         },
       });

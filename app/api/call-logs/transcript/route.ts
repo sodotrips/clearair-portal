@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     // Get all call logs
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${CALL_LOG_SHEET}!A:L`,
+      range: `${CALL_LOG_SHEET}!A:N`,
     });
 
     const rows = response.data.values || [];
@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
         appointmentDate: callLog['Appt Date'],
         timeWindow: callLog['Time Window'],
         transcript: callLog['Full Transcript'],
+        recordingUrl: callLog['Recording URL'] || '',
       }
     });
   } catch (error: any) {

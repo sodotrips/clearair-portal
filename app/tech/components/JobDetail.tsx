@@ -938,7 +938,7 @@ export default function JobDetail() {
                 <div className="flex gap-2">
                   {job['Estimate Link'] ? (
                     <a
-                      href={job['Estimate Link'].replace(/[?&]usp=[^&]+/g, '').replace(/\/view.*$/, '/preview')}
+                      href={`/api/documents/view-pdf?url=${encodeURIComponent(job['Estimate Link'])}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex-1 text-xs py-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded font-medium transition text-center flex items-center justify-center gap-1 min-h-[36px]"
@@ -1047,7 +1047,7 @@ export default function JobDetail() {
                 <div className="flex gap-2 mb-2">
                   {job['Invoice Link'] ? (
                     <a
-                      href={job['Invoice Link'].replace(/[?&]usp=[^&]+/g, '').replace(/\/view.*$/, '/preview')}
+                      href={`/api/documents/view-pdf?url=${encodeURIComponent(job['Invoice Link'])}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex-1 text-xs py-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded font-medium transition text-center flex items-center justify-center gap-1 min-h-[36px]"
@@ -1226,6 +1226,12 @@ export default function JobDetail() {
                 </div>
               </div>
             </div>
+            {transcript.recordingUrl && (
+              <div className="px-4 pt-3 pb-2 border-b border-slate-200 flex-shrink-0">
+                <p className="text-xs font-semibold text-slate-500 mb-2">CALL RECORDING</p>
+                <audio controls preload="metadata" src={transcript.recordingUrl} className="w-full" />
+              </div>
+            )}
             <div className="p-4 overflow-y-auto flex-1">
               <p className="text-xs font-semibold text-slate-500 mb-2">FULL TRANSCRIPT</p>
               <div className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{transcript.transcript || 'No transcript available'}</div>

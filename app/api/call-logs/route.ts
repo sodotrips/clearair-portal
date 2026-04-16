@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: SPREADSHEET_ID,
-      range: `${CALL_LOG_SHEET}!A:M`,
+      range: `${CALL_LOG_SHEET}!A:N`,
     });
 
     const rows = response.data.values || [];

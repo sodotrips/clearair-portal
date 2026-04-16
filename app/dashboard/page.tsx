@@ -1791,6 +1791,14 @@ export default function Dashboard() {
               </div>
             </div>
 
+            {/* Recording Audio Player */}
+            {viewTranscriptLog['Recording URL'] && (
+              <div className="px-6 py-3 border-b border-slate-200">
+                <h4 className="text-sm font-semibold text-slate-700 mb-2">Call Recording:</h4>
+                <audio controls preload="metadata" src={viewTranscriptLog['Recording URL']} className="w-full" />
+              </div>
+            )}
+
             {/* Transcript */}
             <div className="px-6 py-4 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 250px)' }}>
               <h4 className="text-sm font-semibold text-slate-700 mb-3">Full Transcript:</h4>
