@@ -936,32 +936,29 @@ export default function JobDetail() {
                   <p className="text-xs text-slate-500 font-medium">{job['Estimate Number'] || ''}</p>
                 </div>
                 <div className="flex gap-2">
-                  {job['Estimate Link'] ? (
-                    <a
-                      href={`/api/documents/view-pdf?url=${encodeURIComponent(job['Estimate Link'])}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 text-xs py-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded font-medium transition text-center flex items-center justify-center gap-1 min-h-[36px]"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                      View Estimate
-                    </a>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleViewPdf()}
-                      className="flex-1 text-xs py-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded font-medium transition text-center flex items-center justify-center gap-1 min-h-[36px]"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                      View Estimate
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (job['Estimate Link']) {
+                        const pdfUrl = `/api/documents/view-pdf?url=${encodeURIComponent(job['Estimate Link'])}`;
+                        const isPWA = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+                        if (isPWA) {
+                          window.location.href = pdfUrl;
+                        } else {
+                          window.open(pdfUrl, '_blank');
+                        }
+                      } else {
+                        handleViewPdf();
+                      }
+                    }}
+                    className="flex-1 text-xs py-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded font-medium transition text-center flex items-center justify-center gap-1 min-h-[36px]"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    View Estimate
+                  </button>
                   <button
                     onClick={() => setActiveView('estimate')}
                     className="flex-1 text-xs py-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded font-medium transition text-center min-h-[36px]"
@@ -1045,32 +1042,29 @@ export default function JobDetail() {
                   <p className="text-xs text-slate-500 font-medium">{job['Invoice Number']}</p>
                 </div>
                 <div className="flex gap-2 mb-2">
-                  {job['Invoice Link'] ? (
-                    <a
-                      href={`/api/documents/view-pdf?url=${encodeURIComponent(job['Invoice Link'])}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 text-xs py-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded font-medium transition text-center flex items-center justify-center gap-1 min-h-[36px]"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                      View Invoice
-                    </a>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleViewPdf()}
-                      className="flex-1 text-xs py-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded font-medium transition text-center flex items-center justify-center gap-1 min-h-[36px]"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.923 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                      View Invoice
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (job['Invoice Link']) {
+                        const pdfUrl = `/api/documents/view-pdf?url=${encodeURIComponent(job['Invoice Link'])}`;
+                        const isPWA = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+                        if (isPWA) {
+                          window.location.href = pdfUrl;
+                        } else {
+                          window.open(pdfUrl, '_blank');
+                        }
+                      } else {
+                        handleViewPdf();
+                      }
+                    }}
+                    className="flex-1 text-xs py-2 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded font-medium transition text-center flex items-center justify-center gap-1 min-h-[36px]"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    View Invoice
+                  </button>
                   <button
                     onClick={handleRegenerateInvoice}
                     disabled={regenerating}
