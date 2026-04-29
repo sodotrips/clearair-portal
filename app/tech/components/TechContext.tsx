@@ -199,23 +199,26 @@ export function TechProvider({ children }: { children: ReactNode }) {
 
   const allTodayJobs = [...todayJobs, ...quotedJobs, ...closedJobs];
 
-  // Normalize date to YYYY-MM-DD for comparison
+  // Normalize date to YYYY-MM-DD for comparison. Returns empty string if invalid.
   const normalizeDate = (dateStr: string): string => {
     if (!dateStr) return '';
     const clean = dateStr.trim();
     if (clean.includes('/')) {
       const [m, d, y] = clean.split('/');
-      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+      if (!m || !d || !y) return '';
+      const formatted = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+      return /^\d{4}-\d{2}-\d{2}$/.test(formatted) ? formatted : '';
     }
-    return clean;
+    return /^\d{4}-\d{2}-\d{2}$/.test(clean) ? clean : '';
   };
 
-  // Upcoming jobs: SCHEDULED for future dates
+  // Upcoming jobs: SCHEDULED for future dates (must have a valid date strictly after today)
   const upcomingJobs = leads.filter(l => {
     const status = l['Status']?.toUpperCase();
     const apptDate = normalizeDate(l['Appointment Date']);
     return l['Assigned To'] === selectedTech
       && (status === 'SCHEDULED' || status === 'IN PROGRESS' || status === 'QUOTED' || status === 'COMPLETED')
+      && apptDate !== ''
       && apptDate > selectedDate;
   }).sort((a, b) => {
     const dateA = normalizeDate(a['Appointment Date']);

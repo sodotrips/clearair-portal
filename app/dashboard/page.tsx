@@ -12,6 +12,7 @@ import CommissionModal from '../components/CommissionModal';
 import CloseDealModal from '../components/CloseDealModal';
 import QuoteLeadModal from '../components/QuoteLeadModal';
 import WeeklyCalendar from '../components/WeeklyCalendar';
+import OpenSlotsWidget from '../components/OpenSlotsWidget';
 import QuickImportModal from '../components/QuickImportModal';
 
 interface Lead {
@@ -1029,6 +1030,9 @@ export default function Dashboard() {
             )}
           </div>
         )}
+
+        {/* Openings — Quick availability for next 7 days */}
+        <OpenSlotsWidget leads={leads} />
 
         {/* Weekly Calendar */}
         <div className="mb-6">

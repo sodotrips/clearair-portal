@@ -3,6 +3,7 @@
 import { useSession, signOut } from 'next-auth/react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
+import Link from 'next/link';
 import { TechProvider, useTechContext } from './components/TechContext';
 import TechSidebar from './components/TechSidebar';
 import JobList from './components/JobList';
@@ -98,6 +99,12 @@ function TechAppContent() {
           >
             {techs.map(tech => <option key={tech} value={tech}>{tech}</option>)}
           </select>
+          <Link
+            href="/dashboard"
+            className="bg-[#14b8a6] hover:bg-[#0d9488] text-white px-3 py-1.5 rounded-lg text-xs font-medium transition"
+          >
+            Dispatcher
+          </Link>
           <button
             onClick={() => signOut({ callbackUrl: '/login' })}
             className="bg-slate-700 hover:bg-slate-600 text-white px-2 py-1.5 rounded-lg text-sm transition"

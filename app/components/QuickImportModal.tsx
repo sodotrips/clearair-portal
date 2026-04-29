@@ -153,27 +153,49 @@ export default function QuickImportModal({ onClose, onSuccess }: QuickImportModa
     // Find date/time line: "Friday Mar 6 , 1:00PM - 3:00PM"
     const monthMap: Record<string, string> = {
       'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'may': '05', 'jun': '06',
-      'jul': '07', 'aug': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
+      'jul': '07', 'aug': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12',
+      'january': '01', 'february': '02', 'march': '03', 'april': '04',
+      'june': '06', 'july': '07', 'august': '08', 'september': '09',
+      'october': '10', 'november': '11', 'december': '12'
     };
 
+    const normalizeTime = (t: string) => t.replace(/\s/g, '').toUpperCase().replace(/([AP])M/, '$1M');
+
     for (const line of lines) {
-      // Match pattern like "Friday Mar 6 , 1:00PM - 3:00PM"
+      // Pattern 1: "Friday Mar 6 , 1:00PM - 3:00PM" (weekday + short month)
       const dateTimeMatch = line.match(/(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+(\w{3})\s+(\d{1,2})\s*,?\s*(\d{1,2}:\d{2}\s*(?:AM|PM))\s*-\s*(\d{1,2}:\d{2}\s*(?:AM|PM))/i);
       if (dateTimeMatch) {
         const monthStr = dateTimeMatch[1].toLowerCase();
         const day = dateTimeMatch[2];
-        const startTime = dateTimeMatch[3].replace(/\s/g, '');
-        const endTime = dateTimeMatch[4].replace(/\s/g, '');
+        const startTime = normalizeTime(dateTimeMatch[3]);
+        const endTime = normalizeTime(dateTimeMatch[4]);
 
         const monthNum = monthMap[monthStr];
         if (monthNum) {
-          // Assume current year or next year if month has passed
           const now = new Date();
           let year = now.getFullYear();
           const currentMonth = now.getMonth() + 1;
           if (parseInt(monthNum) < currentMonth) {
             year += 1;
           }
+          appointmentDate = `${monthNum}/${day.padStart(2, '0')}/${year}`;
+        }
+
+        timeWindow = `${startTime} - ${endTime}`;
+        break;
+      }
+
+      // Pattern 2: "April 26, 2026, 11:00 am - April 26, 2026, 2:00 pm" (full month + year)
+      const fullDateMatch = line.match(/(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2}),?\s+(\d{4}),?\s+(\d{1,2}:\d{2}\s*(?:am|pm))\s*-\s*(?:(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2},?\s+\d{4},?\s+)?(\d{1,2}:\d{2}\s*(?:am|pm))/i);
+      if (fullDateMatch) {
+        const monthStr = fullDateMatch[1].toLowerCase();
+        const day = fullDateMatch[2];
+        const year = fullDateMatch[3];
+        const startTime = normalizeTime(fullDateMatch[4]);
+        const endTime = normalizeTime(fullDateMatch[5]);
+
+        const monthNum = monthMap[monthStr];
+        if (monthNum) {
           appointmentDate = `${monthNum}/${day.padStart(2, '0')}/${year}`;
         }
 
@@ -971,23 +993,39 @@ Monday 1/15  11-1pm`}
                 <div>
                   <label className={labelClass}>Appointment Date</label>
                   <input
-                    type="text"
-                    value={parsedLead.appointmentDate}
-                    onChange={(e) => handleFieldChange('appointmentDate', e.target.value)}
-                    placeholder="MM/DD/YYYY"
+                    type="date"
+                    value={(() => {
+                      const v = parsedLead.appointmentDate;
+                      if (!v) return '';
+                      const m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                      if (m) return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
+                      return v;
+                    })()}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (!v) { handleFieldChange('appointmentDate', ''); return; }
+                      const [y, m, d] = v.split('-');
+                      handleFieldChange('appointmentDate', `${m}/${d}/${y}`);
+                    }}
                     className={inputClass}
                   />
                 </div>
 
                 <div>
                   <label className={labelClass}>Time Window</label>
-                  <input
-                    type="text"
+                  <select
                     value={parsedLead.timeWindow}
                     onChange={(e) => handleFieldChange('timeWindow', e.target.value)}
-                    placeholder="e.g., 9:00 am - 11:00 am"
                     className={inputClass}
-                  />
+                  >
+                    <option value="">Select time window</option>
+                    {timeWindows.map(tw => (
+                      <option key={tw} value={tw}>{tw}</option>
+                    ))}
+                    {parsedLead.timeWindow && !timeWindows.includes(parsedLead.timeWindow) && (
+                      <option value={parsedLead.timeWindow}>{parsedLead.timeWindow}</option>
+                    )}
+                  </select>
                 </div>
 
                 <div>

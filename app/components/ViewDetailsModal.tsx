@@ -18,6 +18,8 @@ interface ViewDetailsModalProps {
 export default function ViewDetailsModal({ lead, onClose, onEdit, onSchedule, onCloseDeal, onCancel }: ViewDetailsModalProps) {
   const [transcript, setTranscript] = useState<string | null>(null);
   const [loadingTranscript, setLoadingTranscript] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   function extractCallLogId(notes: string): string | null {
     const match = notes?.match(/CALL-\d+/);
@@ -148,6 +150,15 @@ export default function ViewDetailsModal({ lead, onClose, onEdit, onSchedule, on
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             Schedule
+          </button>
+          <button
+            onClick={() => setShowExport(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            Export
           </button>
           <button
             onClick={() => { onClose(); onEdit(); }}
@@ -303,6 +314,80 @@ export default function ViewDetailsModal({ lead, onClose, onEdit, onSchedule, on
           </button>
         </div>
       </div>
+
+      {/* Export Modal */}
+      {showExport && (() => {
+        const fullAddress = [lead['Address'], lead['City'], 'TX', lead['Zip Code']].filter(Boolean).join(', ');
+        const exportText = [
+          `${lead['Customer Name'] || ''}${lead['City'] ? ' - ' + lead['City'] : ''}`,
+          `📞 ${formatPhone(lead['Phone Number']) || ''}`,
+          '',
+          `Service: ${lead['Service Requested'] || ''}`,
+          '',
+          `📍 ${fullAddress}`,
+          `⏰ ${formatDate(lead['Appointment Date']) || ''}, ${lead['Time Window'] || ''}`,
+          '',
+          `Notes: ${lead['Customer Issue/Notes'] || ''}`,
+        ].join('\n');
+
+        return (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000] p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
+              <div className="bg-[#0a2540] text-white px-5 py-3 flex justify-between items-center">
+                <h3 className="font-semibold">Export Job Details</h3>
+                <button onClick={() => { setShowExport(false); setCopied(false); }} className="text-slate-400 hover:text-white p-1">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="p-4 overflow-y-auto">
+                <p className="text-xs text-slate-500 mb-2">Copy this and paste to your technician</p>
+                <textarea
+                  readOnly
+                  value={exportText}
+                  onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+                  className="w-full h-64 p-3 border border-slate-300 rounded-lg text-sm font-mono bg-slate-50 text-slate-800 resize-none focus:outline-none focus:ring-2 focus:ring-[#14b8a6]"
+                />
+              </div>
+              <div className="px-4 py-3 bg-slate-50 border-t flex justify-end gap-2">
+                <button
+                  onClick={() => { setShowExport(false); setCopied(false); }}
+                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-sm font-medium"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(exportText);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    } catch { /* ignore */ }
+                  }}
+                  className="px-4 py-2 bg-[#14b8a6] hover:bg-[#0d9488] text-white rounded-lg text-sm font-medium flex items-center gap-2"
+                >
+                  {copied ? (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      Copy
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

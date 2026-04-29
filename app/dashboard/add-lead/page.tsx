@@ -9,13 +9,17 @@ function AddLeadContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [prefilledDate, setPrefilledDate] = useState('');
+  const [prefilledTimeWindow, setPrefilledTimeWindow] = useState('');
+  const [prefilledTech, setPrefilledTech] = useState('');
 
-  // Get date from URL parameter
+  // Get prefill values from URL parameters
   useEffect(() => {
     const dateParam = searchParams.get('date');
-    if (dateParam) {
-      setPrefilledDate(dateParam);
-    }
+    if (dateParam) setPrefilledDate(dateParam);
+    const twParam = searchParams.get('timeWindow');
+    if (twParam) setPrefilledTimeWindow(twParam);
+    const techParam = searchParams.get('technician');
+    if (techParam) setPrefilledTech(techParam);
   }, [searchParams]);
 
   const cities = ['Houston', 'Katy', 'Sugar Land', 'Pearland', 'Spring', 'Cypress', 'The Woodlands', 'Humble', 'Pasadena', 'League City', 'Missouri City', 'Baytown', 'Conroe', 'Richmond', 'Tomball'];
@@ -259,7 +263,7 @@ function AddLeadContent() {
 
                 <div>
                   <label className={labelClass}>Time Window</label>
-                  <select name="timeWindow" className={inputClass}>
+                  <select name="timeWindow" defaultValue={prefilledTimeWindow} key={`tw-${prefilledTimeWindow}`} className={inputClass}>
                     <option value="">Select time...</option>
                     {timeWindows.map(tw => <option key={tw} value={tw}>{tw}</option>)}
                   </select>
@@ -267,7 +271,7 @@ function AddLeadContent() {
 
                 <div>
                   <label className={labelClass}>Assign Technician</label>
-                  <select name="assignedTo" className={inputClass}>
+                  <select name="assignedTo" defaultValue={prefilledTech} key={`tech-${prefilledTech}`} className={inputClass}>
                     <option value="">Select tech...</option>
                     {techs.map(tech => <option key={tech} value={tech}>{tech}</option>)}
                   </select>

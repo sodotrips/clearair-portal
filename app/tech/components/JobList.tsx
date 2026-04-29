@@ -2,9 +2,10 @@
 
 import { useTechContext } from './TechContext';
 import JobCard from './JobCard';
+import OpenSlotsWidget from '../../components/OpenSlotsWidget';
 
 export default function JobList() {
-  const { todayJobs, quotedJobs, closedJobs, upcomingJobs, loading, formatDateDisplay, getHoustonDate } = useTechContext();
+  const { todayJobs, quotedJobs, closedJobs, upcomingJobs, loading, formatDateDisplay, getHoustonDate, leads } = useTechContext();
 
   const today = getHoustonDate();
   const parseTime = (tw: string): number => {
@@ -66,7 +67,12 @@ export default function JobList() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6">
+    <div className="flex-1 overflow-y-auto px-6 pt-2 pb-6">
+      {/* Availability — view-only, helps tech know schedule when talking to customer */}
+      <div className="mb-3">
+        <OpenSlotsWidget leads={leads} readOnly compact />
+      </div>
+
       {/* Today's Jobs */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-4">
