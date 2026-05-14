@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import DashboardMainNav from '../../components/DashboardMainNav';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -598,6 +599,9 @@ export default function FinancialDashboard() {
               <h1 className="text-xl font-semibold">Financial Dashboard</h1>
               <p className="text-slate-400 text-sm">Revenue & Performance</p>
             </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 lg:gap-4">
+            <DashboardMainNav />
           </div>
         </div>
       </header>

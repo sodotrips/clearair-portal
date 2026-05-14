@@ -13,13 +13,49 @@ interface ViewDetailsModalProps {
   onSchedule: () => void;
   onCloseDeal?: () => void;
   onCancel?: () => void;
+  onUpdate?: () => void;
 }
 
-export default function ViewDetailsModal({ lead, onClose, onEdit, onSchedule, onCloseDeal, onCancel }: ViewDetailsModalProps) {
+export default function ViewDetailsModal({ lead, onClose, onEdit, onSchedule, onCloseDeal, onCancel, onUpdate }: ViewDetailsModalProps) {
   const [transcript, setTranscript] = useState<string | null>(null);
   const [loadingTranscript, setLoadingTranscript] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [unscheduling, setUnscheduling] = useState(false);
+
+  const handleUnschedule = async () => {
+    if (!confirm(`Remove schedule for ${lead['Customer Name']}? They will be moved back to New Leads.`)) return;
+    setUnscheduling(true);
+    try {
+      const res = await fetch('/api/leads/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rowIndex: parseInt(String(lead.rowIndex || lead['rowIndex'])),
+          updates: {
+            'Status': 'NEW',
+            'Appointment Date': '',
+            'Time Window': '',
+            'Assigned To': '',
+            'Appointment Confirmed': '',
+            'Confirmation Method': '',
+            'Confirmation Date/Time': '',
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        onUpdate?.();
+        onClose();
+      } else {
+        alert('Failed to unschedule: ' + (data.error || 'unknown error'));
+      }
+    } catch {
+      alert('Failed to connect to server');
+    } finally {
+      setUnscheduling(false);
+    }
+  };
 
   function extractCallLogId(notes: string): string | null {
     const match = notes?.match(/CALL-\d+/);
@@ -120,7 +156,7 @@ export default function ViewDetailsModal({ lead, onClose, onEdit, onSchedule, on
         </div>
 
         {/* Quick Actions Bar */}
-        <div className="px-6 py-3 bg-slate-50 border-b border-slate-200 flex gap-2 flex-shrink-0">
+        <div className="px-6 py-3 bg-slate-50 border-b border-slate-200 flex flex-wrap gap-2 flex-shrink-0">
           <a
             href={`tel:${lead['Phone Number']}`}
             className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition"
@@ -178,6 +214,19 @@ export default function ViewDetailsModal({ lead, onClose, onEdit, onSchedule, on
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               Close Deal
+            </button>
+          )}
+          {(status === 'SCHEDULED' || status === 'IN PROGRESS') && (
+            <button
+              onClick={handleUnschedule}
+              disabled={unscheduling}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-500 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+              title="Remove schedule and move back to New Leads"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l-7 7 7 7M2 12h15" />
+              </svg>
+              {unscheduling ? 'Unscheduling...' : 'Unschedule'}
             </button>
           )}
           {onCancel && status !== 'CLOSED' && status !== 'CANCELED' && (

@@ -27,7 +27,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { date, leadId } = body; // Optional: specific date or single lead
+    const { date, leadId, mode = 'day-before' } = body; // mode: 'day-before' (default) or 'same-day'
+    const isSameDay = mode === 'same-day';
 
     // Google Sheets setup (supports both env var and keyFile auth)
     const auth = await getAuthClient();
@@ -59,28 +60,28 @@ export async function POST(request: NextRequest) {
       console.warn(`"${REMINDER_SENT_HEADER}" column not found in sheet headers`);
     }
 
-    // Calculate tomorrow's date in Houston timezone
+    // Calculate target date in Houston timezone (today for same-day, tomorrow for day-before)
     const houston = getHoustonDateTime();
-    const tomorrow = new Date(houston);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = `${String(tomorrow.getMonth() + 1).padStart(2, '0')}/${String(tomorrow.getDate()).padStart(2, '0')}/${tomorrow.getFullYear()}`;
-    const tomorrowISO = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+    const target = new Date(houston);
+    if (!isSameDay) target.setDate(target.getDate() + 1);
+    const targetStr = `${String(target.getMonth() + 1).padStart(2, '0')}/${String(target.getDate()).padStart(2, '0')}/${target.getFullYear()}`;
+    const targetISO = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`;
 
-    // Use provided date or tomorrow
-    const targetDate = date || tomorrowStr;
+    // Use provided date or computed target
+    const targetDate = date || targetStr;
 
-    // Filter jobs for tomorrow
+    // Filter jobs for target date
     const isDateMatch = (apptDate: string) => {
       if (!apptDate) return false;
 
       if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(apptDate)) {
         const [m, d, y] = apptDate.split('/');
         const normalized = `${m.padStart(2, '0')}/${d.padStart(2, '0')}/${y}`;
-        return normalized === tomorrowStr || apptDate === targetDate;
+        return normalized === targetStr || apptDate === targetDate;
       }
 
       if (/^\d{4}-\d{2}-\d{2}$/.test(apptDate)) {
-        return apptDate === tomorrowISO || apptDate === targetDate;
+        return apptDate === targetISO || apptDate === targetDate;
       }
 
       return false;
@@ -135,8 +136,9 @@ export async function POST(request: NextRequest) {
       }
 
       // Build customer SMS
+      const whenWord = isSameDay ? 'today' : 'tomorrow';
       let sms = `Hi ${customerName}! This is ${companyName}.\n\n`;
-      sms += `Reminder: Your ${service} appointment is tomorrow (${apptDate}) between ${timeWindow}.\n\n`;
+      sms += `Reminder: Your ${service} appointment is ${whenWord} (${apptDate}) between ${timeWindow}.\n\n`;
       sms += `Our technician will call you 30-40 minutes before his arrival.\n\n`;
       sms += `Reply C to confirm or call ${businessPhone} to reschedule.`;
 

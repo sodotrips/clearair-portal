@@ -13,6 +13,7 @@ import CloseDealModal from '../components/CloseDealModal';
 import QuoteLeadModal from '../components/QuoteLeadModal';
 import WeeklyCalendar from '../components/WeeklyCalendar';
 import OpenSlotsWidget from '../components/OpenSlotsWidget';
+import DashboardMainNav from '../components/DashboardMainNav';
 import QuickImportModal from '../components/QuickImportModal';
 
 interface Lead {
@@ -722,13 +723,6 @@ export default function Dashboard() {
   // Filter tabs based on role - completed tab only visible to Admin
   const tabs = userRole === 'Admin' ? allTabs : allTabs.filter(tab => !tab.adminOnly);
 
-  const statCards = [
-    { id: 'new', label: 'New Leads', count: stats.newLeads, accentColor: 'bg-blue-500', icon: '📋' },
-    { id: 'scheduled', label: 'Scheduled', count: stats.scheduled, accentColor: 'bg-teal-500', icon: '📅' },
-    { id: 'quoted', label: 'Quoted', count: stats.quoted, accentColor: 'bg-amber-500', icon: '💰' },
-    { id: 'closed', label: 'Closed', count: stats.closed, accentColor: 'bg-emerald-500', icon: '✅' },
-  ];
-
   const columnsByView: Record<string, string[]> = {
     calllogs: ['Actions', 'Timestamp', 'Caller Phone', 'Customer Name', 'Service Inquiry', 'Outcome', 'Appt Date', 'Time Window', 'Transcript'],
     website: ['Actions', ...websiteLeadCols],
@@ -823,65 +817,10 @@ export default function Dashboard() {
           </div>
           <div className="flex flex-wrap items-center gap-2 lg:gap-4">
             {userRole === 'Admin' && (
-              <>
-                <Link
-                  href="/dashboard/analytics"
-                  className="flex items-center gap-1 lg:gap-2 bg-[#14b8a6] hover:bg-[#0d9488] text-white px-2 lg:px-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-medium transition"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  <span className="hidden sm:inline">Analytics</span>
-                </Link>
-                <Link
-                  href="/dashboard/financials"
-                  className="flex items-center gap-1 lg:gap-2 bg-green-600 hover:bg-green-700 text-white px-2 lg:px-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-medium transition"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span className="hidden sm:inline">Financials</span>
-                </Link>
-                <Link
-                  href="/dashboard/payouts"
-                  className="flex items-center gap-1 lg:gap-2 bg-red-600 hover:bg-red-700 text-white px-2 lg:px-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-medium transition"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                  <span className="hidden sm:inline">Payouts</span>
-                </Link>
-                <Link
-                  href="/dashboard/reminders"
-                  className="flex items-center gap-1 lg:gap-2 bg-purple-600 hover:bg-purple-700 text-white px-2 lg:px-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-medium transition"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                  </svg>
-                  <span className="hidden sm:inline">SMS</span>
-                </Link>
-                <a
-                  href="/tech"
-                  className="flex items-center gap-1 lg:gap-2 bg-[#1a3a5c] hover:bg-[#0a2540] text-white px-2 lg:px-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-medium transition border border-slate-600"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
-                  <span className="hidden sm:inline">Tech</span>
-                </a>
-                <button
-                  onClick={() => setShowAgentSettings(true)}
-                  className="flex items-center gap-1 lg:gap-2 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white px-2 lg:px-4 py-1.5 lg:py-2 rounded-lg text-xs lg:text-sm font-medium transition"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  <span className="hidden sm:inline">Agents</span>
-                  {agentSettings['daily_summary_enabled'] === 'true' && (
-                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                  )}
-                </button>
-              </>
+              <DashboardMainNav
+                onAgentsClick={() => setShowAgentSettings(true)}
+                showAgentsIndicator={agentSettings['daily_summary_enabled'] === 'true'}
+              />
             )}
             <div className="flex items-center gap-2 lg:gap-3 border-l border-slate-600 pl-2 lg:pl-4 ml-1 lg:ml-2">
               <div className="text-right">
@@ -907,44 +846,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
-        {/* Stats Cards - Status Flow */}
-        <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
-          <div className="flex items-center gap-1 sm:gap-2 mt-2 mb-4 min-w-max sm:min-w-0">
-            {statCards.map((card, index) => (
-              <div key={card.id} className="flex items-center">
-                <div
-                  onClick={() => setCurrentView(card.id)}
-                  className={`bg-[#E0EBF7] rounded-lg overflow-hidden cursor-pointer transition-all hover:bg-[#d0dde9] min-w-[90px] sm:min-w-[110px] lg:min-w-[130px] ${
-                    currentView === card.id ? 'ring-2 ring-[#14b8a6] shadow-md' : 'shadow-sm'
-                  }`}
-                >
-                  <div className={`h-1 ${card.accentColor}`}></div>
-                  <div className="px-2 sm:px-3 py-1.5 sm:py-2">
-                    <div className="flex justify-between items-center gap-1">
-                      <div>
-                        <p className="text-slate-600 text-[10px] sm:text-xs font-medium uppercase tracking-wide truncate">{card.label}</p>
-                        <p className="text-[#0a2540] text-lg sm:text-2xl font-bold">{card.count}</p>
-                      </div>
-                      <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-md ${card.accentColor} bg-opacity-20 flex items-center justify-center flex-shrink-0`}>
-                        <span className="text-sm sm:text-base">{card.icon}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {/* Arrow between cards */}
-                {index < statCards.length - 1 && (
-                  <div className="flex items-center px-0.5 sm:px-2 flex-shrink-0">
-                    <svg className="w-3 h-3 sm:w-5 sm:h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-2 pb-6">
         {/* Today's Appointments Section - Collapsible */}
         {todaysAppointments.length > 0 && (
           <div className="bg-white rounded-xl shadow-sm mb-6 overflow-hidden">
@@ -1047,24 +949,24 @@ export default function Dashboard() {
 
         {/* Main Content Card */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          {/* Tabs */}
-          <div className="overflow-x-auto">
-            <div className="flex min-w-max">
+          {/* Tabs — dark navy bar matching tech app sidebar */}
+          <div className="bg-[#0a2540] overflow-x-auto">
+            <div className="flex min-w-max gap-1 px-2 py-1.5">
               {tabs.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setCurrentView(tab.id)}
-                  className={`px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm transition-all border-l border-r border-b-4 border-t-0 rounded-t-lg whitespace-nowrap ${
+                  className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium rounded-md transition whitespace-nowrap flex items-center gap-2 ${
                     currentView === tab.id
-                      ? 'bg-[#E0EBF7] text-black font-bold border-l-slate-300 border-r-slate-300 border-b-[#14b8a6]'
-                      : 'bg-white text-black font-normal border-l-slate-300 border-r-slate-300 border-b-slate-500 hover:bg-slate-50'
+                      ? 'bg-[#14b8a6] text-white'
+                      : 'text-slate-300 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   {tab.label}
-                  <span className={`ml-1 sm:ml-2 px-1.5 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${
+                  <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${
                     currentView === tab.id
-                      ? 'bg-[#14b8a6] text-white'
-                      : 'bg-slate-400 text-white'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-slate-600 text-slate-200'
                   }`}>
                     {tab.count}
                   </span>
@@ -1708,6 +1610,7 @@ export default function Dashboard() {
           onSchedule={() => setScheduleModalLead(viewDetailsLead)}
           onCloseDeal={() => setCloseDealModalLead(viewDetailsLead)}
           onCancel={() => updateLeadStatus(viewDetailsLead, 'CANCELED')}
+          onUpdate={() => fetchLeads()}
         />
       )}
 

@@ -16,7 +16,7 @@ interface OpenSlotsWidgetProps {
 const TIME_WINDOWS = ['08:00AM - 11:00AM', '11:00AM - 2:00PM', '2:00PM - 5:00PM'];
 const TIME_WINDOW_LABELS = ['8-11 AM', '11-2 PM', '2-5 PM'];
 const PRIMARY_TECH = 'Amit';
-const ACTIVE_STATUSES = new Set(['SCHEDULED', 'IN PROGRESS', 'QUOTED', 'COMPLETED']);
+const ACTIVE_STATUSES = new Set(['SCHEDULED', 'IN PROGRESS', 'QUOTED', 'COMPLETED', 'CLOSED']);
 const DAYS_TO_SHOW = 7;
 
 // Houston "today" in YYYY-MM-DD

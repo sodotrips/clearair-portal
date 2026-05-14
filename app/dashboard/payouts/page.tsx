@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import DashboardMainNav from '../../components/DashboardMainNav';
 
 interface Lead {
   [key: string]: string;
@@ -427,15 +428,9 @@ export default function PayoutsPage() {
               <p className="text-slate-400 text-sm">Commission & Lead Gen Payouts</p>
             </div>
           </div>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="text-slate-400 hover:text-white text-sm transition flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back to Dashboard
-          </button>
+          <div className="flex flex-wrap items-center gap-2 lg:gap-4">
+            <DashboardMainNav />
+          </div>
         </div>
       </header>
 

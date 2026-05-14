@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import DashboardMainNav from '../../components/DashboardMainNav';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -505,7 +506,8 @@ export default function AnalyticsDashboard() {
               <p className="text-slate-400 text-sm">Business Insights</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-2 lg:gap-4">
+            <DashboardMainNav />
             <select
               value={dateRange}
               onChange={(e) => setDateRange(e.target.value)}

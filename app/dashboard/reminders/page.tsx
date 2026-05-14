@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import DashboardMainNav from '../../components/DashboardMainNav';
 
 interface Lead {
   [key: string]: string;
@@ -145,11 +146,14 @@ export default function RemindersPage() {
     if (leadId) setSending(leadId);
     setResults(null);
 
+    // Auto-detect mode: if the selected date is today, use same-day verbiage; otherwise day-before
+    const mode: 'day-before' | 'same-day' = selectedDate === getHoustonDate(0) ? 'same-day' : 'day-before';
+
     try {
       const response = await fetch('/api/sms/send-customer-reminders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadId, date: selectedDate }),
+        body: JSON.stringify({ leadId, date: selectedDate, mode }),
       });
       const data = await response.json();
       setResults(data);
@@ -308,6 +312,9 @@ export default function RemindersPage() {
               <p className="text-slate-400 text-sm">Appointment notifications</p>
             </div>
           </div>
+          <div className="flex flex-wrap items-center gap-2 lg:gap-4">
+            <DashboardMainNav />
+          </div>
         </div>
       </header>
 
@@ -465,60 +472,39 @@ Questions? Call/Text (281) 904-4674`}
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Select Date</label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="px-4 py-2 border border-slate-300 rounded-lg focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] focus:outline-none"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="px-4 py-2 border border-slate-300 rounded-lg focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(getHoustonDate(0))}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                    isToday ? 'bg-blue-600 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  Today
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDate(getHoustonDate(1))}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                    isTomorrow ? 'bg-[#14b8a6] text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  Tomorrow
+                </button>
+              </div>
               <p className="text-sm text-slate-500 mt-1">
                 {formatDate(selectedDate)}
-                {isToday && <span className="ml-2 text-blue-600 font-medium">(Today)</span>}
-                {isTomorrow && <span className="ml-2 text-[#14b8a6] font-medium">(Tomorrow)</span>}
+                {isToday && <span className="ml-2 text-blue-600 font-medium">(Same-day reminders — message will say &quot;today&quot;)</span>}
+                {isTomorrow && <span className="ml-2 text-[#14b8a6] font-medium">(Day-before reminders — message will say &quot;tomorrow&quot;)</span>}
               </p>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => sendTechReminder()}
-                disabled={sendingAll === 'tech' || scheduledJobs.length === 0}
-                className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition disabled:opacity-50 flex items-center gap-2"
-              >
-                {sendingAll === 'tech' ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                    Send Tech Reminders
-                  </>
-                )}
-              </button>
-
-              <button
-                onClick={() => sendCustomerReminders()}
-                disabled={sendingAll === 'customer' || scheduledJobs.length === 0}
-                className="px-4 py-2.5 bg-[#14b8a6] hover:bg-[#0d9488] text-white rounded-lg font-medium transition disabled:opacity-50 flex items-center gap-2"
-              >
-                {sendingAll === 'customer' ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                    </svg>
-                    Send Customer Reminders
-                  </>
-                )}
-              </button>
-            </div>
           </div>
 
           {/* Results */}
@@ -687,7 +673,7 @@ Questions? Call/Text (281) 904-4674`}
               <p className="text-sm text-slate-600 font-mono whitespace-pre-wrap bg-slate-50 p-4 rounded-lg">
 {`Hi John! This is ClearAir Solutions.
 
-Reminder: Your Air Duct Cleaning appointment is tomorrow (Wed, Feb 12) between 08:00AM - 11:00AM.
+Reminder: Your Air Duct Cleaning appointment is ${isToday ? 'today' : 'tomorrow'} (${formatDate(selectedDate)}) between 08:00AM - 11:00AM.
 
 Our technician will call you 30-40 minutes before his arrival.
 
@@ -707,23 +693,14 @@ Reply C to confirm or call (281) 904-4674 to reschedule.`}
                   Send job summaries to technicians for the selected date.
                 </p>
               </div>
-              <div className="flex items-center gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Select Date</label>
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="px-4 py-2 border border-slate-300 rounded-lg focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] focus:outline-none"
-                  />
-                </div>
-                <button
-                  onClick={() => sendTechReminder()}
-                  disabled={sendingAll === 'tech' || scheduledJobs.length === 0}
-                  className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition disabled:opacity-50 flex items-center gap-2 mt-6"
-                >
-                  {sendingAll === 'tech' ? 'Sending...' : 'Send to All Techs'}
-                </button>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Select Date</label>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="px-4 py-2 border border-slate-300 rounded-lg focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] focus:outline-none"
+                />
               </div>
             </div>
 
