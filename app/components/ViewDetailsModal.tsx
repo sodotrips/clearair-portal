@@ -22,6 +22,30 @@ export default function ViewDetailsModal({ lead, onClose, onEdit, onSchedule, on
   const [showExport, setShowExport] = useState(false);
   const [copied, setCopied] = useState(false);
   const [unscheduling, setUnscheduling] = useState(false);
+  const [sendingConfirmation, setSendingConfirmation] = useState(false);
+
+  const handleSendConfirmation = async () => {
+    if (!confirm(`Send booking confirmation SMS to ${lead['Customer Name']}?`)) return;
+    setSendingConfirmation(true);
+    try {
+      const res = await fetch('/api/sms/send-booking-confirmation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId: lead['Lead ID'] }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`Confirmation sent to ${data.customer}`);
+        onUpdate?.();
+      } else {
+        alert('Failed to send confirmation: ' + (data.error || 'unknown error'));
+      }
+    } catch {
+      alert('Failed to connect to server');
+    } finally {
+      setSendingConfirmation(false);
+    }
+  };
 
   const handleUnschedule = async () => {
     if (!confirm(`Remove schedule for ${lead['Customer Name']}? They will be moved back to New Leads.`)) return;
@@ -228,6 +252,27 @@ export default function ViewDetailsModal({ lead, onClose, onEdit, onSchedule, on
               </svg>
               {unscheduling ? 'Unscheduling...' : 'Unschedule'}
             </button>
+          )}
+          {/* Visual separator between status-changing actions and send-confirmation */}
+          {(status === 'SCHEDULED' || status === 'IN PROGRESS') && (
+            <div className="w-px bg-slate-300 mx-1 self-stretch" aria-hidden="true" />
+          )}
+          {(status === 'SCHEDULED' || status === 'IN PROGRESS') && (
+            <button
+              onClick={handleSendConfirmation}
+              disabled={sendingConfirmation}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50"
+              title='Send booking confirmation SMS ("Thanks for scheduling...")'
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+              {sendingConfirmation ? 'Sending...' : 'Send Confirmation'}
+            </button>
+          )}
+          {/* Visual separator before destructive action */}
+          {onCancel && status !== 'CLOSED' && status !== 'CANCELED' && (
+            <div className="w-px bg-slate-300 mx-1 self-stretch" aria-hidden="true" />
           )}
           {onCancel && status !== 'CLOSED' && status !== 'CANCELED' && (
             <button

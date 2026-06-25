@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { getAuthClient, SPREADSHEET_ID, SHEET_NAME, DATA_RANGE } from '@/lib/google-sheets';
+import { logSmsAttempt } from '@/app/lib/sms-log';
 
 // Column W = "Booking Confirm Sent"
 const BOOKING_CONFIRM_COL = 'W';
@@ -16,9 +17,17 @@ import {
 
 // Send booking confirmation to a customer after scheduling their appointment
 export async function POST(request: NextRequest) {
+  const device = request.headers.get('user-agent') || '';
+  let leadIdForLog = '';
+  let customerForLog = '';
+  let phoneForLog = '';
   try {
     // Check for Twilio configuration
     if (!client || (!twilioPhone && !messagingServiceSid)) {
+      await logSmsAttempt({
+        api: 'booking-confirmation', leadId: '', customer: '', phone: '',
+        status: 'error', error: 'Twilio not configured', device,
+      });
       return NextResponse.json({
         success: false,
         error: 'Twilio not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and either TWILIO_PHONE_NUMBER or TWILIO_MESSAGING_SERVICE_SID.'
@@ -27,6 +36,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { leadId } = body;
+    leadIdForLog = leadId || '';
 
     if (!leadId) {
       return NextResponse.json({
@@ -61,18 +71,22 @@ export async function POST(request: NextRequest) {
     // Find the lead
     const lead = leads.find(l => l['Lead ID'] === leadId);
     if (!lead) {
+      await logSmsAttempt({ api: 'booking-confirmation', leadId: leadIdForLog, customer: '', phone: '', status: 'error', error: `Lead ${leadId} not found`, device });
       return NextResponse.json({
         success: false,
         error: `Lead ${leadId} not found`
       }, { status: 404 });
     }
+    customerForLog = lead['Customer Name'] || '';
 
     // Validate lead has required info
     const phone = lead['Phone Number'];
     const appointmentDate = lead['Appointment Date'];
     const timeWindow = lead['Time Window'];
+    phoneForLog = phone || '';
 
     if (!phone) {
+      await logSmsAttempt({ api: 'booking-confirmation', leadId: leadIdForLog, customer: customerForLog, phone: '', status: 'error', error: 'Lead has no phone number', device });
       return NextResponse.json({
         success: false,
         error: 'Lead has no phone number'
@@ -80,6 +94,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!appointmentDate || !timeWindow) {
+      await logSmsAttempt({ api: 'booking-confirmation', leadId: leadIdForLog, customer: customerForLog, phone: phoneForLog, status: 'error', error: 'Lead has no appointment date or time window scheduled', device });
       return NextResponse.json({
         success: false,
         error: 'Lead has no appointment date or time window scheduled'
@@ -89,6 +104,7 @@ export async function POST(request: NextRequest) {
     // Check if phone is valid for SMS
     const smsCheck = shouldSendSMS(phone);
     if (!smsCheck.allowed) {
+      await logSmsAttempt({ api: 'booking-confirmation', leadId: leadIdForLog, customer: customerForLog, phone: phoneForLog, status: 'error', error: `Cannot send SMS: ${smsCheck.reason}`, device });
       return NextResponse.json({
         success: false,
         error: `Cannot send SMS: ${smsCheck.reason}`
@@ -125,7 +141,7 @@ export async function POST(request: NextRequest) {
     sms += `Questions? Call/Text ${businessPhone}`;
 
     // Send SMS
-    await client.messages.create({
+    const twilioMessage = await client.messages.create({
       body: sms,
       ...getSenderParams(),
       to: formatPhoneForTwilio(phone),
@@ -142,6 +158,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    await logSmsAttempt({
+      api: 'booking-confirmation', leadId: leadIdForLog, customer: customerForLog, phone: phoneForLog,
+      status: 'success', twilioSid: twilioMessage.sid, device,
+    });
+
     return NextResponse.json({
       success: true,
       leadId,
@@ -152,6 +173,10 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Booking confirmation error:', error);
+    await logSmsAttempt({
+      api: 'booking-confirmation', leadId: leadIdForLog, customer: customerForLog, phone: phoneForLog,
+      status: 'error', error: error.message || String(error), device,
+    });
     return NextResponse.json({
       success: false,
       error: error.message

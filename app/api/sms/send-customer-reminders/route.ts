@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { getAuthClient, SPREADSHEET_ID, SHEET_NAME, DATA_RANGE, columnIndexToLetter } from '@/lib/google-sheets';
+import { logSmsAttempt } from '@/app/lib/sms-log';
 import {
   client,
   twilioPhone,
@@ -17,6 +18,7 @@ const REMINDER_SENT_COL = 'X';
 const REMINDER_SENT_HEADER = 'Reminder Sent';
 
 export async function POST(request: NextRequest) {
+  const device = request.headers.get('user-agent') || '';
   try {
     // Check for Twilio configuration (needs client AND either phone or messaging service)
     if (!client || (!twilioPhone && !messagingServiceSid)) {
@@ -29,6 +31,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { date, leadId, mode = 'day-before' } = body; // mode: 'day-before' (default) or 'same-day'
     const isSameDay = mode === 'same-day';
+    const apiName = isSameDay ? 'reminder-same-day' : 'reminder-day-before';
 
     // Google Sheets setup (supports both env var and keyFile auth)
     const auth = await getAuthClient();
@@ -145,6 +148,10 @@ export async function POST(request: NextRequest) {
       // Check if this number should receive SMS
       const smsCheck = shouldSendSMS(phone);
       if (!smsCheck.allowed) {
+        await logSmsAttempt({
+          api: apiName, leadId: job['Lead ID'], customer: job['Customer Name'], phone,
+          status: 'error', error: `Skipped: ${smsCheck.reason}`, device,
+        });
         results.push({
           leadId: job['Lead ID'],
           customer: job['Customer Name'],
@@ -155,7 +162,7 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        await client.messages.create({
+        const twilioMessage = await client.messages.create({
           body: sms,
           ...getSenderParams(),
           to: formatPhoneForTwilio(phone),
@@ -172,6 +179,10 @@ export async function POST(request: NextRequest) {
           },
         });
 
+        await logSmsAttempt({
+          api: apiName, leadId: job['Lead ID'], customer: job['Customer Name'], phone,
+          status: 'success', twilioSid: twilioMessage.sid, device,
+        });
         results.push({
           leadId: job['Lead ID'],
           customer: job['Customer Name'],
@@ -179,6 +190,10 @@ export async function POST(request: NextRequest) {
           message: 'Reminder sent'
         });
       } catch (err: any) {
+        await logSmsAttempt({
+          api: apiName, leadId: job['Lead ID'], customer: job['Customer Name'], phone,
+          status: 'error', error: err.message || String(err), device,
+        });
         results.push({
           leadId: job['Lead ID'],
           customer: job['Customer Name'],
