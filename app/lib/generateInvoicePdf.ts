@@ -48,7 +48,7 @@ export interface InvoiceData {
 }
 
 export async function generateInvoicePdf(data: InvoiceData): Promise<Blob> {
-  const doc = new jsPDF('portrait', 'in', 'letter');
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'in', format: 'letter', compress: true });
   setFooterDocNumber(`Invoice #${data.invoiceNumber}`);
   setCustomerAddress(`${data.customer.address}, ${data.customer.city}, TX${data.customer.zip ? ' ' + data.customer.zip : ''}`);
 

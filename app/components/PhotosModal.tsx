@@ -57,7 +57,7 @@ function compressViaCanvas(objectUrl: string, maxDim: number, quality: number): 
   });
 }
 
-async function fileToCompressedJpeg(file: File, maxDim: number = 1200, quality: number = 0.7): Promise<string> {
+async function fileToCompressedJpeg(file: File, maxDim: number = 1000, quality: number = 0.65): Promise<string> {
   // HEIC/HEIF files: send to server for conversion (sharp handles all variants)
   if (isHeicOrUnknown(file)) {
     const jpegUrl = await convertViaServer(file);

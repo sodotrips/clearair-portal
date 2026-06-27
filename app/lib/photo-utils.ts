@@ -51,7 +51,7 @@ export function compressViaCanvas(objectUrl: string, maxDim: number, quality: nu
   });
 }
 
-export async function fileToCompressedJpeg(file: File, maxDim: number = 1200, quality: number = 0.7): Promise<string> {
+export async function fileToCompressedJpeg(file: File, maxDim: number = 1000, quality: number = 0.65): Promise<string> {
   if (isHeicOrUnknown(file)) {
     const jpegUrl = await convertViaServer(file);
     try {

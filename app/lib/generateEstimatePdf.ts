@@ -41,7 +41,7 @@ export interface EstimateData {
 }
 
 export async function generateEstimatePdf(data: EstimateData): Promise<Blob> {
-  const doc = new jsPDF('portrait', 'in', 'letter');
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'in', format: 'letter', compress: true });
   setFooterDocNumber(`Estimate #${data.estimateNumber}`);
   setCustomerAddress(`${data.customer.address}, ${data.customer.city}, TX${data.customer.zip ? ' ' + data.customer.zip : ''}`);
 
