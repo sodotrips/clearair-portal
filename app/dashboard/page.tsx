@@ -12,6 +12,7 @@ import CommissionModal from '../components/CommissionModal';
 import CloseDealModal from '../components/CloseDealModal';
 import QuoteLeadModal from '../components/QuoteLeadModal';
 import WeeklyCalendar from '../components/WeeklyCalendar';
+import { getSubcontractorNames } from '@/lib/subcontractors';
 import OpenSlotsWidget from '../components/OpenSlotsWidget';
 import DashboardMainNav from '../components/DashboardMainNav';
 import QuickImportModal from '../components/QuickImportModal';
@@ -77,6 +78,8 @@ export default function Dashboard() {
   const cities = ['Houston', 'Katy', 'Sugar Land', 'Pearland', 'Spring', 'Cypress', 'The Woodlands', 'Humble', 'Pasadena', 'League City', 'Missouri City', 'Baytown', 'Conroe', 'Richmond', 'Tomball'];
   const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Air Duct & Dryer Vent', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
   const techs = ['Amit', 'Tech 2', 'Subcontractor'];
+  // Sub names are self-seeding: whatever is already recorded in column AG.
+  const subcontractorNames = getSubcontractorNames(leads);
   const statuses = ['NEW', 'SCHEDULED', 'IN PROGRESS', 'QUOTED', 'COMPLETED', 'CLOSED', 'CANCELED'];
   const timeWindows = ['08:00AM - 11:00AM', '11:00AM - 2:00PM', '2:00PM - 5:00PM'];
 
@@ -1589,6 +1592,7 @@ export default function Dashboard() {
           lead={scheduleModalLead}
           onClose={() => setScheduleModalLead(null)}
           onSuccess={() => fetchLeads()}
+          subcontractorNames={subcontractorNames}
         />
       )}
 
@@ -1598,6 +1602,7 @@ export default function Dashboard() {
           lead={editModalLead}
           onClose={() => setEditModalLead(null)}
           onSuccess={() => fetchLeads()}
+          subcontractorNames={subcontractorNames}
         />
       )}
 

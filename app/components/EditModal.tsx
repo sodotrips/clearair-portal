@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import SubcontractorSelect from './SubcontractorSelect';
+import { SUBCONTRACTOR_BUCKET } from '@/lib/subcontractors';
 
 interface Lead {
   [key: string]: string;
@@ -10,9 +12,10 @@ interface EditModalProps {
   lead: Lead;
   onClose: () => void;
   onSuccess: () => void;
+  subcontractorNames?: string[];
 }
 
-export default function EditModal({ lead, onClose, onSuccess }: EditModalProps) {
+export default function EditModal({ lead, onClose, onSuccess, subcontractorNames = [] }: EditModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -34,6 +37,7 @@ export default function EditModal({ lead, onClose, onSuccess }: EditModalProps) 
   const [zip, setZip] = useState(lead['Zip Code'] || '');
   const [propertyType, setPropertyType] = useState(lead['Property Type'] || '');
   const [assignedTo, setAssignedTo] = useState(lead['Assigned To'] || '');
+  const [subcontractorName, setSubcontractorName] = useState(lead['Subcontractor Name'] || '');
   const [leadSource, setLeadSource] = useState(lead['Lead Source'] || '');
   const [leadSourceDetail, setLeadSourceDetail] = useState(lead['Lead Source Detail'] || '');
   const [referralSource, setReferralSource] = useState(lead['Referral Source'] || '');
@@ -90,6 +94,8 @@ export default function EditModal({ lead, onClose, onSuccess }: EditModalProps) 
         'Zip Code': zip,
         'Property Type': propertyType,
         'Assigned To': assignedTo,
+        // Only subcontractor jobs carry a name; reassigning away clears it.
+        'Subcontractor Name': assignedTo === SUBCONTRACTOR_BUCKET ? subcontractorName.trim() : '',
         'Lead Source': leadSource,
         'Lead Source Detail': leadSourceDetail,
         'Referral Source': referralSource,
@@ -259,6 +265,17 @@ export default function EditModal({ lead, onClose, onSuccess }: EditModalProps) 
                     {technicians.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
+                {assignedTo === SUBCONTRACTOR_BUCKET && (
+                  <div className="col-span-2">
+                    <SubcontractorSelect
+                      value={subcontractorName}
+                      onChange={setSubcontractorName}
+                      names={subcontractorNames}
+                      labelClass={labelClass}
+                      inputClass={inputClass}
+                    />
+                  </div>
+                )}
                 <div>
                   <label className={labelClass}>Appointment Date</label>
                   <input

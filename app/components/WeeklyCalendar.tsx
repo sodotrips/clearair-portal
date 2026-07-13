@@ -2,10 +2,20 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  SUBCONTRACTOR_BUCKET,
+  UNNAMED_SUB_LABEL,
+  getSubcontractorNames,
+  isSubcontractorJob,
+  normalizeSubName,
+  subColor,
+} from '@/lib/subcontractors';
 
 interface Lead {
   [key: string]: string;
 }
+
+type AssigneeView = 'all' | 'amit' | 'sub';
 
 interface WeeklyCalendarProps {
   leads: Lead[];
@@ -29,8 +39,24 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseD
   const [draggedJob, setDraggedJob] = useState<Lead | null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [assigneeView, setAssigneeView] = useState<AssigneeView>('all');
 
   const MAX_JOBS_PER_DAY = 10;
+
+  const inSubView = assigneeView === 'sub';
+
+  // Which subs actually have jobs on the visible board (drives the legend).
+  const subNamesOnBoard = getSubcontractorNames(leads.filter(isSubcontractorJob));
+  const hasUnnamedSub = leads.some(
+    (l) => isSubcontractorJob(l) && !normalizeSubName(l['Subcontractor Name'])
+  );
+
+  const matchesAssigneeView = (lead: Lead) => {
+    const assigned = normalizeSubName(lead['Assigned To']);
+    if (assigneeView === 'amit') return assigned === 'Amit';
+    if (assigneeView === 'sub') return assigned === SUBCONTRACTOR_BUCKET;
+    return true;
+  };
 
   // Get week days
   const getWeekDays = () => {
@@ -104,6 +130,8 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseD
     return leads.filter(lead => {
       const status = lead['Status']?.toUpperCase();
       if (status !== 'SCHEDULED' && status !== 'IN PROGRESS' && status !== 'QUOTED' && status !== 'COMPLETED' && status !== 'CLOSED') return false;
+
+      if (!matchesAssigneeView(lead)) return false;
 
       const appointmentDate = parseDate(lead['Appointment Date']);
       if (!appointmentDate) return false;
@@ -346,25 +374,70 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseD
           )}
         </div>
         <div className="flex items-center gap-2 text-sm">
-          <span className="text-slate-300">Max {MAX_JOBS_PER_DAY} jobs/day</span>
-          <span className="text-slate-400 mx-2">|</span>
-          <span className="text-slate-300">Drag jobs to reschedule</span>
-          <div className="flex items-center gap-1 ml-4">
-            <span className="w-3 h-3 rounded bg-blue-400"></span>
-            <span className="text-xs text-slate-300">Scheduled</span>
+          {/* Assignee toggle */}
+          <div className="flex items-center rounded-lg bg-white/10 p-0.5">
+            {([
+              { key: 'all', label: 'All' },
+              { key: 'amit', label: 'Amit' },
+              { key: 'sub', label: 'Subcontractors' },
+            ] as { key: AssigneeView; label: string }[]).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setAssigneeView(key)}
+                className={`px-3 py-1 text-xs font-medium rounded-md transition ${
+                  assigneeView === key
+                    ? 'bg-white text-[#0a2540]'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-          <div className="flex items-center gap-1 ml-2">
-            <span className="w-3 h-3 rounded bg-purple-400"></span>
-            <span className="text-xs text-slate-300">In Progress</span>
-          </div>
-          <div className="flex items-center gap-1 ml-2">
-            <span className="w-3 h-3 rounded bg-amber-400"></span>
-            <span className="text-xs text-slate-300">Quoted</span>
-          </div>
-          <div className="flex items-center gap-1 ml-2">
-            <span className="w-3 h-3 rounded bg-emerald-400"></span>
-            <span className="text-xs text-slate-300">Closed</span>
-          </div>
+
+          <span className="text-slate-400 mx-1">|</span>
+
+          {/* Legend: per-subcontractor in sub view, per-status otherwise */}
+          {inSubView ? (
+            subNamesOnBoard.length === 0 && !hasUnnamedSub ? (
+              <span className="text-xs text-slate-300">No subcontractor jobs this week</span>
+            ) : (
+              <div className="flex items-center gap-3 flex-wrap">
+                {subNamesOnBoard.map((name) => (
+                  <div key={name} className="flex items-center gap-1">
+                    <span className={`w-3 h-3 rounded ${subColor(name).dot}`}></span>
+                    <span className="text-xs text-slate-300">{name}</span>
+                  </div>
+                ))}
+                {hasUnnamedSub && (
+                  <div className="flex items-center gap-1">
+                    <span className="w-3 h-3 rounded bg-slate-400"></span>
+                    <span className="text-xs text-slate-300">{UNNAMED_SUB_LABEL}</span>
+                  </div>
+                )}
+              </div>
+            )
+          ) : (
+            <>
+              <span className="text-slate-300">Drag jobs to reschedule</span>
+              <div className="flex items-center gap-1 ml-2">
+                <span className="w-3 h-3 rounded bg-blue-400"></span>
+                <span className="text-xs text-slate-300">Scheduled</span>
+              </div>
+              <div className="flex items-center gap-1 ml-2">
+                <span className="w-3 h-3 rounded bg-purple-400"></span>
+                <span className="text-xs text-slate-300">In Progress</span>
+              </div>
+              <div className="flex items-center gap-1 ml-2">
+                <span className="w-3 h-3 rounded bg-amber-400"></span>
+                <span className="text-xs text-slate-300">Quoted</span>
+              </div>
+              <div className="flex items-center gap-1 ml-2">
+                <span className="w-3 h-3 rounded bg-emerald-400"></span>
+                <span className="text-xs text-slate-300">Closed</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -465,6 +538,21 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseD
                       <span className="font-semibold truncate">{job['Customer Name']}</span>
                       <span className={`shrink-0 px-1 py-px rounded text-[9px] font-bold ${getBrandInfo(job).style}`}>
                         {getBrandInfo(job).name}
+                      </span>
+                    </div>
+                    {/* Who's actually doing the job */}
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <span
+                        className={`w-2 h-2 rounded-full shrink-0 ${
+                          isSubcontractorJob(job)
+                            ? subColor(job['Subcontractor Name']).dot
+                            : 'bg-slate-400'
+                        }`}
+                      />
+                      <span className="text-[10px] font-medium truncate">
+                        {isSubcontractorJob(job)
+                          ? normalizeSubName(job['Subcontractor Name']) || UNNAMED_SUB_LABEL
+                          : normalizeSubName(job['Assigned To']) || 'Unassigned'}
                       </span>
                     </div>
                     <div className="text-[10px] opacity-75 mt-0.5">{getTimeLabel(job['Time Window'])}</div>

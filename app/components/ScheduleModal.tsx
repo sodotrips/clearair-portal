@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import SubcontractorSelect from './SubcontractorSelect';
+import { SUBCONTRACTOR_BUCKET } from '@/lib/subcontractors';
 
 interface Lead {
   [key: string]: string;
@@ -10,9 +12,10 @@ interface ScheduleModalProps {
   lead: Lead;
   onClose: () => void;
   onSuccess: () => void;
+  subcontractorNames?: string[];
 }
 
-export default function ScheduleModal({ lead, onClose, onSuccess }: ScheduleModalProps) {
+export default function ScheduleModal({ lead, onClose, onSuccess, subcontractorNames = [] }: ScheduleModalProps) {
   const [loading, setLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [error, setError] = useState('');
@@ -41,6 +44,7 @@ export default function ScheduleModal({ lead, onClose, onSuccess }: ScheduleModa
   const [appointmentDate, setAppointmentDate] = useState(formatDateForInput(lead['Appointment Date']));
   const [timeWindow, setTimeWindow] = useState(lead['Time Window'] || '');
   const [assignedTo, setAssignedTo] = useState(lead['Assigned To'] || '');
+  const [subcontractorName, setSubcontractorName] = useState(lead['Subcontractor Name'] || '');
 
   // Calculate follow-up date: appointment date + 3 days (default)
   // Using Houston timezone to avoid off-by-one errors
@@ -94,6 +98,10 @@ export default function ScheduleModal({ lead, onClose, onSuccess }: ScheduleModa
       }
       if (assignedTo) {
         updates['Assigned To'] = assignedTo;
+        // Keep the sub name in sync: only subcontractor jobs carry one, and
+        // reassigning away from a sub must not leave a stale name behind.
+        updates['Subcontractor Name'] =
+          assignedTo === SUBCONTRACTOR_BUCKET ? subcontractorName.trim() : '';
       }
       if (followUpDate) {
         updates['Follow-up Date'] = formatDateForSave(followUpDate);
@@ -242,6 +250,17 @@ export default function ScheduleModal({ lead, onClose, onSuccess }: ScheduleModa
               {techs.map(tech => <option key={tech} value={tech}>{tech}</option>)}
             </select>
           </div>
+
+          {assignedTo === SUBCONTRACTOR_BUCKET && (
+            <SubcontractorSelect
+              value={subcontractorName}
+              onChange={setSubcontractorName}
+              names={subcontractorNames}
+              labelClass={labelClass}
+              inputClass={inputClass}
+              required
+            />
+          )}
 
           <div>
             <label className={labelClass}>Follow-up Date</label>

@@ -23,6 +23,7 @@ const COLUMN_MAP: Record<string, number> = {
   '# of Units': 17,       // R
   '# of Vents': 18,       // S
   'Customer Issue/Notes': 19, // T
+  'Subcontractor Name': 32, // AG
   'Assigned To': 35,      // AJ
   'Quote Amount': 41,     // AP
   'Quote Valid Until': 42, // AQ

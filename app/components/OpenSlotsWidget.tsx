@@ -2,6 +2,12 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import {
+  UNNAMED_SUB_LABEL,
+  isSubcontractorJob,
+  normalizeSubName,
+  subColor,
+} from '@/lib/subcontractors';
 
 interface Lead {
   [key: string]: string;
@@ -102,13 +108,12 @@ export default function OpenSlotsWidget({ leads, readOnly = false, compact = fal
   const today = getHoustonDate();
   const days = getNextDays(DAYS_TO_SHOW);
 
-  // Build a map: { 'YYYY-MM-DD|<slotIndex>': Lead[] } — only Amit's jobs
+  // Build a map: { 'YYYY-MM-DD|<slotIndex>': Lead[] } — every assignee counts
+  // toward a slot being booked (Amit, Tech 2, and subcontractors alike).
   const bookedMap = new Map<string, Lead[]>();
   for (const lead of leads) {
     const status = (lead['Status'] || '').toUpperCase().trim();
     if (!ACTIVE_STATUSES.has(status)) continue;
-    const tech = (lead['Assigned To'] || '').trim();
-    if (tech !== PRIMARY_TECH) continue;
     const apptDate = normalizeDate(lead['Appointment Date']);
     if (!apptDate) continue;
     if (!days.includes(apptDate)) continue;
@@ -215,8 +220,25 @@ export default function OpenSlotsWidget({ leads, readOnly = false, compact = fal
                               <div className="text-emerald-300">No jobs scheduled</div>
                             ) : (
                               bookedJobs.map((j, i) => (
-                                <div key={i} className="text-amber-200">
-                                  {j['Customer Name'] || '(no name)'} — {j['City'] || ''}
+                                <div key={i} className="flex items-center gap-1.5 text-amber-200">
+                                  <span
+                                    className={`inline-block w-2 h-2 rounded-full shrink-0 ${
+                                      isSubcontractorJob(j)
+                                        ? subColor(j['Subcontractor Name']).dot
+                                        : 'bg-slate-400'
+                                    }`}
+                                  />
+                                  <span>
+                                    {j['Customer Name'] || '(no name)'} — {j['City'] || ''}
+                                    <span className="text-slate-300">
+                                      {' '}
+                                      (
+                                      {isSubcontractorJob(j)
+                                        ? normalizeSubName(j['Subcontractor Name']) || UNNAMED_SUB_LABEL
+                                        : normalizeSubName(j['Assigned To']) || 'Unassigned'}
+                                      )
+                                    </span>
+                                  </span>
                                 </div>
                               ))
                             )}
