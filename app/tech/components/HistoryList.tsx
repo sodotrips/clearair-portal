@@ -11,6 +11,24 @@ export default function HistoryList() {
   const { historyJobs, loading, fetchLeads, getHoustonDate } = useTechContext();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('thisweek');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [search, setSearch] = useState('');
+
+  // Match a job against the search box: name / address / city / phone.
+  const query = search.trim().toLowerCase();
+  const queryDigits = query.replace(/\D/g, '');
+  const searching = query.length > 0;
+  const matchesSearch = (job: Lead): boolean => {
+    if (!searching) return true;
+    const name = (job['Customer Name'] || '').toLowerCase();
+    const addr = (job['Address'] || '').toLowerCase();
+    const city = (job['City'] || '').toLowerCase();
+    if (name.includes(query) || addr.includes(query) || city.includes(query)) return true;
+    if (queryDigits.length >= 3) {
+      const phone = (job['Phone Number'] || '').replace(/\D/g, '');
+      if (phone.includes(queryDigits)) return true;
+    }
+    return false;
+  };
 
   const handleCancel = async (job: Lead) => {
     if (!confirm(`Cancel ${job['Customer Name']} — ${job['Lead ID']}?`)) return;
@@ -44,11 +62,15 @@ export default function HistoryList() {
   const filtered = historyJobs.filter(job => {
     const status = job['Status']?.toUpperCase();
 
-    // Status filter
+    // Status filter (always applies)
     if (statusFilter === 'quoted' && status !== 'QUOTED') return false;
     if (statusFilter === 'completed' && status !== 'COMPLETED') return false;
     if (statusFilter === 'closed' && status !== 'CLOSED') return false;
     if (statusFilter === 'canceled' && status !== 'CANCELED' && status !== 'CANCELLED') return false;
+
+    // When searching, look across ALL history (ignore the time window) and match
+    // on name / address / phone. Otherwise apply the selected time filter.
+    if (searching) return matchesSearch(job);
 
     // Time filter
     if (timeFilter !== 'all') {
@@ -167,8 +189,8 @@ export default function HistoryList() {
           </span>
         </div>
 
-        {/* Time Filter */}
-        <div className="flex items-center gap-1">
+        {/* Time Filter — dimmed while searching, since search spans all history */}
+        <div className={`flex items-center gap-1 ${searching ? 'opacity-40 pointer-events-none' : ''}`}>
           {timeFilters.map(f => (
             <button
               key={f.id}
@@ -183,6 +205,31 @@ export default function HistoryList() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Search */}
+      <div className="relative mb-4">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+        </svg>
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search name, address, or phone (all history)…"
+          className="w-full pl-9 pr-9 py-2 border border-slate-300 rounded-lg text-sm focus:border-[#14b8a6] focus:ring-1 focus:ring-[#14b8a6] focus:outline-none"
+        />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            title="Clear search"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Status Filter */}

@@ -826,10 +826,10 @@ export default function FinancialDashboard() {
           </div>
 
           {(() => {
-            // Calculate totals for balance sheet. Uses incomeLeads (CLOSED + sub
-            // Awaiting Payment) so accrued subcontractor income lands in Net Income
-            // and the Sophia line. Awaiting sub jobs carry no labor/materials/etc.
-            const totalExpenses = incomeLeads.reduce((sum, l) => {
+            // This balance sheet is the REGULAR business only — subcontractor jobs
+            // are a completely separate bucket (shown below) and never mix in here.
+            // salesClosedLeads = closed jobs that are NOT subcontractor jobs.
+            const totalExpenses = salesClosedLeads.reduce((sum, l) => {
               const labor = parseCurrency(l['Labor Cost']);
               const materials = parseCurrency(l['Materials Cost']);
               const subcontractor = parseCurrency(l['Subcontractor Cost']);
@@ -838,20 +838,15 @@ export default function FinancialDashboard() {
               return sum + labor + materials + subcontractor + sophiaComm + leadCompanyComm;
             }, 0);
 
-            const totalLaborCost = incomeLeads.reduce((sum, l) => sum + parseCurrency(l['Labor Cost']), 0);
-            const totalMaterialsCost = incomeLeads.reduce((sum, l) => sum + parseCurrency(l['Materials Cost']), 0);
-            const totalSubcontractorCost = incomeLeads.reduce((sum, l) => sum + parseCurrency(l['Subcontractor Cost']), 0);
-            const totalSophiaCommission = incomeLeads.reduce((sum, l) => sum + parseCurrency(l['Sophia Commission $']), 0);
-            const totalLeadCompanyCommission = incomeLeads.reduce((sum, l) => sum + parseCurrency(l['Lead Company Commission $']), 0);
-            const totalAmitCommission = incomeLeads.reduce((sum, l) => sum + parseCurrency(l['Amit Commission $']), 0);
+            const totalLaborCost = salesClosedLeads.reduce((sum, l) => sum + parseCurrency(l['Labor Cost']), 0);
+            const totalMaterialsCost = salesClosedLeads.reduce((sum, l) => sum + parseCurrency(l['Materials Cost']), 0);
+            const totalSubcontractorCost = salesClosedLeads.reduce((sum, l) => sum + parseCurrency(l['Subcontractor Cost']), 0);
+            const totalSophiaCommission = salesClosedLeads.reduce((sum, l) => sum + parseCurrency(l['Sophia Commission $']), 0);
+            const totalLeadCompanyCommission = salesClosedLeads.reduce((sum, l) => sum + parseCurrency(l['Lead Company Commission $']), 0);
+            const totalAmitCommission = salesClosedLeads.reduce((sum, l) => sum + parseCurrency(l['Amit Commission $']), 0);
             const preTaxRevenue = totalGrossSales / 1.0825;
-            // Net Income = Amit Commission $ (what Amit makes after all expenses).
-            // Includes subcontractor income, since Amit's sub share lands in the
-            // same Amit Commission $ column.
+            // Net Income = Amit Commission $ from the regular business only.
             const netIncome = totalAmitCommission;
-            // Profit Margin % is a sales-business metric, so its numerator excludes
-            // subcontractor income (there is no matching sales revenue for it).
-            const salesNetIncome = salesClosedLeads.reduce((sum, l) => sum + parseCurrency(l['Amit Commission $']), 0);
 
             return (
               <div className="space-y-4">
@@ -913,7 +908,7 @@ export default function FinancialDashboard() {
                 <div className={`border-2 rounded-lg overflow-hidden ${netIncome >= 0 ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'}`}>
                   <div className="flex justify-between items-center p-4">
                     <div>
-                      <span className={`text-xs font-bold uppercase tracking-wide ${netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>Net Income</span>
+                      <span className={`text-xs font-bold uppercase tracking-wide ${netIncome >= 0 ? 'text-green-600' : 'text-red-600'}`}>Net Income (Amit Income)</span>
                       <div className={`text-2xl font-bold mt-1 ${netIncome >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                         {formatCurrency(netIncome)}
                       </div>
@@ -921,31 +916,30 @@ export default function FinancialDashboard() {
                     <div className={`text-right px-4 py-2 rounded-lg ${netIncome >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
                       <span className="text-xs text-slate-600 block">Profit Margin</span>
                       <span className={`text-xl font-bold ${netIncome >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                        {preTaxRevenue > 0 ? ((salesNetIncome / preTaxRevenue) * 100).toFixed(1) : 0}%
+                        {preTaxRevenue > 0 ? ((netIncome / preTaxRevenue) * 100).toFixed(1) : 0}%
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Subcontractor Income — reported as income only; excluded from
-                    gross sales and sales tax above. */}
+                {/* Subcontractor bucket — a SEPARATE book from the regular P&L
+                    above. Not in gross sales, not in tax, not in Net Income. */}
                 {subIncomeLeads.length > 0 && (
                   <div className="border-2 border-indigo-300 bg-indigo-50 rounded-lg overflow-hidden">
-                    <div className="bg-indigo-100 px-4 py-2 border-b border-indigo-200 flex items-center justify-between">
-                      <h4 className="text-sm font-bold text-indigo-800 uppercase tracking-wide">ClearAir Income - by Subcontractor</h4>
-                      <span className="text-xs text-indigo-600">{subIncomeLeads.length} job{subIncomeLeads.length === 1 ? '' : 's'} · not taxed</span>
+                    <div className="bg-indigo-100 px-4 py-2 border-b border-indigo-200">
+                      <h4 className="text-sm font-bold text-indigo-800 uppercase tracking-wide">Additional ClearAir Income - by Subcontractor</h4>
                     </div>
                     <div className="divide-y divide-indigo-100">
                       <div className="flex justify-between items-center py-2 px-4">
-                        <span className="text-sm text-slate-700">Amit (in Net Income above)</span>
+                        <span className="text-sm text-slate-700">Amit — subcontractor income</span>
                         <span className="text-sm font-semibold text-slate-900">{formatCurrency(subAmitIncome)}</span>
                       </div>
                       <div className="flex justify-between items-center py-2 px-4">
-                        <span className="text-sm text-slate-700">Sophia (in Sophia Commission above)</span>
+                        <span className="text-sm text-slate-700">Sophia — subcontractor income</span>
                         <span className="text-sm font-semibold text-slate-900">{formatCurrency(subSophiaIncome)}</span>
                       </div>
-                      <div className="flex justify-between items-center py-2 px-4 bg-indigo-50">
-                        <span className="text-sm font-bold text-indigo-800">Total ClearAir Income</span>
+                      <div className="flex justify-between items-center py-3 px-4 bg-indigo-50">
+                        <span className="text-sm font-bold text-indigo-800">Total ClearAir Income (subcontractor)</span>
                         <span className="text-base font-bold text-indigo-800">{formatCurrency(totalSubIncome)}</span>
                       </div>
                       {totalSubOwed > 0 && (

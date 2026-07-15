@@ -218,7 +218,8 @@ export default function JobDetail() {
           referralSource: job['Referral Source'],
           serviceRequested: job['Service Requested'] || '',
           assignedTo: job['Assigned To'],
-          appointmentDate: job['Appointment Date'] || '',
+          // Default the duplicate's appointment to today, not the original's date.
+          appointmentDate: new Date().toLocaleDateString('en-US', { timeZone: 'America/Chicago' }),
           timeWindow: job['Time Window'] || '',
           customerNotes: `Upsell from ${job['Lead ID']}`,
           accessInstructions: job['Access Instructions'] || '',
