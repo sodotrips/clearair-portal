@@ -22,10 +22,11 @@ interface WeeklyCalendarProps {
   onSelectLead?: (lead: Lead) => void;
   onUpdate?: () => void;
   onCloseDeal?: (lead: Lead) => void;
+  onMarkSubPaid?: (lead: Lead) => void | Promise<void>;
   userRole?: string;
 }
 
-export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseDeal, userRole }: WeeklyCalendarProps) {
+export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseDeal, onMarkSubPaid, userRole }: WeeklyCalendarProps) {
   const router = useRouter();
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const today = new Date();
@@ -129,7 +130,7 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseD
   const getJobsForDate = (date: Date) => {
     return leads.filter(lead => {
       const status = lead['Status']?.toUpperCase();
-      if (status !== 'SCHEDULED' && status !== 'IN PROGRESS' && status !== 'QUOTED' && status !== 'COMPLETED' && status !== 'CLOSED') return false;
+      if (status !== 'SCHEDULED' && status !== 'IN PROGRESS' && status !== 'QUOTED' && status !== 'COMPLETED' && status !== 'CLOSED' && status !== 'AWAITING PAYMENT') return false;
 
       if (!matchesAssigneeView(lead)) return false;
 
@@ -174,6 +175,7 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseD
       case 'QUOTED': return 'bg-amber-100 border-amber-400 text-amber-800';
       case 'COMPLETED': return 'bg-cyan-100 border-cyan-400 text-cyan-800';
       case 'CLOSED': return 'bg-emerald-100 border-emerald-400 text-emerald-800';
+      case 'AWAITING PAYMENT': return 'bg-emerald-100 border-orange-500 text-emerald-800 ring-1 ring-orange-400';
       default: return 'bg-slate-100 border-slate-400 text-slate-800';
     }
   };
@@ -436,6 +438,10 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseD
                 <span className="w-3 h-3 rounded bg-emerald-400"></span>
                 <span className="text-xs text-slate-300">Closed</span>
               </div>
+              <div className="flex items-center gap-1 ml-2">
+                <span className="w-3 h-3 rounded bg-emerald-400 ring-1 ring-orange-500"></span>
+                <span className="text-xs text-slate-300">Awaiting Payment</span>
+              </div>
             </>
           )}
         </div>
@@ -555,6 +561,11 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseD
                           : normalizeSubName(job['Assigned To']) || 'Unassigned'}
                       </span>
                     </div>
+                    {jobStatus === 'AWAITING PAYMENT' && (
+                      <div className="inline-flex items-center gap-0.5 mt-0.5 px-1 py-px rounded bg-orange-500 text-white text-[9px] font-bold">
+                        💰 Awaiting Pay
+                      </div>
+                    )}
                     <div className="text-[10px] opacity-75 mt-0.5">{getTimeLabel(job['Time Window'])}</div>
                     <div className="truncate opacity-75 mt-0.5">{job['City']}</div>
                     <div className="flex items-center justify-between mt-0.5">
@@ -569,6 +580,18 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseD
                           title="Close this deal"
                         >
                           Close
+                        </button>
+                      )}
+                      {jobStatus === 'AWAITING PAYMENT' && onMarkSubPaid && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onMarkSubPaid(job);
+                          }}
+                          className="shrink-0 ml-1 px-1.5 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[9px] font-bold transition"
+                          title="Mark payment received — closes the job"
+                        >
+                          Mark Paid
                         </button>
                       )}
                     </div>

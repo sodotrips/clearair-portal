@@ -309,28 +309,9 @@ export default function EditModal({ lead, onClose, onSuccess, subcontractorNames
               </div>
             </div>
 
-            {/* Access Info */}
-            <div className="border-t pt-4">
-              <h3 className="text-sm font-semibold text-[#0a2540] mb-3">Access Information</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className={labelClass}>Gate Code</label>
-                  <input type="text" value={gateCode} onChange={(e) => setGateCode(e.target.value)} className={inputClass} />
-                </div>
-                <div>
-                  <label className={labelClass}>Pets</label>
-                  <input type="text" value={pets} onChange={(e) => setPets(e.target.value)} className={inputClass} />
-                </div>
-                <div className="col-span-2">
-                  <label className={labelClass}>Parking Info</label>
-                  <input type="text" value={parkingInfo} onChange={(e) => setParkingInfo(e.target.value)} className={inputClass} />
-                </div>
-                <div className="col-span-2">
-                  <label className={labelClass}>Access Instructions</label>
-                  <textarea value={accessInstructions} onChange={(e) => setAccessInstructions(e.target.value)} rows={2} className={inputClass} />
-                </div>
-              </div>
-            </div>
+            {/* Access Information (Gate Code / Pets / Parking / Access Instructions)
+                removed from this view per request — rarely used; captured in notes
+                when needed. State + save preserved so existing values aren't wiped. */}
 
             {/* Notes */}
             <div className="border-t pt-4">

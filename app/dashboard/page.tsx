@@ -10,10 +10,12 @@ import ViewDetailsModal from '../components/ViewDetailsModal';
 import InlineEditCell from '../components/InlineEditCell';
 import CommissionModal from '../components/CommissionModal';
 import CloseDealModal from '../components/CloseDealModal';
+import CloseSubcontractorModal from '../components/CloseSubcontractorModal';
 import QuoteLeadModal from '../components/QuoteLeadModal';
 import WeeklyCalendar from '../components/WeeklyCalendar';
-import { getSubcontractorNames } from '@/lib/subcontractors';
+import { getSubcontractorNames, isSubcontractorJob } from '@/lib/subcontractors';
 import OpenSlotsWidget from '../components/OpenSlotsWidget';
+import MoneyOwedWidget from '../components/MoneyOwedWidget';
 import DashboardMainNav from '../components/DashboardMainNav';
 import QuickImportModal from '../components/QuickImportModal';
 
@@ -581,6 +583,29 @@ export default function Dashboard() {
     }
   }
 
+  // Mark one or more Awaiting Payment sub jobs as paid → CLOSED, stamp Payment Date.
+  async function markSubPaid(rowIndices: string[]) {
+    const today = new Date().toLocaleDateString('en-US', {
+      timeZone: 'America/Chicago', month: '2-digit', day: '2-digit', year: 'numeric',
+    });
+    await Promise.all(rowIndices.map(async rowIndex => {
+      const response = await fetch('/api/leads/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rowIndex,
+          updates: { 'Status': 'CLOSED', 'Payment Date': today },
+        }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        setLeads(prev => prev.map(l =>
+          l.rowIndex === rowIndex ? { ...l, 'Status': 'CLOSED', 'Payment Date': today } : l
+        ));
+      }
+    }));
+  }
+
   async function updateLeadStatus(lead: Lead, newStatus: string) {
     let confirmMsg = '';
     if (newStatus === 'CLOSED') {
@@ -661,7 +686,12 @@ export default function Dashboard() {
     } else if (currentView === 'quoted') {
       filtered = leads.filter(l => l['Status']?.toUpperCase() === 'QUOTED');
     } else if (currentView === 'closed') {
-      filtered = leads.filter(l => l['Status']?.toUpperCase() === 'CLOSED');
+      // Awaiting Payment sub jobs are effectively closed (work done), so show them
+      // in the closed tab alongside CLOSED — the Money Owed widget tracks payment.
+      filtered = leads.filter(l => {
+        const s = l['Status']?.toUpperCase();
+        return s === 'CLOSED' || s === 'AWAITING PAYMENT';
+      });
     } else if (currentView === 'canceled') {
       filtered = leads.filter(l => l['Status']?.toUpperCase() === 'CANCELED');
     }
@@ -746,6 +776,7 @@ export default function Dashboard() {
     'QUOTED': 'bg-amber-100 text-amber-700',
     'COMPLETED': 'bg-cyan-100 text-cyan-700',
     'CLOSED': 'bg-emerald-100 text-emerald-700',
+    'AWAITING PAYMENT': 'bg-amber-100 text-amber-700',
     'CANCELED': 'bg-slate-100 text-slate-500',
   };
 
@@ -937,6 +968,7 @@ export default function Dashboard() {
         )}
 
         {/* Openings — Quick availability for next 7 days */}
+        <MoneyOwedWidget leads={leads} onMarkPaid={markSubPaid} />
         <OpenSlotsWidget leads={leads} />
 
         {/* Weekly Calendar */}
@@ -946,6 +978,7 @@ export default function Dashboard() {
             onSelectLead={(lead) => setViewDetailsLead(lead)}
             onUpdate={() => fetchLeads()}
             onCloseDeal={(lead) => setCloseDealModalLead(lead)}
+            onMarkSubPaid={(lead) => markSubPaid([lead.rowIndex])}
             userRole={userRole}
           />
         </div>
@@ -1628,13 +1661,21 @@ export default function Dashboard() {
         />
       )}
 
-      {/* Close Deal Modal */}
+      {/* Close Modal — subcontractor jobs use a completely separate flow */}
       {closeDealModalLead && (
-        <CloseDealModal
-          lead={closeDealModalLead}
-          onClose={() => setCloseDealModalLead(null)}
-          onSuccess={() => fetchLeads()}
-        />
+        isSubcontractorJob(closeDealModalLead) ? (
+          <CloseSubcontractorModal
+            lead={closeDealModalLead}
+            onClose={() => setCloseDealModalLead(null)}
+            onSuccess={() => fetchLeads()}
+          />
+        ) : (
+          <CloseDealModal
+            lead={closeDealModalLead}
+            onClose={() => setCloseDealModalLead(null)}
+            onSuccess={() => fetchLeads()}
+          />
+        )
       )}
 
       {/* Quote Lead Modal */}

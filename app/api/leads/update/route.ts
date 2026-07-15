@@ -23,6 +23,7 @@ const COLUMN_MAP: Record<string, number> = {
   '# of Units': 17,       // R
   '# of Vents': 18,       // S
   'Customer Issue/Notes': 19, // T
+  'Sold to Subcontractor?': 31, // AF
   'Subcontractor Name': 32, // AG
   'Assigned To': 35,      // AJ
   'Quote Amount': 41,     // AP
@@ -54,6 +55,13 @@ const COLUMN_MAP: Record<string, number> = {
   'Amit Commission $': 122,    // DS
   'Lead Company Commission %': 123, // DT
   'Lead Company Commission $': 124, // DU
+  // Subcontractor-close reference columns (income tracking, kept out of the sales P&L)
+  'Sub Customer Price': 133,   // ED
+  'Sub Material Cost': 134,     // EE
+  'Subcontractor Split $': 135, // EF
+  'Sub Income $': 136,          // EG
+  'Subcontractor Split %': 137, // EH
+  'Sub Completed Date': 138,    // EI
 };
 
 export async function POST(request: Request) {

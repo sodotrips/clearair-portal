@@ -1,6 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import {
+  UNNAMED_SUB_LABEL,
+  isSubcontractorJob,
+  normalizeSubName,
+  subColor,
+} from '@/lib/subcontractors';
 
 interface Lead {
   [key: string]: string;
@@ -126,6 +132,7 @@ export default function ViewDetailsModal({ lead, onClose, onEdit, onSchedule, on
     'QUOTED': 'bg-amber-100 text-amber-700',
     'IN PROGRESS': 'bg-purple-100 text-purple-700',
     'CLOSED': 'bg-emerald-100 text-emerald-700',
+    'AWAITING PAYMENT': 'bg-amber-100 text-amber-700',
     'CANCELED': 'bg-slate-100 text-slate-500',
   };
 
@@ -353,6 +360,17 @@ export default function ViewDetailsModal({ lead, onClose, onEdit, onSchedule, on
 
               <Section title="Scheduling">
                 <Field label="Assigned To" value={lead['Assigned To']} />
+                {isSubcontractorJob(lead) && (
+                  <div className="mb-2">
+                    <span className="text-xs text-slate-500 block">Subcontractor Name</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className={`inline-block w-2.5 h-2.5 rounded-full shrink-0 ${subColor(lead['Subcontractor Name']).dot}`} />
+                      <span className="text-sm text-slate-800 font-medium">
+                        {normalizeSubName(lead['Subcontractor Name']) || UNNAMED_SUB_LABEL}
+                      </span>
+                    </span>
+                  </div>
+                )}
                 <Field label="Appointment Date" value={formatDate(lead['Appointment Date'])} />
                 <Field label="Time Window" value={lead['Time Window']} />
                 <Field label="Follow-up Date" value={formatDate(lead['Follow-up Date'])} />

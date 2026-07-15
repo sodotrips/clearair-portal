@@ -7,6 +7,11 @@
 
 export const SUBCONTRACTOR_BUCKET = 'Subcontractor';
 
+// A subcontractor job whose work is done but the sub hasn't paid us yet.
+// Income still counts (accrual), but it shows on the "Money Owed to Me" list
+// until marked paid, at which point it becomes CLOSED.
+export const AWAITING_PAYMENT_STATUS = 'AWAITING PAYMENT';
+
 export interface Lead {
   [key: string]: string;
 }
@@ -37,6 +42,28 @@ export function normalizeSubName(name: string | undefined): string {
 
 export function isSubcontractorJob(lead: Lead): boolean {
   return normalizeSubName(lead['Assigned To']) === SUBCONTRACTOR_BUCKET;
+}
+
+function statusUpper(lead: Lead): string {
+  return (lead['Status'] || '').trim().toUpperCase();
+}
+
+// Work done, sub hasn't paid us yet.
+export function isAwaitingSubPayment(lead: Lead): boolean {
+  return isSubcontractorJob(lead) && statusUpper(lead) === AWAITING_PAYMENT_STATUS;
+}
+
+// Sub job whose income should count (accrual): completed whether or not the
+// sub's payment has landed — i.e. CLOSED or AWAITING PAYMENT.
+export function isSubIncomeRealized(lead: Lead): boolean {
+  const s = statusUpper(lead);
+  return isSubcontractorJob(lead) && (s === 'CLOSED' || s === AWAITING_PAYMENT_STATUS);
+}
+
+// The amount the subcontractor still owes us (your Amit + Sophia share).
+export function amountOwed(lead: Lead): number {
+  const raw = (lead['Sub Income $'] || '').replace(/[$,]/g, '');
+  return parseFloat(raw) || 0;
 }
 
 // Stable color for a given name, so a sub keeps the same color forever and new

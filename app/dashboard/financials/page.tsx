@@ -18,6 +18,7 @@ import {
 } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { Doughnut, Bar, Line } from 'react-chartjs-2';
+import { isAwaitingSubPayment, isSubcontractorJob, normalizeSubName, subColor, UNNAMED_SUB_LABEL } from '@/lib/subcontractors';
 
 ChartJS.register(
   CategoryScale,
@@ -208,20 +209,64 @@ export default function FinancialDashboard() {
     return status === 'QUOTED' || status === 'SCHEDULED';
   });
 
-  // Card 1: Total Gross Sales (sum of Amount Paid for closed jobs)
-  const totalGrossSales = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Amount Paid']), 0);
+  // Subcontractor jobs are income-only: the sub collected the money and remitted
+  // the tax, so they must NOT appear in gross sales or sales tax. Split them out.
+  const salesClosedLeads = closedLeads.filter(l => !isSubcontractorJob(l));
+  // Income-realized leads: all CLOSED jobs, plus sub jobs that are Awaiting Payment.
+  // Accrual — a sub job's income counts once the work is done, before the sub pays.
+  const incomeLeads = filteredLeads.filter(
+    l => l['Status']?.toUpperCase() === 'CLOSED' || isAwaitingSubPayment(l)
+  );
+  const subIncomeLeads = incomeLeads.filter(isSubcontractorJob); // closed + awaiting payment
+  // All jobs assigned to a sub in range (excluding canceled) — the denominator
+  // for each sub's close rate.
+  const subAssignedLeads = filteredLeads.filter(
+    l => isSubcontractorJob(l) && l['Status']?.toUpperCase() !== 'CANCELED'
+  );
 
-  // Card 2: Total Gross Profit (sum of Profit $ for closed jobs)
-  const totalGrossProfit = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Profit $']), 0);
+  // Card 1: Total Gross Sales (sum of Amount Paid for closed SALES jobs — sub excluded)
+  const totalGrossSales = salesClosedLeads.reduce((sum, l) => sum + parseCurrency(l['Amount Paid']), 0);
+
+  // Card 2: Total Gross Profit (sum of Profit $ for closed sales jobs)
+  const totalGrossProfit = salesClosedLeads.reduce((sum, l) => sum + parseCurrency(l['Profit $']), 0);
   const totalRevenue = totalGrossProfit; // Alias for commission calculations
 
   // Card 3: Total Sales Tax (Amount Paid - PreTax amount, where PreTax = Amount Paid / 1.0825)
-  const totalSalesTax = closedLeads.reduce((sum, l) => {
+  const totalSalesTax = salesClosedLeads.reduce((sum, l) => {
     const amountPaid = parseCurrency(l['Amount Paid']);
     const preTax = amountPaid / 1.0825;
     const tax = amountPaid - preTax;
     return sum + tax;
   }, 0);
+
+  // Subcontractor income (Amit + Sophia shares) — reported as income, never taxed.
+  // Includes Awaiting Payment jobs (accrual).
+  const totalSubIncome = subIncomeLeads.reduce((sum, l) => sum + parseCurrency(l['Sub Income $']), 0);
+  const subAmitIncome = subIncomeLeads.reduce((sum, l) => sum + parseCurrency(l['Amit Commission $']), 0);
+  const subSophiaIncome = subIncomeLeads.reduce((sum, l) => sum + parseCurrency(l['Sophia Commission $']), 0);
+  // Of that income, how much is still owed to us (Awaiting Payment jobs).
+  const totalSubOwed = subIncomeLeads
+    .filter(isAwaitingSubPayment)
+    .reduce((sum, l) => sum + parseCurrency(l['Sub Income $']), 0);
+
+  // Per subcontractor: income + done/assigned + close rate, ranked by income.
+  const subIncomeByName = (() => {
+    const map = new Map<string, { name: string; income: number; done: number; assigned: number }>();
+    const get = (l: Lead) => {
+      const name = normalizeSubName(l['Subcontractor Name']) || UNNAMED_SUB_LABEL;
+      const entry = map.get(name) || { name, income: 0, done: 0, assigned: 0 };
+      map.set(name, entry);
+      return entry;
+    };
+    subAssignedLeads.forEach(l => { get(l).assigned += 1; });
+    subIncomeLeads.forEach(l => {
+      const entry = get(l);
+      entry.income += parseCurrency(l['Sub Income $']);
+      entry.done += 1;
+    });
+    return [...map.values()].sort((a, b) => b.income - a.income);
+  })();
+  const subIncomeMax = subIncomeByName.reduce((m, s) => Math.max(m, s.income), 0);
 
   // Card 4: Pending Quotes (sum of Quote Amount for QUOTED and SCHEDULED status)
   const pendingQuotes = quotedOrScheduledLeads.reduce((sum, l) => sum + parseCurrency(l['Quote Amount']), 0);
@@ -781,8 +826,10 @@ export default function FinancialDashboard() {
           </div>
 
           {(() => {
-            // Calculate totals for balance sheet
-            const totalExpenses = closedLeads.reduce((sum, l) => {
+            // Calculate totals for balance sheet. Uses incomeLeads (CLOSED + sub
+            // Awaiting Payment) so accrued subcontractor income lands in Net Income
+            // and the Sophia line. Awaiting sub jobs carry no labor/materials/etc.
+            const totalExpenses = incomeLeads.reduce((sum, l) => {
               const labor = parseCurrency(l['Labor Cost']);
               const materials = parseCurrency(l['Materials Cost']);
               const subcontractor = parseCurrency(l['Subcontractor Cost']);
@@ -791,15 +838,20 @@ export default function FinancialDashboard() {
               return sum + labor + materials + subcontractor + sophiaComm + leadCompanyComm;
             }, 0);
 
-            const totalLaborCost = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Labor Cost']), 0);
-            const totalMaterialsCost = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Materials Cost']), 0);
-            const totalSubcontractorCost = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Subcontractor Cost']), 0);
-            const totalSophiaCommission = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Sophia Commission $']), 0);
-            const totalLeadCompanyCommission = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Lead Company Commission $']), 0);
-            const totalAmitCommission = closedLeads.reduce((sum, l) => sum + parseCurrency(l['Amit Commission $']), 0);
+            const totalLaborCost = incomeLeads.reduce((sum, l) => sum + parseCurrency(l['Labor Cost']), 0);
+            const totalMaterialsCost = incomeLeads.reduce((sum, l) => sum + parseCurrency(l['Materials Cost']), 0);
+            const totalSubcontractorCost = incomeLeads.reduce((sum, l) => sum + parseCurrency(l['Subcontractor Cost']), 0);
+            const totalSophiaCommission = incomeLeads.reduce((sum, l) => sum + parseCurrency(l['Sophia Commission $']), 0);
+            const totalLeadCompanyCommission = incomeLeads.reduce((sum, l) => sum + parseCurrency(l['Lead Company Commission $']), 0);
+            const totalAmitCommission = incomeLeads.reduce((sum, l) => sum + parseCurrency(l['Amit Commission $']), 0);
             const preTaxRevenue = totalGrossSales / 1.0825;
-            // Net Income = Amit Commission $ (what Amit makes after all expenses)
+            // Net Income = Amit Commission $ (what Amit makes after all expenses).
+            // Includes subcontractor income, since Amit's sub share lands in the
+            // same Amit Commission $ column.
             const netIncome = totalAmitCommission;
+            // Profit Margin % is a sales-business metric, so its numerator excludes
+            // subcontractor income (there is no matching sales revenue for it).
+            const salesNetIncome = salesClosedLeads.reduce((sum, l) => sum + parseCurrency(l['Amit Commission $']), 0);
 
             return (
               <div className="space-y-4">
@@ -869,11 +921,97 @@ export default function FinancialDashboard() {
                     <div className={`text-right px-4 py-2 rounded-lg ${netIncome >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
                       <span className="text-xs text-slate-600 block">Profit Margin</span>
                       <span className={`text-xl font-bold ${netIncome >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                        {preTaxRevenue > 0 ? ((netIncome / preTaxRevenue) * 100).toFixed(1) : 0}%
+                        {preTaxRevenue > 0 ? ((salesNetIncome / preTaxRevenue) * 100).toFixed(1) : 0}%
                       </span>
                     </div>
                   </div>
                 </div>
+
+                {/* Subcontractor Income — reported as income only; excluded from
+                    gross sales and sales tax above. */}
+                {subIncomeLeads.length > 0 && (
+                  <div className="border-2 border-indigo-300 bg-indigo-50 rounded-lg overflow-hidden">
+                    <div className="bg-indigo-100 px-4 py-2 border-b border-indigo-200 flex items-center justify-between">
+                      <h4 className="text-sm font-bold text-indigo-800 uppercase tracking-wide">ClearAir Income - by Subcontractor</h4>
+                      <span className="text-xs text-indigo-600">{subIncomeLeads.length} job{subIncomeLeads.length === 1 ? '' : 's'} · not taxed</span>
+                    </div>
+                    <div className="divide-y divide-indigo-100">
+                      <div className="flex justify-between items-center py-2 px-4">
+                        <span className="text-sm text-slate-700">Amit (in Net Income above)</span>
+                        <span className="text-sm font-semibold text-slate-900">{formatCurrency(subAmitIncome)}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 px-4">
+                        <span className="text-sm text-slate-700">Sophia (in Sophia Commission above)</span>
+                        <span className="text-sm font-semibold text-slate-900">{formatCurrency(subSophiaIncome)}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 px-4 bg-indigo-50">
+                        <span className="text-sm font-bold text-indigo-800">Total ClearAir Income</span>
+                        <span className="text-base font-bold text-indigo-800">{formatCurrency(totalSubIncome)}</span>
+                      </div>
+                      {totalSubOwed > 0 && (
+                        <div className="flex justify-between items-center py-2 px-4 bg-amber-50">
+                          <span className="text-sm text-amber-800">— of which still owed to you (awaiting payment)</span>
+                          <span className="text-sm font-bold text-amber-700">{formatCurrency(totalSubOwed)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Income by Subcontractor — ranked, who brings in the most */}
+                {subIncomeByName.length > 0 && (
+                  <div className="border border-slate-200 rounded-lg overflow-hidden">
+                    <div className="bg-slate-100 px-4 py-2 border-b border-slate-200">
+                      <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Subcontractor Income</h4>
+                    </div>
+                    <div className="divide-y divide-slate-100">
+                      {subIncomeByName.map((s, i) => {
+                        const closeRate = s.assigned > 0 ? Math.round((s.done / s.assigned) * 100) : 0;
+                        const rateColor = closeRate >= 67 ? 'bg-green-100 text-green-700'
+                          : closeRate >= 34 ? 'bg-amber-100 text-amber-700'
+                          : 'bg-red-100 text-red-700';
+                        return (
+                          <div key={s.name} className="py-3 px-4">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="flex items-center gap-2 text-sm">
+                                <span className="text-xs font-bold text-slate-400 w-4">{i + 1}</span>
+                                <span className={`inline-block w-2.5 h-2.5 rounded-full ${subColor(s.name === UNNAMED_SUB_LABEL ? '' : s.name).dot}`} />
+                                <span className="font-medium text-slate-800">{s.name}</span>
+                                <span className="text-xs text-slate-500 font-medium">{s.done}/{s.assigned} done</span>
+                                <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${rateColor}`}>{closeRate}%</span>
+                              </span>
+                              <span className="text-sm font-bold text-slate-900">{formatCurrency(s.income)}</span>
+                            </div>
+                            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${subColor(s.name === UNNAMED_SUB_LABEL ? '' : s.name).dot}`}
+                                style={{ width: `${subIncomeMax > 0 ? (s.income / subIncomeMax) * 100 : 0}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {/* Total — should tie out to Total ClearAir Income above */}
+                      {(() => {
+                        const leaderboardTotal = subIncomeByName.reduce((sum, s) => sum + s.income, 0);
+                        const tiesOut = Math.abs(leaderboardTotal - totalSubIncome) < 0.01;
+                        return (
+                          <div className="flex items-center justify-between py-3 px-4 bg-slate-50">
+                            <span className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                              Total Subcontractor Income
+                              {tiesOut ? (
+                                <span className="text-[11px] font-semibold text-green-600" title="Matches Total ClearAir Income">✓ ties out</span>
+                              ) : (
+                                <span className="text-[11px] font-semibold text-red-600" title={`Total ClearAir Income is ${formatCurrency(totalSubIncome)}`}>⚠ doesn’t match</span>
+                              )}
+                            </span>
+                            <span className="text-base font-bold text-slate-900">{formatCurrency(leaderboardTotal)}</span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })()}
