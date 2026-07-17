@@ -552,7 +552,7 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseD
                         className={`w-2 h-2 rounded-full shrink-0 ${
                           isSubcontractorJob(job)
                             ? subColor(job['Subcontractor Name']).dot
-                            : 'bg-slate-400'
+                            : subColor(job['Assigned To']).dot
                         }`}
                       />
                       <span className="text-[10px] font-medium truncate">

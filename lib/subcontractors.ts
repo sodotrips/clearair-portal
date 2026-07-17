@@ -17,16 +17,35 @@ export interface Lead {
 }
 
 // Tailwind classes must be written out in full — dynamic strings get purged.
-export const SUB_PALETTE = [
-  { dot: 'bg-violet-500', card: 'bg-violet-100 border-violet-500 text-violet-900', text: 'text-violet-700' },
-  { dot: 'bg-orange-500', card: 'bg-orange-100 border-orange-500 text-orange-900', text: 'text-orange-700' },
-  { dot: 'bg-pink-500', card: 'bg-pink-100 border-pink-500 text-pink-900', text: 'text-pink-700' },
-  { dot: 'bg-cyan-500', card: 'bg-cyan-100 border-cyan-500 text-cyan-900', text: 'text-cyan-700' },
-  { dot: 'bg-lime-600', card: 'bg-lime-100 border-lime-600 text-lime-900', text: 'text-lime-700' },
-  { dot: 'bg-fuchsia-500', card: 'bg-fuchsia-100 border-fuchsia-500 text-fuchsia-900', text: 'text-fuchsia-700' },
-  { dot: 'bg-sky-500', card: 'bg-sky-100 border-sky-500 text-sky-900', text: 'text-sky-700' },
-  { dot: 'bg-rose-500', card: 'bg-rose-100 border-rose-500 text-rose-900', text: 'text-rose-700' },
-];
+const VIOLET = { dot: 'bg-violet-500', card: 'bg-violet-100 border-violet-500 text-violet-900', text: 'text-violet-700' };
+const ORANGE = { dot: 'bg-orange-500', card: 'bg-orange-100 border-orange-500 text-orange-900', text: 'text-orange-700' };
+const PINK = { dot: 'bg-pink-500', card: 'bg-pink-100 border-pink-500 text-pink-900', text: 'text-pink-700' };
+const CYAN = { dot: 'bg-cyan-500', card: 'bg-cyan-100 border-cyan-500 text-cyan-900', text: 'text-cyan-700' };
+const LIME = { dot: 'bg-lime-600', card: 'bg-lime-100 border-lime-600 text-lime-900', text: 'text-lime-700' };
+const FUCHSIA = { dot: 'bg-fuchsia-500', card: 'bg-fuchsia-100 border-fuchsia-500 text-fuchsia-900', text: 'text-fuchsia-700' };
+const SKY = { dot: 'bg-sky-500', card: 'bg-sky-100 border-sky-500 text-sky-900', text: 'text-sky-700' };
+const ROSE = { dot: 'bg-rose-500', card: 'bg-rose-100 border-rose-500 text-rose-900', text: 'text-rose-700' };
+const AMBER = { dot: 'bg-amber-500', card: 'bg-amber-100 border-amber-500 text-amber-900', text: 'text-amber-700' };
+const INDIGO = { dot: 'bg-indigo-500', card: 'bg-indigo-100 border-indigo-500 text-indigo-900', text: 'text-indigo-700' };
+// Teal is reserved for Amit — kept OUT of the auto palette so nobody else gets it.
+const TEAL = { dot: 'bg-teal-500', card: 'bg-teal-100 border-teal-500 text-teal-900', text: 'text-teal-700' };
+
+// Fallback palette for names that aren't explicitly pinned below (teal excluded).
+export const SUB_PALETTE = [VIOLET, ORANGE, PINK, CYAN, LIME, FUCHSIA, SKY, ROSE, AMBER, INDIGO];
+
+// Pinned colors so each person is visually distinct and stable. Amit = teal.
+// Add a new subcontractor here to guarantee a unique color; unlisted names get a
+// deterministic hash color from SUB_PALETTE.
+const FIXED_COLORS: Record<string, typeof VIOLET> = {
+  'amit': TEAL,
+  'rafael': VIOLET,
+  'josef': ORANGE,
+  'nisim': PINK,
+  'ben': CYAN,
+  'dani': LIME,
+  'sean(sanantonio)': FUCHSIA,
+  'shaylian': SKY,
+};
 
 export const UNNAMED_SUB = {
   dot: 'bg-slate-400',
@@ -66,11 +85,14 @@ export function amountOwed(lead: Lead): number {
   return parseFloat(raw) || 0;
 }
 
-// Stable color for a given name, so a sub keeps the same color forever and new
-// subs get one automatically without any config.
+// Stable, distinct color per name. Pinned names (Amit = teal, plus each known
+// subcontractor) get their reserved color; everyone else gets a deterministic
+// hash color so the same name always looks the same everywhere.
 export function subColor(name: string | undefined) {
   const n = normalizeSubName(name);
   if (!n) return UNNAMED_SUB;
+  const pinned = FIXED_COLORS[n.toLowerCase()];
+  if (pinned) return pinned;
   let hash = 0;
   for (let i = 0; i < n.length; i++) {
     hash = (hash * 31 + n.charCodeAt(i)) >>> 0;

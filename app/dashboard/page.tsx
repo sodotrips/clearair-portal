@@ -78,7 +78,7 @@ export default function Dashboard() {
 
   // Dropdown options for inline editing
   const cities = ['Houston', 'Katy', 'Sugar Land', 'Pearland', 'Spring', 'Cypress', 'The Woodlands', 'Humble', 'Pasadena', 'League City', 'Missouri City', 'Baytown', 'Conroe', 'Richmond', 'Tomball'];
-  const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Air Duct & Dryer Vent', 'Attic Insulation', 'Duct Replacement', 'Chimney Services'];
+  const services = ['Air Duct Cleaning', 'Dryer Vent Cleaning', 'Air Duct & Dryer Vent', 'Attic Insulation', 'Duct Replacement', 'Chimney Services', 'UV Light'];
   const techs = ['Amit', 'Tech 2', 'Subcontractor'];
   // Sub names are self-seeding: whatever is already recorded in column AG.
   const subcontractorNames = getSubcontractorNames(leads);
