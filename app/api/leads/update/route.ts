@@ -36,6 +36,8 @@ const COLUMN_MAP: Record<string, number> = {
   'Pets': 53,             // BB
   'Issues Found': 61,     // BJ
   'Tech Notes': 70,       // BS
+  'Final Amount Charged': 73, // BV
+  'Credit Card Fee': 74,  // BW
   'Payment Method': 75,   // BX
   'Amount Paid': 77,      // BZ
   'Balance Due': 78,      // CA

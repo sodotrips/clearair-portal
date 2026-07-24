@@ -227,6 +227,9 @@ export default function FinancialDashboard() {
   // Card 1: Total Gross Sales (sum of Amount Paid for closed SALES jobs — sub excluded)
   const totalGrossSales = salesClosedLeads.reduce((sum, l) => sum + parseCurrency(l['Amount Paid']), 0);
 
+  // Credit card fees collected — pass-through only (not income, not taxed).
+  const totalCreditCardFees = salesClosedLeads.reduce((sum, l) => sum + parseCurrency(l['Credit Card Fee']), 0);
+
   // Card 2: Total Gross Profit (sum of Profit $ for closed sales jobs)
   const totalGrossProfit = salesClosedLeads.reduce((sum, l) => sum + parseCurrency(l['Profit $']), 0);
   const totalRevenue = totalGrossProfit; // Alias for commission calculations
@@ -920,6 +923,16 @@ export default function FinancialDashboard() {
                       </span>
                     </div>
                   </div>
+                </div>
+
+                {/* Credit card fees — pass-through memo (not income, not taxed).
+                    Shown for the selected date range so it can be reconciled. */}
+                <div className="border border-slate-200 rounded-lg flex justify-between items-center px-4 py-3">
+                  <div>
+                    <span className="text-sm font-medium text-slate-700">Credit Card Fees collected</span>
+                    <span className="block text-xs text-slate-400">Pass-through — not in Net Income, gross sales, or tax</span>
+                  </div>
+                  <span className="text-lg font-bold text-slate-700">{formatCurrency(totalCreditCardFees)}</span>
                 </div>
 
                 {/* Subcontractor bucket — a SEPARATE book from the regular P&L

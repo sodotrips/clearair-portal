@@ -33,6 +33,30 @@ export default function CloseDealModal({ lead, onClose, onSuccess }: CloseDealMo
   // Payment fields - pre-filled from tech checkout (read-only if already set)
   const [amountPaid, setAmountPaid] = useState(lead['Amount Paid'] || '');
   const [paymentMethod, setPaymentMethod] = useState(lead['Payment Method'] || '');
+  // Credit card fee — the customer's final card charge already includes the fee.
+  // Enter the final charge; the fee defaults to 4% (CC_FEE_PCT) but the dollar
+  // amount can be typed directly. Amount Paid = final charge − fee (job + tax).
+  const CC_FEE_PCT = 4;
+  const [finalCharged, setFinalCharged] = useState(lead['Final Amount Charged'] || '');
+  const [ccFeeAmount, setCcFeeAmount] = useState(lead['Credit Card Fee'] || '');
+
+  // Derive Amount Paid (taxed total) + Total Cost from the final charge and fee $.
+  const deriveFromFee = (finalStr: string, feeStr: string) => {
+    const final = parseNum(finalStr);
+    const fee = parseNum(feeStr);
+    const taxedTotal = Math.max(0, final - fee);
+    setAmountPaid(taxedTotal > 0 ? taxedTotal.toFixed(2) : '');
+    setTotalCost(taxedTotal > 0 ? (taxedTotal / 1.0825).toFixed(2) : '');
+  };
+
+  // Default the fee to CC_FEE_PCT of the charge, then derive the rest.
+  const applyDefaultFee = (finalStr: string) => {
+    const final = parseNum(finalStr);
+    const fee = final > 0 ? final - final / (1 + CC_FEE_PCT / 100) : 0;
+    const feeStr = final > 0 ? fee.toFixed(2) : '';
+    setCcFeeAmount(feeStr);
+    deriveFromFee(finalStr, feeStr);
+  };
   const paymentFromTech = !!(lead['Amount Paid'] && lead['Payment Method']);
   const [paymentDate, setPaymentDate] = useState(lead['Payment Date'] || getTodayHouston());
   const [laborCost, setLaborCost] = useState(lead['Labor Cost'] || '');
@@ -106,10 +130,18 @@ export default function CloseDealModal({ lead, onClose, onSuccess }: CloseDealMo
     setLoading(true);
 
     try {
+      const isCreditCard = paymentMethod === 'Credit Card';
+      // For credit card, the fee is baked into the final charge. amountPaid already
+      // holds the backed-out taxed total (final − fee); ccFeeAmount is the fee $.
+      // Kept out of Amount Paid so gross sales & sales tax stay correct.
+      const ccFee = isCreditCard ? parseNum(ccFeeAmount) : 0;
+
       const updates: Record<string, string> = {
         'Status': 'CLOSED',
         'Amount Paid': amountPaid,
         'Payment Method': paymentMethod,
+        'Credit Card Fee': isCreditCard ? ccFee.toFixed(2) : '',
+        'Final Amount Charged': isCreditCard ? parseNum(finalCharged).toFixed(2) : '',
         'Payment Date': paymentDate,
         'Labor Cost': laborCost,
         'Material Cost': materialCost,
@@ -155,6 +187,10 @@ export default function CloseDealModal({ lead, onClose, onSuccess }: CloseDealMo
   const labelClass = "block text-slate-700 text-xs font-medium mb-1";
 
   const profitVal = parseFloat(calculateProfit());
+
+  // Credit card fee preview — fee dollar amount is the source of truth.
+  const isCreditCard = paymentMethod === 'Credit Card';
+  const money = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -229,24 +265,64 @@ export default function CloseDealModal({ lead, onClose, onSuccess }: CloseDealMo
                 </div>
               </div>
 
+              {/* Credit card fee — you enter the final card charge; the fee is
+                  backed out so Amount Paid = job + tax only. Shown before the
+                  amounts so Amount Paid can derive from it. */}
+              {isCreditCard && (
+                <div className="border border-blue-200 bg-blue-50/50 rounded-lg p-3 space-y-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelClass}>Final Amount Charged (on card)</label>
+                      <input
+                        type="text"
+                        value={finalCharged}
+                        onChange={(e) => { setFinalCharged(e.target.value); applyDefaultFee(e.target.value); }}
+                        placeholder="$0.00"
+                        className={inputClass}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Credit Card Fee $ (default {CC_FEE_PCT}%)</label>
+                      <input
+                        type="text"
+                        value={ccFeeAmount}
+                        onChange={(e) => { setCcFeeAmount(e.target.value); deriveFromFee(finalCharged, e.target.value); }}
+                        placeholder="$0.00"
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Fee auto-fills at {CC_FEE_PCT}% of the card charge — override the dollar amount if needed. It&apos;s backed
+                    out and tracked separately, not counted in gross sales, sales tax, or income.
+                  </p>
+                </div>
+              )}
+
               {/* Row 2: Amount Paid, Total Cost */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelClass}>Amount Paid (tax included)</label>
-                  <input
-                    type="text"
-                    value={amountPaid}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setAmountPaid(val);
-                      const paid = parseFloat(val.replace(/[^0-9.-]/g, '')) || 0;
-                      if (paid > 0) {
-                        setTotalCost((paid / 1.0825).toFixed(2));
-                      }
-                    }}
-                    placeholder="$0.00"
-                    className={paymentFromTech ? `${inputClass} border-green-300 bg-green-50` : inputClass}
-                  />
+                  <label className={labelClass}>
+                    {isCreditCard ? 'Amount Paid (job + tax, fee removed)' : 'Amount Paid (tax included)'}
+                  </label>
+                  {isCreditCard ? (
+                    <div className={`${readOnlyClass} font-medium`}>{money(parseNum(amountPaid))}</div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={amountPaid}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setAmountPaid(val);
+                        const paid = parseFloat(val.replace(/[^0-9.-]/g, '')) || 0;
+                        if (paid > 0) {
+                          setTotalCost((paid / 1.0825).toFixed(2));
+                        }
+                      }}
+                      placeholder="$0.00"
+                      className={paymentFromTech ? `${inputClass} border-green-300 bg-green-50` : inputClass}
+                    />
+                  )}
                 </div>
                 <div>
                   <label className={labelClass}>Total Cost (before tax)</label>

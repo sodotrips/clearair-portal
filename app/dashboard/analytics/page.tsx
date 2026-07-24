@@ -42,7 +42,25 @@ export default function AnalyticsDashboard() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [dateRange, setDateRange] = useState('thisMonth');
+  // Date range filter — same control as the Financials page (from/to + presets)
+  const formatLocalDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  const getWeekRange = (date: Date = new Date()) => {
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const dayOfWeek = d.getDay(); // 0=Sun, 6=Sat
+    const start = new Date(d);
+    start.setDate(d.getDate() - dayOfWeek); // Sunday
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6); // Saturday
+    return { start: formatLocalDate(start), end: formatLocalDate(end) };
+  };
+
+  const [dateRange, setDateRange] = useState(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return { start: formatLocalDate(start), end: formatLocalDate(end) };
+  });
 
   useEffect(() => {
     fetchLeads();
@@ -64,12 +82,6 @@ export default function AnalyticsDashboard() {
     }
   }
 
-  // Houston timezone helper
-  const getHoustonDate = () => {
-    const now = new Date();
-    return new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
-  };
-
   // Parse date string to Date object
   const parseDate = (dateStr: string): Date | null => {
     if (!dateStr || dateStr === '-') return null;
@@ -85,48 +97,81 @@ export default function AnalyticsDashboard() {
     return null;
   };
 
-  // Filter leads by date range
+  // Range bounds as Date objects (local time).
+  const rangeBounds = () => {
+    const [sy, sm, sd] = dateRange.start.split('-').map(Number);
+    const [ey, em, ed] = dateRange.end.split('-').map(Number);
+    return {
+      startDate: new Date(sy, sm - 1, sd, 0, 0, 0, 0),
+      endDate: new Date(ey, em - 1, ed, 23, 59, 59, 999),
+    };
+  };
+
+  // Lead-intake basis: filter by when the lead was CREATED (Timestamp Received).
+  // Drives Total Leads, status mix, sources, and leads-over-time.
   const filterByDateRange = (leads: Lead[]) => {
-    const today = getHoustonDate();
-    let startDate: Date;
-    let endDate: Date = today;
-
-    switch (dateRange) {
-      case 'thisWeek': {
-        // Start of current week (Sunday)
-        startDate = new Date(today);
-        startDate.setDate(today.getDate() - today.getDay());
-        startDate.setHours(0, 0, 0, 0);
-        break;
-      }
-      case 'thisMonth': {
-        // Start of current month
-        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-        break;
-      }
-      case 'lastMonth': {
-        // Start and end of last month
-        startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        endDate = new Date(today.getFullYear(), today.getMonth(), 0); // Last day of previous month
-        break;
-      }
-      case 'thisYear': {
-        // Start of current year
-        startDate = new Date(today.getFullYear(), 0, 1);
-        break;
-      }
-      default:
-        startDate = new Date(0); // All time
-    }
-
+    const { startDate, endDate } = rangeBounds();
     return leads.filter(lead => {
-      const leadDate = parseDate(lead['Timestamp Received']);
-      if (!leadDate) return false;
-      return leadDate >= startDate && leadDate <= endDate;
+      const d = parseDate(lead['Timestamp Received']);
+      return d ? d >= startDate && d <= endDate : false;
     });
   };
 
-  const filteredLeads = dateRange === 'all' ? leads : filterByDateRange(leads);
+  // Job-outcome basis: filter by Appointment Date. Drives the "Closed jobs" count.
+  const filterByAppointment = (leads: Lead[]) => {
+    const { startDate, endDate } = rangeBounds();
+    return leads.filter(lead => {
+      const d = parseDate(lead['Appointment Date']);
+      return d ? d >= startDate && d <= endDate : false;
+    });
+  };
+
+  // A job counts as closed if CLOSED or AWAITING PAYMENT (work done; sub owes us).
+  const isClosedStatus = (lead: Lead) => {
+    const s = lead['Status']?.toUpperCase();
+    return s === 'CLOSED' || s === 'AWAITING PAYMENT';
+  };
+
+  // Job counts by appointment date (operations view), separate from lead intake.
+  const apptLeads = filterByAppointment(leads);
+  const closedJobsCount = apptLeads.filter(isClosedStatus).length;
+  const quotedJobsCount = apptLeads.filter(l => l['Status']?.toUpperCase() === 'QUOTED').length;
+  const scheduledJobsCount = apptLeads.filter(l => l['Status']?.toUpperCase() === 'SCHEDULED').length;
+
+  const filteredLeads = filterByDateRange(leads);
+
+  // Date preset functions — identical to the Financials page
+  const setThisWeek = () => setDateRange(getWeekRange());
+  const setLastWeek = () => {
+    const now = new Date();
+    const thisSunday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+    const lastWeekDay = new Date(thisSunday);
+    lastWeekDay.setDate(thisSunday.getDate() - 1);
+    setDateRange(getWeekRange(lastWeekDay));
+  };
+  const setThisMonth = () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    setDateRange({ start: formatLocalDate(start), end: formatLocalDate(end) });
+  };
+  const setThisYear = () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 1);
+    const end = new Date(now.getFullYear(), 11, 31);
+    setDateRange({ start: formatLocalDate(start), end: formatLocalDate(end) });
+  };
+  const setAllTime = () => {
+    setDateRange({ start: '2020-01-01', end: formatLocalDate(new Date()) });
+  };
+  const formatDateRange = () => {
+    const [sy, sm, sd] = dateRange.start.split('-').map(Number);
+    const [ey, em, ed] = dateRange.end.split('-').map(Number);
+    const start = new Date(sy, sm - 1, sd);
+    const end = new Date(ey, em - 1, ed);
+    const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+    return `${start.toLocaleDateString('en-US', options)} - ${end.toLocaleDateString('en-US', options)}, ${end.getFullYear()}`;
+  };
 
   // Calculate stats
   const stats = {
@@ -134,17 +179,18 @@ export default function AnalyticsDashboard() {
     new: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'NEW').length,
     scheduled: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'SCHEDULED').length,
     quoted: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'QUOTED').length,
-    closed: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'CLOSED').length,
+    closed: filteredLeads.filter(isClosedStatus).length,
     completed: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'COMPLETED').length,
     canceled: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'CANCELED').length,
     lost: filteredLeads.filter(l => l['Status']?.toUpperCase() === 'LOST').length,
   };
 
-  // Closed + Completed = total successful jobs
-  const totalClosed = stats.closed + stats.completed;
-
-  const conversionRate = stats.total > 0
-    ? Math.round((totalClosed / stats.total) * 100)
+  // Conversion = of the jobs a tech actually visited, how many closed.
+  // A visit ends in either a quote or a close; scheduled = not visited yet,
+  // canceled = no visit. So visited = Quoted + Closed (appointment-based).
+  const visitedJobsCount = quotedJobsCount + closedJobsCount;
+  const conversionRate = visitedJobsCount > 0
+    ? Math.round((closedJobsCount / visitedJobsCount) * 100)
     : 0;
 
   // Status distribution for donut chart
@@ -209,7 +255,7 @@ export default function AnalyticsDashboard() {
     if (status === 'NEW') sourceDetailStats[sourceDetail].new++;
     else if (status === 'SCHEDULED') sourceDetailStats[sourceDetail].scheduled++;
     else if (status === 'QUOTED') sourceDetailStats[sourceDetail].quoted++;
-    else if (status === 'CLOSED') sourceDetailStats[sourceDetail].closed++;
+    else if (status === 'CLOSED' || status === 'AWAITING PAYMENT') sourceDetailStats[sourceDetail].closed++;
     else if (status === 'COMPLETED') sourceDetailStats[sourceDetail].completed++;
     else if (status === 'CANCELED') sourceDetailStats[sourceDetail].canceled++;
     else if (status === 'LOST') sourceDetailStats[sourceDetail].lost++;
@@ -312,86 +358,40 @@ export default function AnalyticsDashboard() {
     }]
   };
 
-  // Leads over time based on selected range
+  // Leads over time across the selected from/to range. Long ranges (> ~13 weeks)
+  // group by month; shorter ranges group by day.
   const getLeadsOverTime = () => {
-    const today = getHoustonDate();
     const data: Record<string, number> = {};
-    let days: number;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const [sy, sm, sd] = dateRange.start.split('-').map(Number);
+    const [ey, em, ed] = dateRange.end.split('-').map(Number);
+    const start = new Date(sy, sm - 1, sd);
+    const end = new Date(ey, em - 1, ed);
+    const dayMs = 1000 * 60 * 60 * 24;
+    const totalDays = Math.round((end.getTime() - start.getTime()) / dayMs) + 1;
+    const byMonth = totalDays > 92;
 
-    switch (dateRange) {
-      case 'thisWeek':
-        days = 7;
-        break;
-      case 'thisMonth':
-        days = today.getDate(); // Days so far this month
-        break;
-      case 'lastMonth': {
-        const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
-        days = lastMonthEnd.getDate(); // Days in last month
-        break;
+    const monthKey = (d: Date) => `${months[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+    const dayKey = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`;
+
+    if (byMonth) {
+      const cur = new Date(start.getFullYear(), start.getMonth(), 1);
+      while (cur <= end) {
+        data[monthKey(cur)] = 0;
+        cur.setMonth(cur.getMonth() + 1);
       }
-      case 'thisYear':
-        days = Math.ceil((today.getTime() - new Date(today.getFullYear(), 0, 1).getTime()) / (1000 * 60 * 60 * 24));
-        break;
-      default:
-        days = 30; // All time defaults to 30 day view
-    }
-
-    // For year view, group by month instead of day
-    if (dateRange === 'thisYear') {
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      for (let i = 0; i <= today.getMonth(); i++) {
-        data[months[i]] = 0;
-      }
-
-      filteredLeads.forEach(lead => {
-        const leadDate = parseDate(lead['Timestamp Received']);
-        if (leadDate) {
-          const key = months[leadDate.getMonth()];
-          if (data[key] !== undefined) {
-            data[key]++;
-          }
-        }
-      });
-    } else if (dateRange === 'lastMonth') {
-      // Show days of last month
-      const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
-      const daysInLastMonth = lastMonthEnd.getDate();
-
-      for (let i = 1; i <= daysInLastMonth; i++) {
-        const key = `${today.getMonth()}/${i}`;
-        data[key] = 0;
-      }
-
-      filteredLeads.forEach(lead => {
-        const leadDate = parseDate(lead['Timestamp Received']);
-        if (leadDate) {
-          const key = `${leadDate.getMonth() + 1}/${leadDate.getDate()}`;
-          if (data[key] !== undefined) {
-            data[key]++;
-          }
-        }
-      });
     } else {
-      // Initialize all days with 0
-      for (let i = days - 1; i >= 0; i--) {
-        const date = new Date(today);
-        date.setDate(date.getDate() - i);
-        const key = `${date.getMonth() + 1}/${date.getDate()}`;
-        data[key] = 0;
+      for (let t = start.getTime(); t <= end.getTime(); t += dayMs) {
+        data[dayKey(new Date(t))] = 0;
       }
-
-      // Count leads per day
-      filteredLeads.forEach(lead => {
-        const leadDate = parseDate(lead['Timestamp Received']);
-        if (leadDate) {
-          const key = `${leadDate.getMonth() + 1}/${leadDate.getDate()}`;
-          if (data[key] !== undefined) {
-            data[key]++;
-          }
-        }
-      });
     }
+
+    filteredLeads.forEach(lead => {
+      const leadDate = parseDate(lead['Timestamp Received']);
+      if (!leadDate) return;
+      const key = byMonth ? monthKey(leadDate) : dayKey(leadDate);
+      if (data[key] !== undefined) data[key]++;
+    });
 
     return data;
   };
@@ -423,7 +423,7 @@ export default function AnalyticsDashboard() {
         techStats[tech] = { total: 0, closed: 0 };
       }
       techStats[tech].total++;
-      if (lead['Status']?.toUpperCase() === 'CLOSED') {
+      if (isClosedStatus(lead)) {
         techStats[tech].closed++;
       }
     }
@@ -508,17 +508,6 @@ export default function AnalyticsDashboard() {
           </div>
           <div className="flex flex-wrap items-center gap-2 lg:gap-4">
             <DashboardMainNav />
-            <select
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-              className="bg-[#1a3a5c] text-white border border-slate-600 rounded-lg px-4 py-2 text-sm"
-            >
-              <option value="thisWeek">This Week</option>
-              <option value="thisMonth">This Month</option>
-              <option value="lastMonth">Last Month</option>
-              <option value="thisYear">This Year</option>
-              <option value="all">All Time</option>
-            </select>
           </div>
         </div>
       </header>
@@ -528,23 +517,66 @@ export default function AnalyticsDashboard() {
           <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6">{error}</div>
         )}
 
+        {/* Date Range Filter - same control as the Financials page */}
+        <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-slate-600">From:</label>
+              <input
+                type="date"
+                value={dateRange.start}
+                onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-slate-600">To:</label>
+              <input
+                type="date"
+                value={dateRange.end}
+                onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                className="px-3 py-2 border border-slate-300 rounded-lg text-sm"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={setThisWeek} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">This Week</button>
+              <button onClick={setLastWeek} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">Last Week</button>
+              <button onClick={setThisMonth} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">This Month</button>
+              <button onClick={setThisYear} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">This Year</button>
+              <button onClick={setAllTime} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm transition">All Time</button>
+            </div>
+          </div>
+          <div className="mt-2 text-sm text-slate-500">
+            Showing data for: <span className="font-medium text-slate-700">{formatDateRange()}</span>
+          </div>
+        </div>
+
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-white rounded-xl shadow-sm p-5">
             <p className="text-slate-500 text-sm font-medium">Total Leads</p>
             <p className="text-3xl font-bold text-[#0a2540] mt-1">{stats.total}</p>
+            <p className="text-xs text-slate-400 mt-1">created in range</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5">
-            <p className="text-slate-500 text-sm font-medium">Pending</p>
-            <p className="text-3xl font-bold text-amber-500 mt-1">{stats.new + stats.scheduled + stats.quoted}</p>
+            <p className="text-slate-500 text-sm font-medium">Quoted</p>
+            <p className="text-3xl font-bold text-amber-500 mt-1">{quotedJobsCount}</p>
+            <p className="text-xs text-slate-400 mt-1">quoted to customer</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5">
-            <p className="text-slate-500 text-sm font-medium">Closed</p>
-            <p className="text-3xl font-bold text-green-600 mt-1">{totalClosed}</p>
+            <p className="text-slate-500 text-sm font-medium">Scheduled</p>
+            <p className="text-3xl font-bold text-blue-600 mt-1">{scheduledJobsCount}</p>
+            <p className="text-xs text-slate-400 mt-1">upcoming jobs</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-sm p-5">
+            <p className="text-slate-500 text-sm font-medium">Closed Jobs</p>
+            <p className="text-3xl font-bold text-green-600 mt-1">{closedJobsCount}</p>
+            <p className="text-xs text-slate-400 mt-1">by appointment date</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm p-5">
             <p className="text-slate-500 text-sm font-medium">Conversion Rate</p>
             <p className="text-3xl font-bold text-[#14b8a6] mt-1">{conversionRate}%</p>
+            <p className="text-xs text-slate-400 mt-1">{closedJobsCount} closed / {visitedJobsCount} visited</p>
           </div>
         </div>
 

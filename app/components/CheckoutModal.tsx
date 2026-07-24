@@ -53,6 +53,16 @@ export default function CheckoutModal({ lead, onClose, onSuccess }: CheckoutModa
   const [invoiceNumber, setInvoiceNumber] = useState(lead['Invoice Number'] || '');
   const [totalPaid, setTotalPaid] = useState(hasDeposit ? balanceDue.toFixed(2) : (lead['Quote Amount'] || ''));
   const [paymentMethod, setPaymentMethod] = useState('');
+  // Credit card fee: default 4% (CC_FEE_PCT), backed out of the final card charge.
+  // Only the dollar amount is tracked/editable; the % lives in code.
+  const CC_FEE_PCT = 4;
+  const [ccFeeAmount, setCcFeeAmount] = useState('');
+
+  // Default fee $ from a final charge at the standard rate.
+  const defaultFeeFrom = (finalStr: string) => {
+    const final = parseFloat(finalStr) || 0;
+    return final > 0 ? (final - final / (1 + CC_FEE_PCT / 100)).toFixed(2) : '';
+  };
   const [laborCost, setLaborCost] = useState(lead['Labor Cost'] || '');
   const [materialCost, setMaterialCost] = useState(lead['Materials Cost'] || '');
   const [subcontractorCost, setSubcontractorCost] = useState(lead['Subcontractor Cost'] || '');
@@ -74,6 +84,15 @@ export default function CheckoutModal({ lead, onClose, onSuccess }: CheckoutModa
         hour12: true
       });
 
+      // Credit card: "Total Customer Paid" is the FINAL charge (fee included).
+      // Back the fee out so the books record job + tax only.
+      const isCC = paymentMethod === 'Credit Card';
+      const chargedNow = parseFloat(totalPaid) || 0;
+      // Fee $ is the source of truth (defaults to the % if not set).
+      const ccFee = isCC ? (parseFloat(ccFeeAmount) || parseFloat(defaultFeeFrom(totalPaid)) || 0) : 0;
+      const jobTaxNow = isCC ? Math.max(0, chargedNow - ccFee) : chargedNow; // fee removed
+      const amountPaidTotal = hasDeposit ? depositAmount + jobTaxNow : jobTaxNow;
+
       const updates: Record<string, string> = {
         'Check Out': checkoutTime,
       };
@@ -82,11 +101,14 @@ export default function CheckoutModal({ lead, onClose, onSuccess }: CheckoutModa
         // Job closed - payment collected, mark as COMPLETE (before dispatcher closes)
         updates['Status'] = 'COMPLETED';
         updates['Invoice Number'] = invoiceNumber;  // Column CC
-        // If deposit exists, total Amount Paid = deposit + balance collected
-        updates['Amount Paid'] = hasDeposit ? (depositAmount + parseFloat(totalPaid)).toFixed(2) : totalPaid;
+        // Amount Paid = job + tax (fee removed for credit card). Deposit added in.
+        updates['Amount Paid'] = amountPaidTotal.toFixed(2);
         updates['Payment Method'] = paymentMethod;
+        // Credit card fee is a pass-through, kept out of Amount Paid. Cleared otherwise.
+        updates['Credit Card Fee'] = isCC ? ccFee.toFixed(2) : '';
+        updates['Final Amount Charged'] = isCC ? chargedNow.toFixed(2) : '';
         updates['Payment Date'] = new Date().toLocaleDateString('en-US', { timeZone: 'America/Chicago' });
-        updates['Quote Amount'] = hasDeposit ? estimateTotal.toFixed(2) : totalPaid;
+        updates['Quote Amount'] = hasDeposit ? estimateTotal.toFixed(2) : jobTaxNow.toFixed(2);
         if (hasDeposit) updates['Balance Due'] = '0';
         if (laborCost) updates['Labor Cost'] = laborCost;
         if (materialCost) updates['Materials Cost'] = materialCost;
@@ -124,7 +146,7 @@ export default function CheckoutModal({ lead, onClose, onSuccess }: CheckoutModa
             const TAX_RATE = 0.0825;
             const tax = subtotal * TAX_RATE;
             const total = subtotal + tax;
-            const finalAmountPaid = hasDeposit ? (depositAmount + parseFloat(totalPaid)).toFixed(2) : totalPaid;
+            const finalAmountPaid = amountPaidTotal.toFixed(2);
 
             await fetch('/api/documents/send-invoice', {
               method: 'POST',
@@ -568,7 +590,9 @@ export default function CheckoutModal({ lead, onClose, onSuccess }: CheckoutModa
                   </div>
 
                   <div>
-                    <label className={labelClass}>Total Customer Paid <span className="text-red-500">*</span></label>
+                    <label className={labelClass}>
+                      {paymentMethod === 'Credit Card' ? 'Total Charged to Card (fee included)' : 'Total Customer Paid'} <span className="text-red-500">*</span>
+                    </label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">$</span>
                       <input
@@ -576,7 +600,7 @@ export default function CheckoutModal({ lead, onClose, onSuccess }: CheckoutModa
                         step="0.01"
                         min="0"
                         value={totalPaid}
-                        onChange={(e) => setTotalPaid(e.target.value)}
+                        onChange={(e) => { setTotalPaid(e.target.value); if (paymentMethod === 'Credit Card') setCcFeeAmount(defaultFeeFrom(e.target.value)); }}
                         placeholder="0.00"
                         required
                         className={`${inputClass} pl-8`}
@@ -588,7 +612,7 @@ export default function CheckoutModal({ lead, onClose, onSuccess }: CheckoutModa
                     <label className={labelClass}>Payment Method <span className="text-red-500">*</span></label>
                     <select
                       value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      onChange={(e) => { setPaymentMethod(e.target.value); if (e.target.value === 'Credit Card') setCcFeeAmount(defaultFeeFrom(totalPaid)); }}
                       required
                       className={inputClass}
                     >
@@ -598,6 +622,37 @@ export default function CheckoutModal({ lead, onClose, onSuccess }: CheckoutModa
                       ))}
                     </select>
                   </div>
+
+                  {/* Credit card fee — the "Total Customer Paid" above is the final
+                      card charge (fee included); we back the fee out here. */}
+                  {paymentMethod === 'Credit Card' && (() => {
+                    const chargedNow = parseFloat(totalPaid) || 0;
+                    const fee = parseFloat(ccFeeAmount) || parseFloat(defaultFeeFrom(totalPaid)) || 0;
+                    const jobTax = Math.max(0, chargedNow - fee);
+                    const fmt = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    return (
+                      <div className="border border-blue-200 bg-blue-50/50 rounded-lg p-3 mt-2 space-y-2">
+                        <p className="text-[11px] text-slate-500">The amount above is the final card charge — the fee is backed out below.</p>
+                        <div>
+                          <label className={labelClass}>Credit Card Fee $ (default {CC_FEE_PCT}%)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={ccFeeAmount}
+                            onChange={(e) => setCcFeeAmount(e.target.value)}
+                            placeholder={defaultFeeFrom(totalPaid) || '0.00'}
+                            className={`${inputClass} max-w-[10rem]`}
+                          />
+                        </div>
+                        <div className="flex justify-between items-center bg-white border border-slate-200 rounded-lg px-3 py-2">
+                          <span className="text-sm font-semibold text-slate-700">Job + tax (recorded)</span>
+                          <span className="text-base font-bold text-slate-800">{fmt(jobTax)}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400">Fee auto-fills at {CC_FEE_PCT}% — override the $ if needed. Not counted in sales, tax, or income.</p>
+                      </div>
+                    );
+                  })()}
 
                   {/* Cost Breakdown (optional) */}
                   <div className="border-t border-slate-200 pt-4 mt-2">
