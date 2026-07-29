@@ -462,6 +462,11 @@ export default function JobDetail() {
                 ? 'bg-teal-100 text-teal-700'
                 : 'bg-orange-100 text-orange-700'
             }`}>{job['Lead Source Detail'] || 'ClearAir'}</span>
+            {job['Priority Level']?.toUpperCase() === 'APPROVED' && (
+              <span className="inline-block ml-1.5 px-1.5 py-0.5 rounded text-xs font-bold bg-green-600 text-white whitespace-nowrap">
+                ✓ Customer Approved
+              </span>
+            )}
             {job['Referral Source'] && <span className="text-slate-400"> — {job['Referral Source']}</span>}
           </p>
         </div>

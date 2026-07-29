@@ -49,6 +49,11 @@ export default function JobCard({ job, compact, onCancel }: JobCardProps) {
           <p className="font-semibold text-sm text-[#0a2540] truncate">{job['Customer Name']}</p>
         </div>
         <div className="flex flex-col items-end gap-0.5 flex-shrink-0 ml-2">
+          {job['Priority Level']?.toUpperCase() === 'APPROVED' && (
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-600 text-white whitespace-nowrap">
+              ✓ Customer Approved
+            </span>
+          )}
           <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${statusStyles[status] || 'bg-slate-100'}`}>
             {status}
           </span>
