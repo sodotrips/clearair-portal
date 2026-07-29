@@ -520,7 +520,7 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseD
               </div>
 
               {/* Jobs List */}
-              <div className="h-[280px] overflow-y-auto calendar-scroll p-1.5 space-y-1">
+              <div className="h-[420px] overflow-y-auto calendar-scroll p-1.5 space-y-1">
                 {sortJobsByTime(jobs).map((job, jobIndex) => {
                   const jobStatus = job['Status']?.toUpperCase();
                   const isClosed = jobStatus === 'CLOSED';
@@ -560,6 +560,14 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseD
                           ? normalizeSubName(job['Subcontractor Name']) || UNNAMED_SUB_LABEL
                           : normalizeSubName(job['Assigned To']) || 'Unassigned'}
                       </span>
+                      {job['Priority Level']?.toUpperCase() === 'APPROVED' && (
+                        <span
+                          className="shrink-0 inline-flex items-center gap-0.5 px-1 py-px rounded bg-green-600 text-white text-[9px] font-bold"
+                          title="Approved by customer"
+                        >
+                          ✓ Approved
+                        </span>
+                      )}
                     </div>
                     {jobStatus === 'AWAITING PAYMENT' && (
                       <div className="inline-flex items-center gap-0.5 mt-0.5 px-1 py-px rounded bg-orange-500 text-white text-[9px] font-bold">

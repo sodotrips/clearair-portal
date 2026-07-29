@@ -24,7 +24,7 @@ export default function EditModal({ lead, onClose, onSuccess, subcontractorNames
   const leadSources = ['Google Ads', 'Facebook Ads', 'Organic', 'Referral', 'Lead Company', 'Repeat Customer', 'Partner'];
   const propertyTypes = ['Single Family', 'Townhouse', 'Apartment', 'Commercial - Office'];
   const statuses = ['NEW', 'SCHEDULED', 'IN PROGRESS', 'QUOTED', 'CLOSED', 'CANCELED'];
-  const priorities = ['LOW', 'MEDIUM', 'HIGH'];
+  const priorities = ['LOW', 'MEDIUM', 'HIGH', 'APPROVED'];
   const timeSlots = ['08:00AM - 11:00AM', '11:00AM - 2:00PM', '2:00PM - 5:00PM'];
   const technicians = ['Amit', 'Tech 2', 'Subcontractor'];
 
