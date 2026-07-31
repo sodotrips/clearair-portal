@@ -44,8 +44,34 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Final fallback: ZIP-centroid via Zippopotam (free, reliable, no rate limit).
+    // Ensures any address with a valid US ZIP resolves to at least an approximate
+    // point, so jobs are never dropped from the map when the street isn't found.
+    let approximate = false;
+    if (lat === null || lng === null) {
+      // Use the LAST 5-digit group — the trailing ZIP, not the house number.
+      const zips = String(address).match(/\b\d{5}\b/g);
+      const zip = zips ? zips[zips.length - 1] : null;
+      if (zip) {
+        try {
+          const zipResponse = await fetch(`https://api.zippopotam.us/us/${zip}`);
+          if (zipResponse.ok) {
+            const zipData = await zipResponse.json();
+            const place = zipData?.places?.[0];
+            if (place) {
+              lat = parseFloat(place.latitude);
+              lng = parseFloat(place.longitude);
+              approximate = true;
+            }
+          }
+        } catch (err) {
+          console.warn('ZIP-centroid geocoder failed for:', address);
+        }
+      }
+    }
+
     if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
-      return NextResponse.json({ success: true, lat, lng });
+      return NextResponse.json({ success: true, lat, lng, approximate });
     }
 
     return NextResponse.json({ success: false, error: 'Address not found' });
