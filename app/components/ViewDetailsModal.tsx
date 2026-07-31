@@ -377,7 +377,7 @@ export default function ViewDetailsModal({ lead, onClose, onEdit, onSchedule, on
               </Section>
 
               <Section title="Notes">
-                <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-700">
+                <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed break-words">
                   {lead['Customer Issue/Notes'] || 'No notes'}
                 </div>
               </Section>
