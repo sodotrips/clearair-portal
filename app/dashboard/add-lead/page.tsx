@@ -231,9 +231,9 @@ function AddLeadContent() {
                 <div>
                   <label className={labelClass}>Priority</label>
                   <select name="priority" defaultValue="MEDIUM" className={inputClass}>
-                    <option value="LOW">Low</option>
                     <option value="MEDIUM">Medium</option>
                     <option value="HIGH">High</option>
+                    <option value="REWORK">Rework</option>
                   </select>
                 </div>
               </div>

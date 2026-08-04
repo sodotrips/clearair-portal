@@ -568,6 +568,14 @@ export default function WeeklyCalendar({ leads, onSelectLead, onUpdate, onCloseD
                           ✓ Approved
                         </span>
                       )}
+                      {job['Priority Level']?.toUpperCase() === 'REWORK' && (
+                        <span
+                          className="shrink-0 inline-flex items-center gap-0.5 px-1 py-px rounded bg-red-600 text-white text-[9px] font-bold"
+                          title="Rework — customer complaint, redo"
+                        >
+                          🔧 Rework
+                        </span>
+                      )}
                     </div>
                     {jobStatus === 'AWAITING PAYMENT' && (
                       <div className="inline-flex items-center gap-0.5 mt-0.5 px-1 py-px rounded bg-orange-500 text-white text-[9px] font-bold">

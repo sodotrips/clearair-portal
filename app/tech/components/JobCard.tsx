@@ -54,6 +54,11 @@ export default function JobCard({ job, compact, onCancel }: JobCardProps) {
               ✓ Customer Approved
             </span>
           )}
+          {job['Priority Level']?.toUpperCase() === 'REWORK' && (
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-600 text-white whitespace-nowrap">
+              🔧 Rework
+            </span>
+          )}
           <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${statusStyles[status] || 'bg-slate-100'}`}>
             {status}
           </span>

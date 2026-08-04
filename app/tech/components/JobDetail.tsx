@@ -467,6 +467,11 @@ export default function JobDetail() {
                 ✓ Customer Approved
               </span>
             )}
+            {job['Priority Level']?.toUpperCase() === 'REWORK' && (
+              <span className="inline-block ml-1.5 px-1.5 py-0.5 rounded text-xs font-bold bg-red-600 text-white whitespace-nowrap">
+                🔧 Rework
+              </span>
+            )}
             {job['Referral Source'] && <span className="text-slate-400"> — {job['Referral Source']}</span>}
           </p>
         </div>
